@@ -455,7 +455,7 @@ void MacBundler::showSettingsDialogFor(ProjectPtr project)
                 // sips doesn't like double slashes in path names
                 iconFileDest.Replace(wxT("//"), wxT("/"));
 
-                std::cout << "Copying icon '" << iconSourcePath.mb_str() << "' to project\n";
+                std::cout << "Copying icon '" << iconSourcePath << "' to project\n";
 
                 if(iconSourcePath.EndsWith(wxT(".icns"))) {
                     if(not wxCopyFile(iconSourcePath, iconFileDest)) {
@@ -464,7 +464,7 @@ void MacBundler::showSettingsDialogFor(ProjectPtr project)
                 } else {
                     wxString cmd =
                         wxT("sips -s format icns '") + iconSourcePath + wxT("' --out '") + iconFileDest + wxT("'");
-                    std::cout << cmd.mb_str() << std::endl;
+                    std::cout << cmd << std::endl;
                     wxExecute(cmd, wxEXEC_SYNC);
                     if(not wxFileExists(iconFileDest)) {
                         wxMessageBox(_("Sorry, could not convert selected icon to icns format"));

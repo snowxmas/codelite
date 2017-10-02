@@ -80,7 +80,7 @@ void PHPParserThread::ParseFiles(PHPParserThreadRequest* request)
                                         request->requestType == PHPParserThreadRequest::kParseWorkspaceFilesFull ?
                                             PHPLookupTable::kUpdateMode_Full :
                                             PHPLookupTable::kUpdateMode_Fast,
-                                        [&]() { return PHPParserThread::ms_goingDown; },
+                                        []() { return PHPParserThread::ms_goingDown; },
                                         false);
     // reset the shutdown flag
     ms_goingDown = false;

@@ -11,7 +11,7 @@ wxString Bin2C(wxString filename)
 	unsigned char   data;
 	wxFileName 		fn(filename);
 	
-	if ((fp = fopen(filename.mb_str(), "rb")) != NULL) {
+	if ((fp = fopen(filename, "rb")) != NULL) {
 
 		fseek(fp, 0, SEEK_END);
 		fsize = size = ftell(fp);

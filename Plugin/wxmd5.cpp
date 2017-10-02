@@ -72,7 +72,7 @@ void wxMD5::SetText(const wxString& szText)
 const wxString wxMD5::GetDigest()
 {
 	MD5 context;
-	context.update((unsigned char*)m_szText.mb_str().data(), m_szText.Len());
+	context.update((unsigned char*)m_szText.c_str().AsUnsignedChar(), m_szText.Len());
 	context.finalize();
 	
 	wxString md5(context.hex_digest());

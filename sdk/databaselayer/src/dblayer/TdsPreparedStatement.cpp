@@ -178,7 +178,7 @@ void TdsPreparedStatement::SetParamString(int nPosition, const wxString& strValu
   AllocateParameter(nPosition);
   //wxCharBuffer valueBuffer = ConvertToUnicodeStream(strValue);
   //int nLength = GetEncodedStreamLength(strValue);
-  const char* valueBuffer = strValue.mb_str();
+  const char* valueBuffer = strValue;
   int nLength = strValue.Len();
   TDSCOLUMN* curcol = m_pParameters->columns[nPosition-1];
   curcol->column_type = SYBVARCHAR;

@@ -321,7 +321,7 @@ bool WinProcessImpl::Write(const wxString& buff)
     tmpCmd = tmpCmd.Trim().Trim(false);
     tmpCmd += wxT("\r\n");
 
-    strcpy(chBuf, tmpCmd.mb_str());
+    strcpy(chBuf, tmpCmd);
 
     // Make the pipe to non-blocking mode
     dwMode = PIPE_READMODE_BYTE | PIPE_NOWAIT;

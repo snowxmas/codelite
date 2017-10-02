@@ -91,7 +91,7 @@ bool OTLDatabaseLayer::Open()
 
     try
     {
-      m_database.rlogon(connectString.mb_str());
+      m_database.rlogon(connectString);
     }
     catch (otl_exception& e)
     {

@@ -199,7 +199,7 @@ bool CodeLiteLLDBApp::InitializeLLDB(const LLDBCommand& command)
     wxPrintf("codelite-lldb: creating target for file '%s'\n", command.GetExecutable());
     m_debugger = lldb::SBDebugger::Create();
     lldb::SBError lldbError;
-    m_target = m_debugger.CreateTarget(command.GetExecutable().mb_str().data(), NULL, NULL, true, lldbError);
+    m_target = m_debugger.CreateTarget(command.GetExecutable(), NULL, NULL, true, lldbError);
     if(!m_target.IsValid()) {
         wxPrintf("codelite-lldb: could not create target for file %s. %s\n", command.GetExecutable(),
             lldbError.GetCString());
@@ -569,14 +569,14 @@ void CodeLiteLLDBApp::ApplyBreakpoints(const LLDBCommand& command)
                 switch(breakPoint->GetType()) {
                 case LLDBBreakpoint::kFunction: {
                     wxPrintf("codelite-lldb: creating breakpoint by name: %s\n", breakPoint->GetName());
-                    m_target.BreakpointCreateByName(breakPoint->GetName().mb_str().data(), NULL);
+                    m_target.BreakpointCreateByName(breakPoint->GetName(), NULL);
                     break;
                 }
                 case LLDBBreakpoint::kFileLine: {
                     wxPrintf("codelite-lldb: creating breakpoint by location: %s,%d\n", breakPoint->GetFilename(),
                         breakPoint->GetLineNumber());
                     m_target.BreakpointCreateByLocation(
-                        breakPoint->GetFilename().mb_str().data(), breakPoint->GetLineNumber());
+                        breakPoint->GetFilename(), breakPoint->GetLineNumber());
                     break;
                 }
                 }

@@ -114,7 +114,7 @@ void clSSH::Connect(int seconds) throw(clException)
     ssh_options_set(m_session, SSH_OPTIONS_HOST, m_host.mb_str(wxConvUTF8).data());
     ssh_options_set(m_session, SSH_OPTIONS_LOG_VERBOSITY, &verbosity);
     ssh_options_set(m_session, SSH_OPTIONS_PORT, &m_port);
-    ssh_options_set(m_session, SSH_OPTIONS_USER, GetUsername().mb_str().data());
+    ssh_options_set(m_session, SSH_OPTIONS_USER, GetUsername());
     
     // Connect the session
     int retries = seconds * 100;
@@ -210,7 +210,7 @@ bool clSSH::LoginPassword(bool throwExc) throw(clException)
 
     int rc;
     // interactive keyboard method failed, try another method
-    rc = ssh_userauth_password(m_session, NULL, GetPassword().mb_str().data());
+    rc = ssh_userauth_password(m_session, NULL, GetPassword());
     if(rc == SSH_AUTH_SUCCESS) {
         return true;
 

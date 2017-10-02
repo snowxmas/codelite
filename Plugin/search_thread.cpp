@@ -259,7 +259,7 @@ void SearchThread::DoSearchFile(const wxString& fileName, const SearchData* data
     // create a text states object
     TextStatesPtr states(NULL);
     if(data->HasCppOptions() && shouldCreateStates && false) {
-        CppWordScanner scanner("", fileData.mb_str().data(), 0);
+        CppWordScanner scanner("", fileData, 0);
         states = scanner.states();
     }
 

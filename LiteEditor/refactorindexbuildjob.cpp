@@ -59,7 +59,7 @@ void RefactorIndexBuildJob::Parse(const wxString &word, CppTokensMap &l)
 	for ( ; i<m_files.size(); i++) {
 
 		wxFileName fn = m_files.at(i);
-		CppWordScanner scanner(fn.GetFullPath().mb_str().data());
+		CppWordScanner scanner(fn.GetFullPath());
 
 		wxString msg;
 		msg << _("Parsing: ") << fn.GetFullName();
@@ -70,7 +70,7 @@ void RefactorIndexBuildJob::Parse(const wxString &word, CppTokensMap &l)
 			return;
 		}
 
-		scanner.Match(word.mb_str().data(), l);
+		scanner.Match(word, l);
 	}
 	prgDlg->Destroy();
 }

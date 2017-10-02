@@ -164,7 +164,7 @@ void Copyright::OnInsertCopyrights(wxCommandEvent& e)
     }
 
     // verify that the file consist only with comment code
-    CppWordScanner scanner(data.GetTemplateFilename().mb_str().data());
+    CppWordScanner scanner(data.GetTemplateFilename());
 
     CppTokensMap l;
     scanner.FindAll(l);
@@ -388,7 +388,7 @@ bool Copyright::Validate(wxString& content)
     }
 
     // verify that the file consist only with comment code
-    CppWordScanner scanner(data.GetTemplateFilename().mb_str().data());
+    CppWordScanner scanner(data.GetTemplateFilename());
 
     CppTokensMap l;
     scanner.FindAll(l);
