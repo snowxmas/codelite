@@ -524,7 +524,11 @@ void LEditor::SetCaretAt(long pos)
 /// Setup some scintilla properties
 void LEditor::SetProperties()
 {
+#ifndef __WXMSW__
     UsePopUp(false);
+#else
+    UsePopUp(0);
+#endif
     SetTechnology(wxSTC_TECHNOLOGY_DIRECTWRITE);
     
     SetRectangularSelectionModifier(wxSTC_KEYMOD_CTRL);
@@ -626,7 +630,7 @@ void LEditor::SetProperties()
 
     // Show the separator margin only if the fold margin is hidden
     // (otherwise the fold margin is the separator)
-    SetMarginWidth(SYMBOLS_MARGIN_SEP_ID, options->GetDisplayFoldMargin() ? 0 : 1);
+    SetMarginWidth(SYMBOLS_MARGIN_SEP_ID, 0);
 
     // allow everything except for the folding symbols
     SetMarginMask(SYMBOLS_MARGIN_ID, ~(wxSTC_MASK_FOLDERS));
