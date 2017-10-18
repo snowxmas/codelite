@@ -2729,7 +2729,7 @@ CppToken TagsManager::FindLocalVariable(
     VariableList vars;
     std::map<std::string, std::string> ignoreMap;
 
-    get_variables(states->text.substr(from, to - from), vars, ignoreMap, false);
+    get_variables(states->text.substr(from, to - from).wx_str(), vars, ignoreMap, false);
     VariableList::iterator iter = vars.begin();
     bool isLocalVar(false);
     for(; iter != vars.end(); iter++) {
