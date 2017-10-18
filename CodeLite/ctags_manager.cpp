@@ -2182,9 +2182,9 @@ wxString TagsManager::NormalizeFunctionSig(
     const wxString& sig, size_t flags, std::vector<std::pair<int, int> >* paramLen)
 {
     std::map<std::string, std::string> ignoreTokens = GetCtagsOptions().GetTokensMap();
-    std::map<std::string, std::string> reverseTokens;
+    wxStringMap_t reverseTokens;
 
-    if(flags & Normalize_Func_Reverse_Macro) reverseTokens = GetCtagsOptions().GetTokensReversedMap();
+    if(flags & Normalize_Func_Reverse_Macro) reverseTokens = GetCtagsOptions().GetTokensReversedWxMap();
 
     VariableList li;
     const wxCharBuffer patbuf = _C(sig);
@@ -2229,7 +2229,7 @@ wxString TagsManager::NormalizeFunctionSig(
         if(v.m_type.empty() == false) {
             if(flags & Normalize_Func_Reverse_Macro) {
                 // replace the type if it exists in the map
-                std::map<std::string, std::string>::iterator miter = reverseTokens.find(v.m_type);
+                wxStringMap_t::iterator miter = reverseTokens.find(v.m_type);
                 if(miter != reverseTokens.end()) {
                     v.m_type = miter->second;
                 }
@@ -2380,14 +2380,14 @@ wxString TagsManager::GetCTagsCmd()
     return cmd;
 }
 
-wxString TagsManager::DoReplaceMacros(wxString name)
+wxString TagsManager::DoReplaceMacros(const wxString& name)
 {
     // replace macros:
     // replace the provided typeName and scope with user defined macros as appeared in the PreprocessorMap
     wxString _name(name);
 
-    std::map<wxString, wxString> iTokens = GetCtagsOptions().GetTokensWxMap();
-    std::map<wxString, wxString>::iterator it;
+    wxStringTable_t iTokens = GetCtagsOptions().GetTokensWxMap();
+    wxStringTable_t::iterator it;
 
     it = iTokens.find(name);
     if(it != iTokens.end()) {
@@ -2704,13 +2704,13 @@ CppToken TagsManager::FindLocalVariable(
         }
 
         // Construct a scanner based on the modified text
-        scanner = CppWordScanner(fileName.GetFullPath(), modifiedText.mb_str().data(), 0);
+        scanner = CppWordScanner(fileName.GetFullPath(), modifiedText, 0);
         states = scanner.states();
 
     } else {
         // get the local by scanning from the current function's
         tag = FunctionFromFileLine(fileName, lineNumber + 1);
-        scanner = CppWordScanner(fileName.GetFullPath().mb_str().data());
+        scanner = CppWordScanner(fileName.GetFullPath());
         states = scanner.states();
     }
 
@@ -2729,7 +2729,7 @@ CppToken TagsManager::FindLocalVariable(
     VariableList vars;
     std::map<std::string, std::string> ignoreMap;
 
-    get_variables(states->text.substr(from, to - from).mb_str().data(), vars, ignoreMap, false);
+    get_variables(states->text.substr(from, to - from).wx_str(), vars, ignoreMap, false);
     VariableList::iterator iter = vars.begin();
     bool isLocalVar(false);
     for(; iter != vars.end(); iter++) {
@@ -2744,10 +2744,10 @@ CppToken TagsManager::FindLocalVariable(
 
     // search for matches in the given range
     CppTokensMap l;
-    scanner.Match(word.mb_str().data(), l, from, to);
+    scanner.Match(word, l, from, to);
 
     std::list<CppToken> tokens;
-    l.findTokens(word.mb_str().data(), tokens);
+    l.findTokens(word, tokens);
     if(tokens.empty()) return CppToken();
 
     // return the first match
@@ -2848,11 +2848,13 @@ wxString TagsManager::WrapLines(const wxString& str)
     return wrappedString;
 }
 
+/*
 void TagsManager::GetVariables(
     const std::string& in, VariableList& li, const std::map<std::string, std::string>& ignoreMap, bool isUsedWithinFunc)
 {
     get_variables(in, li, ignoreMap, isUsedWithinFunc);
 }
+*/
 
 void TagsManager::SetEncoding(const wxFontEncoding& encoding) { m_encoding = encoding; }
 
@@ -3031,6 +3033,7 @@ void TagsManager::InsertForwardDeclaration(
     line = GetLanguage()->GetBestLineForForwardDecl(fileContent);
 }
 
+/*
 void TagsManager::GetVariables(const wxFileName& filename, wxArrayString& locals)
 {
     wxFFile fp(filename.GetFullPath(), "rb");
@@ -3050,6 +3053,7 @@ void TagsManager::GetVariables(const wxFileName& filename, wxArrayString& locals
         locals.Add(iter->m_name);
     }
 }
+*/
 
 void TagsManager::GetFilesForCC(const wxString& userTyped, wxArrayString& matches)
 {
