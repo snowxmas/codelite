@@ -633,9 +633,9 @@ void IHunSpell::AddWord(const wxString& word)
 {
 #if wxUSE_STL
     // Implict conversions are disabled when building with wxUSE_STL=1
-    Hunspell_add(m_pSpell, word.wx_str());
+    Hunspell_add(m_pSpell, word);
 #else
-    Hunspell_add(m_pSpell, word.wx_str());
+    Hunspell_add(m_pSpell, word);
 #endif
 }
 // ------------------------------------------------------------

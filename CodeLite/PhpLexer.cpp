@@ -3289,7 +3289,7 @@ void* phpLexerNew(const wxFileName& filename, size_t options )
         fn.MakeAbsolute();
     }
     
-    FILE* fp = ::fopen(fn.GetFullPath().wx_str(), "rb");
+    FILE* fp = ::fopen(fn.GetFullPath(), "rb");
     if(!fp) {
         return NULL;
     }
