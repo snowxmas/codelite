@@ -224,7 +224,14 @@ void wxCodeCompletionBox::OnPaint(wxPaintEvent& event)
         // If this item has a bitmap, draw it
         wxCodeCompletionBoxEntry::Ptr_t entry = m_entries.at(i);
         if(entry->GetImgIndex() != wxNOT_FOUND && entry->GetImgIndex() < (int)m_bitmaps.size()) {
+            // Use a stock bitmap image
             const wxBitmap& bmp = m_bitmaps.at(entry->GetImgIndex());
+            wxCoord bmpY = ((singleLineHeight - bmp.GetScaledHeight()) / 2) + itemRect.y;
+
+            dc.DrawBitmap(bmp, bmpX, bmpY);
+        } else if(entry->GetAlternateBitmap().IsOk()) {
+            // We have an alternate bitmap, use it
+            const wxBitmap& bmp = entry->GetAlternateBitmap();
             wxCoord bmpY = ((singleLineHeight - bmp.GetScaledHeight()) / 2) + itemRect.y;
             dc.DrawBitmap(bmp, bmpX, bmpY);
         }
@@ -287,14 +294,15 @@ void wxCodeCompletionBox::ShowCompletionBox(wxStyledTextCtrl* ctrl, const wxCode
     int end = m_stc->GetCurrentPos();
 
     wxString word = m_stc->GetTextRange(start, end); // the current word
-
+    
+    // Fire "Showing" event
     clCodeCompletionEvent ccEvent(wxEVT_CCBOX_SHOWING);
     ccEvent.SetEntries(m_allEntries);
     ccEvent.SetEventObject(this);
-    if(EventNotifier::Get()->ProcessEvent(ccEvent)) {
-        m_allEntries.swap(ccEvent.GetEntries());
-    }
-
+    ccEvent.SetWord(GetFilter());
+    EventNotifier::Get()->ProcessEvent(ccEvent);
+    m_allEntries.swap(ccEvent.GetEntries());
+    
     if(m_entries.empty()) {
         // no entries to display
         DoDestroy();
@@ -489,6 +497,7 @@ void wxCodeCompletionBox::InsertSelection()
         clCodeCompletionEvent e(wxEVT_CCBOX_SELECTION_MADE);
         e.SetWord(match->GetText());
         e.SetEventObject(m_eventObject);
+        e.SetEntry(match);
         if(!EventNotifier::Get()->ProcessEvent(e)) {
             // execute the default behavior
             if(match->m_tag && match->m_tag->IsTemplateFunction()) {
@@ -598,6 +607,7 @@ wxCodeCompletionBoxEntry::Ptr_t wxCodeCompletionBox::TagToEntry(TagEntryPtr tag)
     wxString text = tag->GetDisplayName().Trim().Trim(false);
     int imgIndex = GetImageId(tag);
     wxCodeCompletionBoxEntry::Ptr_t entry = wxCodeCompletionBoxEntry::New(text, imgIndex);
+    entry->m_tag = tag;
     return entry;
 }
 

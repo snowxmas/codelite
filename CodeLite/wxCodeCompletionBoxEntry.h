@@ -33,6 +33,7 @@
 #include <wx/gdicmn.h>
 #include <wx/string.h>
 #include "entry.h" // TagEntryPtr
+#include <wx/bitmap.h>
 
 class wxStyledTextCtrl;
 class WXDLLIMPEXP_CL wxCodeCompletionBoxEntry
@@ -45,6 +46,7 @@ class WXDLLIMPEXP_CL wxCodeCompletionBoxEntry
     friend class wxCodeCompletionBox;
     TagEntryPtr m_tag; // Internal
     int m_weight;
+    wxBitmap m_alternateBitmap;
 
 public:
     typedef wxSharedPtr<wxCodeCompletionBoxEntry> Ptr_t;
@@ -59,13 +61,38 @@ public:
     {
     }
 
+    wxCodeCompletionBoxEntry(const wxString& text, const wxBitmap& bmp, wxClientData* userData = NULL)
+        : m_text(text)
+        , m_imgIndex(wxNOT_FOUND)
+        , m_clientData(userData)
+        , m_weight(0)
+        , m_alternateBitmap(bmp)
+    {
+    }
+
+    wxCodeCompletionBoxEntry(const wxString& text, const wxBitmap& bmp, const wxString& helpText,
+                             wxClientData* userData = NULL)
+        : m_text(text)
+        , m_comment(helpText)
+        , m_imgIndex(wxNOT_FOUND)
+        , m_clientData(userData)
+        , m_weight(0)
+        , m_alternateBitmap(bmp)
+    {
+    }
+
     virtual ~wxCodeCompletionBoxEntry()
     {
         wxDELETE(m_clientData);
         m_imgIndex = wxNOT_FOUND;
         m_text.Clear();
     }
-
+    
+    /**
+     * @brief return the associated tag (might be null)
+     */
+    TagEntryPtr GetTag() const { return m_tag; }
+    
     /**
      * @brief helper method for allocating wxCodeCompletionBoxEntry::Ptr
      */
@@ -73,6 +100,25 @@ public:
                                                wxClientData* userData = NULL)
     {
         wxCodeCompletionBoxEntry::Ptr_t pEntry(new wxCodeCompletionBoxEntry(text, imgId, userData));
+        return pEntry;
+    }
+
+    /**
+     * @brief helper method for allocating wxCodeCompletionBoxEntry::Ptr
+     */
+    static wxCodeCompletionBoxEntry::Ptr_t New(const wxString& text, const wxBitmap& bmp, wxClientData* userData = NULL)
+    {
+        wxCodeCompletionBoxEntry::Ptr_t pEntry(new wxCodeCompletionBoxEntry(text, bmp, userData));
+        return pEntry;
+    }
+
+    /**
+     * @brief helper method for allocating wxCodeCompletionBoxEntry::Ptr
+     */
+    static wxCodeCompletionBoxEntry::Ptr_t New(const wxString& text, const wxString& helpText, const wxBitmap& bmp,
+                                               wxClientData* userData = NULL)
+    {
+        wxCodeCompletionBoxEntry::Ptr_t pEntry(new wxCodeCompletionBoxEntry(text, bmp, helpText, userData));
         return pEntry;
     }
 
@@ -94,6 +140,8 @@ public:
     wxClientData* GetClientData() { return m_clientData; }
     void SetComment(const wxString& comment) { this->m_comment = comment; }
     const wxString& GetComment() const { return m_comment; }
+    void SetAlternateBitmap(const wxBitmap& alternateBitmap) { this->m_alternateBitmap = alternateBitmap; }
+    const wxBitmap& GetAlternateBitmap() const { return m_alternateBitmap; }
 };
 
 #endif // WXCODECOMPLETIONBOXENTRY_H

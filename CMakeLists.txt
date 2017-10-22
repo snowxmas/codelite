@@ -456,7 +456,7 @@ if ( MAKE_DEB )
 
     set(CPACK_GENERATOR                   "DEB")
     set(CPACK_PACKAGE_NAME                "CodeLite")
-    set(CPACK_PACKAGE_VERSION             "11.0.1")
+    set(CPACK_PACKAGE_VERSION             "11.0.2")
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER   "Eran Ifrah <eran.ifrah@gmail.com>")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "C/C++/PHP and Node.js IDE (Integrated Development Environment)")
     set(CPACK_DEBIAN_PACKAGE_SECTION      "devel")
@@ -623,6 +623,7 @@ if(NOT NO_CORE_PLUGINS)
     add_subdirectory(WordCompletion)
     add_subdirectory(HelpPlugin)
     add_subdirectory(WebTools)
+    add_subdirectory(SmartCompletions)
 
     if(UNIX AND NOT APPLE)
         ## Add valgrind plugin
