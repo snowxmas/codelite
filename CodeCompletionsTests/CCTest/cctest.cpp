@@ -152,7 +152,7 @@ TEST_FUNC(testTtp)
     TagsManagerST::Get()->AutoCompleteCandidates(wxFileName(GetTestsDir() + "smart_ptr_of_template.h"), 3,
                                                  wxT("ttp->GetRoot()->GetData()."),
                                                  LoadFile(GetTestsDir() + "smart_ptr_of_template.h"), tags);
-    CHECK_SIZE(tags.size(), 101);
+    CHECK_SIZE(tags.size(), 88);
 
     TagsManagerST::Get()->AutoCompleteCandidates(wxFileName(GetTestsDir() + "smart_ptr_of_template.h"), 3,
                                                  wxT("ttp->GetRoot()->GetKey()."),
@@ -186,7 +186,7 @@ TEST_FUNC(testStdVectorOfTagEntryPtr)
     TagsManagerST::Get()->AutoCompleteCandidates(wxFileName(GetTestsDir() + "std_vec_tag_entry_ptr.h"), 3,
                                                  wxT("tags.at(0)->"),
                                                  LoadFile(GetTestsDir() + "std_vec_tag_entry_ptr.h"), tags);
-    CHECK_SIZE(tags.size(), 101);
+    CHECK_SIZE(tags.size(), 88);
 
     TagsManagerST::Get()->AutoCompleteCandidates(wxFileName(GetTestsDir() + "std_vec_tag_entry_ptr.h"), 3,
                                                  wxT("tags.at(0)."),
@@ -451,7 +451,7 @@ void testCC()
 {
     // Load the tags database that is used during the test.
     std::cout << "Tests Dir is set to: " << GetTestsDir() << std::endl;
-    
+
     wxFileName fn(GetTestsDir() + "../../SampleWorkspace/.codelite/SampleWorkspace.tags");
     TagsManagerST::Get()->OpenDatabase(fn);
 
@@ -546,8 +546,24 @@ int main(int argc, char** argv)
 {
     // Initialize the wxWidgets library
     wxInitializer initializer;
+    TagsManagerST::Get()->SetCodeLiteIndexerPath("C:/Program Files/CodeLite/codelite_indexer.exe");
+    TagsManagerST::Get()->StartCodeLiteIndexer();
+    TagEntryPtrVector_t tags = TagsManagerST::Get()->ParseBuffer("enum class FooShort : short {"
+                                                                 "    short_apple,"
+                                                                 "    short_banana,"
+                                                                 "    short_orange,"
+                                                                 "};");
+    tags = TagsManagerST::Get()->ParseBuffer("class MyClass {"
+                                             "    enum Foo {"
+                                             "        apple,"
+                                             "        banana,"
+                                             "        orange,"
+                                             "    };"
+                                             "};");
+
     // testRetagWorkspace();
     // testStringSearcher();
     testCC();
+    TagsManagerST::Free();
     return 0;
 }
