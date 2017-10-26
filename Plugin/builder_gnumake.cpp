@@ -1048,7 +1048,6 @@ void BuilderGnuMake::CreateLinkTargets(const wxString& type,
 void
 BuilderGnuMake::CreateTargets(const wxString& type, BuildConfigPtr bldConf, wxString& text, const wxString& projName)
 {
-	static const wxChar * const cszExpandFileList = wxT(" $$(cat $(ObjectsFileList)) ");
     bool markRebuilt(true);
     text << wxT("\t@$(MakeDirCommand) $(@D)\n");
     text << wxT("\t@echo \"\" > $(IntermediateDirectory)/.d\n");
@@ -1069,7 +1068,7 @@ BuilderGnuMake::CreateTargets(const wxString& type, BuildConfigPtr bldConf, wxSt
         // In any case add the 'objects_file' target here
         text << wxT("\t") << wxT("$(AR) $(ArchiveOutputSwitch)$(OutputFile)");
         if(cmp && cmp->GetReadObjectFilesFromList()) {
-            text << cszExpandFileList << wxT(" $(ArLibs)\n");
+            text << wxT(" @$(ObjectsFileList) $(ArLibs)\n");
         } else {
             text << wxT(" $(Objects) $(ArLibs)\n");
         }
@@ -1078,7 +1077,7 @@ BuilderGnuMake::CreateTargets(const wxString& type, BuildConfigPtr bldConf, wxSt
         // create a shared library
         text << wxT("\t") << wxT("$(SharedObjectLinkerName) $(OutputSwitch)$(OutputFile)");
         if(cmp && cmp->GetReadObjectFilesFromList()) {
-            text << cszExpandFileList;
+            text << wxT(" @$(ObjectsFileList) ");
         } else {
             text << wxT(" $(Objects) ");
         }
@@ -1088,7 +1087,7 @@ BuilderGnuMake::CreateTargets(const wxString& type, BuildConfigPtr bldConf, wxSt
         // create an executable
         text << wxT("\t") << wxT("$(LinkerName) $(OutputSwitch)$(OutputFile)");
         if(cmp && cmp->GetReadObjectFilesFromList()) {
-            text << cszExpandFileList;
+            text << wxT(" @$(ObjectsFileList) ");
         } else {
             text << wxT(" $(Objects) ");
         }
