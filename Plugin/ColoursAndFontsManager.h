@@ -74,7 +74,16 @@ private:
 
 public:
     static ColoursAndFontsManager& Get();
-
+    /**
+     * @brief Export themes to JSON file
+     */
+    bool ExportThemesToFile(const wxFileName& outputFile, const wxArrayString& names = wxArrayString()) const;
+    
+    /**
+     * @brief import lexers from configuration file
+     */
+    bool ImportLexersFile(const wxFileName& inputFile, bool prompt = true);
+    
     /**
      * @brief save the global settings
      */
@@ -146,6 +155,11 @@ public:
      * @brief return an array of available lexers
      */
     wxArrayString GetAllLexersNames() const;
+    
+    /**
+     * @brief return list of all themes
+     */
+    wxArrayString GetAllThemes() const;
 
     /**
      * @brief return lexer for a file
