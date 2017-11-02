@@ -156,6 +156,7 @@ void OutlineTab::OnActiveEditorChanged(wxCommandEvent& e)
         m_textCtrlSearch->Enable(true);
 
     } else if(editor && phpLexer && FileUtils::WildMatch(phpLexer->GetFileSpec(), editor->GetFileName())) {
+        m_tree->Clear();
         m_treeCtrlPhp->BuildTree(editor->GetFileName());
         m_simpleBook->SetSelection(OUTLINE_TAB_PHP);
         m_textCtrlSearch->Enable(true);
