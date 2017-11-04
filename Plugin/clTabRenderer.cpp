@@ -5,6 +5,7 @@
 #include "Notebook.h"
 #include "editor_config.h"
 #include "clTabRendererSquare.h"
+#include <wx/renderer.h>
 
 #if CL_BUILD
 #include "drawingutils.h"
@@ -219,7 +220,9 @@ clTabRenderer::clTabRenderer()
 wxFont clTabRenderer::GetTabFont()
 {
     wxFont font = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
+#ifndef __WXOSX__
     font.SetPointSize(font.GetPointSize() - 1);
+#endif
     return font;
 }
 
@@ -232,12 +235,16 @@ wxFont clTabRenderer::GetTabFont()
 void clTabRenderer::ClearActiveTabExtraLine(clTabInfo::Ptr_t activeTab, wxDC& dc, const clTabColours& colours,
                                             size_t style)
 {
+    bool isSquareStyle = (dynamic_cast<clTabRendererSquare*>(this)) != nullptr;
     wxPoint pt1, pt2;
     dc.SetPen(colours.activeTabPenColour);
     if(style & kNotebook_LeftTabs) {
         dc.SetPen(colours.activeTabBgColour);
         pt1 = activeTab->GetRect().GetTopRight();
         pt2 = activeTab->GetRect().GetBottomRight();
+        if(isSquareStyle) {
+            pt1.y += 3;
+        }
         DRAW_LINE(pt1, pt2);
 
         pt1.x -= 1;
@@ -249,6 +256,10 @@ void clTabRenderer::ClearActiveTabExtraLine(clTabInfo::Ptr_t activeTab, wxDC& dc
         dc.SetPen(colours.activeTabBgColour);
         pt1 = activeTab->GetRect().GetTopLeft();
         pt2 = activeTab->GetRect().GetBottomLeft();
+        if(isSquareStyle) {
+            pt1.y += 3;
+        }
+
         DRAW_LINE(pt1, pt2);
 
     } else if(style & kNotebook_BottomTabs) {
@@ -256,6 +267,9 @@ void clTabRenderer::ClearActiveTabExtraLine(clTabInfo::Ptr_t activeTab, wxDC& dc
         dc.SetPen(colours.activeTabBgColour);
         pt1 = activeTab->GetRect().GetTopLeft();
         pt2 = activeTab->GetRect().GetTopRight();
+#ifdef __WXOSX__
+        pt2.x -= 1;
+#endif
         DRAW_LINE(pt1, pt2);
 
     } else {
@@ -263,6 +277,16 @@ void clTabRenderer::ClearActiveTabExtraLine(clTabInfo::Ptr_t activeTab, wxDC& dc
         dc.SetPen(colours.activeTabBgColour);
         pt1 = activeTab->GetRect().GetBottomLeft();
         pt2 = activeTab->GetRect().GetBottomRight();
+        if(isSquareStyle) {
+            pt1.x += 3;
+        }
+#ifdef __WXOSX__
+        pt2.x -= 1;
+#endif
+        DRAW_LINE(pt1, pt2);
+
+        pt1.y += 1;
+        pt2.y += 1;
         DRAW_LINE(pt1, pt2);
     }
 }
@@ -289,14 +313,17 @@ void clTabRenderer::DrawButton(wxDC& dc, const wxRect& rect, const clTabColours&
 
 void clTabRenderer::DrawChevron(wxDC& dc, const wxRect& rect, const clTabColours& colours)
 {
+#ifdef __WXOSX__
+    wxRendererNative::Get().DrawDropArrow(dc.GetWindow(), dc, rect, wxCONTROL_CURRENT);
+#else
     wxCoord small = wxMin(rect.GetWidth(), rect.GetHeight());
     wxPoint pt;
     pt.x = ((rect.GetWidth() - small) / 2) + rect.x;
     pt.y = (((rect.GetHeight() - small) / 2) + rect.y) + 2;
-    
+
     wxRect rr(pt, wxSize(small, small));
     rr.Deflate(3);
-    
+
     dc.SetPen(colours.inactiveTabTextColour);
     dc.SetBrush(colours.inactiveTabTextColour);
 
@@ -310,4 +337,5 @@ void clTabRenderer::DrawChevron(wxDC& dc, const wxRect& rect, const clTabColours
     pl.Append(&p2);
     pl.Append(&p3);
     dc.DrawPolygon(&pl);
+#endif
 }

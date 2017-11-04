@@ -17,6 +17,7 @@
 #include "clTabRenderer.h"
 #include <wx/menu.h>
 #include "fileutils.h"
+#include <wx/renderer.h>
 
 #define X_SPACER 10
 #define Y_SPACER 5
@@ -97,25 +98,28 @@ void clEditorBar::OnPaint(wxPaintEvent& event)
         gcdc.SetFont(guiFont);
         breadcumbsTextSize = gcdc.GetTextExtent(breadcumbsText);
         breadcrumbsTextY = (rect.GetHeight() - breadcumbsTextSize.GetHeight()) / 2;
-
+        
+        // Geometry
+        m_filenameRect = wxRect(0, 2, breadcumbsTextSize.GetWidth() + (4*X_SPACER), rect.GetHeight() - 4);
+    
+        // Draw the drop down button
+        wxRendererNative::Get().DrawComboBox(gcdc.GetWindow(), gcdc, m_filenameRect, wxCONTROL_CURRENT);
         gcdc.DrawText(breadcumbsText, breadcrumbsTextX, breadcrumbsTextY);
 
-        // Draw the drop down button
-        textX = breadcrumbsTextX + breadcumbsTextSize.GetWidth() + X_SPACER;
-        clTabColours colors;
-        colors.InitLightColours();
-        wxRect chevronRect(textX, textY, 16, 16);
-        clTabRenderer::DrawChevron(gcdc, chevronRect, colors);
-        textX += 16;
+//        clTabColours colors;
+//        colors.InitLightColours();
+//        wxRect chevronRect(textX, 2, 16, rect.GetHeight() - 4);
+//        clTabRenderer::DrawChevron(gcdc, chevronRect, colors);
+//        textX += 16;
 
         // Draw a rectangle around the file name + the drop down button
-        m_filenameRect = wxRect(0, breadcrumbsTextY - 3, textX + 5, breadcumbsTextSize.GetHeight() + 6);
-        gcdc.SetPen(wxSystemSettings::GetColour(wxSYS_COLOUR_3DSHADOW));
-        gcdc.SetBrush(*wxTRANSPARENT_BRUSH);
-        gcdc.DrawRectangle(m_filenameRect);
+        
+        //gcdc.SetPen(wxSystemSettings::GetColour(wxSYS_COLOUR_3DSHADOW));
+        //gcdc.SetBrush(*wxTRANSPARENT_BRUSH);
+        //gcdc.DrawRectangle(m_filenameRect);
 
         // Move the X coordinate forward for drawing the class::func section
-        textX += (3 * X_SPACER);
+        textX = m_filenameRect.GetWidth() + (3 * X_SPACER);
     }
 
     // Draw the text
@@ -259,7 +263,13 @@ void clEditorBar::OnLeftDown(wxMouseEvent& event)
             menu.Append(idOpenExplorer);
         }
 
-        int selection = GetPopupMenuSelectionFromUser(menu, m_filenameRect.GetBottomLeft());
+        wxPoint menuPoint = m_filenameRect.GetTopLeft();
+
+        //#ifdef __WXOSX__
+        //        menuPoint.y -= 5;
+        //#endif
+
+        int selection = GetPopupMenuSelectionFromUser(menu, menuPoint);
         if(selection == wxID_NONE) return;
 
         text.Clear();
