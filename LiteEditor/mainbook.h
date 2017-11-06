@@ -40,6 +40,7 @@ class FilesModifiedDlg;
 enum OF_extra { OF_None = 0x00000001, OF_AddJump = 0x00000002, OF_PlaceNextToCurrent = 0x00000004 };
 
 class MessagePane;
+class clEditorBar;
 class MainBook : public wxPanel
 {
 private:
@@ -94,10 +95,17 @@ private:
     void OnWorkspaceReloadEnded(clCommandEvent& e);
     void OnEditorSettingsChanged(wxCommandEvent& e);
     void OnCacheUpdated(clCommandEvent& e);
+    void OnUpdateNavigationBar(clCodeCompletionEvent& e);
     /**
      * @brief open file and set an alternate content
      */
     void DoOpenFile(const wxString& filename, const wxString& content = "");
+
+    /**
+     * @brief update the navigation bar (C++)
+     * @param editor
+     */
+    void UpdateNavBar(LEditor* editor);
 
 public:
     MainBook(wxWindow* parent);
@@ -119,9 +127,8 @@ public:
 
     void ShowTabBar(bool b);
     void ShowNavBar(bool s = true);
-    void UpdateNavBar(LEditor* editor);
     bool IsNavBarShown() { return m_navBar->IsShown(); }
-
+    clEditorBar* GetEditorBar() { return m_navBar; }
     void SaveSession(SessionEntry& session, wxArrayInt* excludeArr = NULL);
     void RestoreSession(SessionEntry& session);
     /**

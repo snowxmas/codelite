@@ -3022,25 +3022,25 @@ void TagsManager::GetCXXKeywords(wxArrayString& words)
     words.Add("xor_eq");
 }
 
-TagEntryPtrVector_t TagsManager::ParseBuffer(const wxString& content)
+TagEntryPtrVector_t TagsManager::ParseBuffer(const wxString& content, const wxString& filename)
 {
     if(!m_codeliteIndexerProcess) {
         return TagEntryPtrVector_t();
     }
 
     // Write the content into temporary file
-    wxString filename = wxFileName::CreateTempFileName("ctagstemp");
-    wxFFile fp(filename, "w+b");
+    wxString tmpfilename = wxFileName::CreateTempFileName("ctagstemp");
+    wxFFile fp(tmpfilename, "w+b");
     if(!fp.IsOpened()) return TagEntryPtrVector_t();
     fp.Write(content, wxConvUTF8);
     fp.Close();
 
     wxString tags;
-    SourceToTags(filename, tags);
+    SourceToTags(tmpfilename, tags);
 
     {
         wxLogNull noLog;
-        ::wxRemoveFile(filename);
+        ::wxRemoveFile(tmpfilename);
     }
 
     TagEntryPtrVector_t tagsVec;
@@ -3052,7 +3052,12 @@ TagEntryPtrVector_t TagsManager::ParseBuffer(const wxString& content)
 
         TagEntryPtr tag(new TagEntry());
         tag->FromLine(line);
-
+        
+        // If the caller provided a filename, set it
+        if(!filename.IsEmpty()) {
+            tag->SetFile(filename);
+        }
+        
         if(tag->GetKind() != "local") {
             tagsVec.push_back(tag);
         }

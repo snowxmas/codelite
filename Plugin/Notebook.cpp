@@ -374,7 +374,11 @@ void clTabCtrl::OnPaint(wxPaintEvent& e)
 
     if((GetStyle() & kNotebook_ShowFileListButton)) {
         if(IsVerticalTabs()) {
-            m_chevronRect = wxRect(rect.GetTopLeft(), wxSize(rect.GetWidth(), CHEVRON_SIZE));
+            int width = rect.GetWidth() > CHEVRON_SIZE ? CHEVRON_SIZE : rect.GetWidth();
+            int x = (rect.GetWidth() - width) / 2;
+            wxPoint topLeft = rect.GetTopLeft();
+            topLeft.x = x;
+            m_chevronRect = wxRect(topLeft, wxSize(width, CHEVRON_SIZE));
             rect.y = m_chevronRect.GetBottomLeft().y;
             rect.SetHeight(rect.GetHeight() - m_chevronRect.GetHeight());
         } else {
@@ -447,20 +451,20 @@ void clTabCtrl::OnPaint(wxPaintEvent& e)
             if((GetStyle() & kNotebook_EnableColourCustomization) && EventNotifier::Get()->ProcessEvent(colourEvent)) {
                 clTabColours colours;
                 colours.InitFromColours(colourEvent.GetBgColour(), colourEvent.GetFgColour());
-                m_art->Draw(gcdc, *tab.get(), colours, m_style);
+                m_art->Draw(this, gcdc, *tab.get(), colours, m_style);
             } else {
-                m_art->Draw(gcdc, *tab.get(), m_colours, m_style);
+                m_art->Draw(this, gcdc, *tab.get(), m_colours, m_style);
             }
 
 #else
-            m_art->Draw(gcdc, *tab.get(), m_colours, m_style);
+            m_art->Draw(this, gcdc, *tab.get(), m_colours, m_style);
 #endif
         }
 
         // Redraw the active tab
         if(activeTabInex != wxNOT_FOUND) {
             clTabInfo::Ptr_t activeTab = m_visibleTabs.at(activeTabInex);
-            m_art->Draw(gcdc, *activeTab.get(), activeTabColours, m_style);
+            m_art->Draw(this, gcdc, *activeTab.get(), activeTabColours, m_style);
         }
         if(!IsVerticalTabs()) {
             gcdc.DestroyClippingRegion();
@@ -474,7 +478,7 @@ void clTabCtrl::OnPaint(wxPaintEvent& e)
 
         if((GetStyle() & kNotebook_ShowFileListButton)) {
             // Draw the chevron
-            m_art->DrawChevron(gcdc, m_chevronRect, m_colours);
+            m_art->DrawChevron(this, gcdc, m_chevronRect, m_colours);
         }
 
     } else {
@@ -1320,7 +1324,7 @@ void clTabCtrl::OnLeftDClick(wxMouseEvent& event)
 void clTabCtrl::DoDrawBottomBox(clTabInfo::Ptr_t activeTab, const wxRect& clientRect, wxDC& dc,
                                 const clTabColours& colours)
 {
-    GetArt()->DrawBottomRect(activeTab, clientRect, dc, colours, GetStyle());
+    GetArt()->DrawBottomRect(this, activeTab, clientRect, dc, colours, GetStyle());
 }
 
 bool clTabCtrl::IsVerticalTabs() const { return (m_style & kNotebook_RightTabs) || (m_style & kNotebook_LeftTabs); }
