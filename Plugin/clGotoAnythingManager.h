@@ -6,6 +6,7 @@
 #include "macros.h"
 #include <map>
 #include <vector>
+#include <wx/bitmap.h>
 #include <wx/event.h>
 
 class WXDLLIMPEXP_SDK clGotoEntry
@@ -14,6 +15,7 @@ private:
     wxString m_desc;
     wxString m_keyboardShortcut;
     int m_resourceID;
+    wxBitmap m_bitmap;
 
 public:
     clGotoEntry(const wxString& desc, const wxString& shortcut, int id)
@@ -33,11 +35,14 @@ public:
     const wxString& GetDesc() const { return m_desc; }
     const wxString& GetKeyboardShortcut() const { return m_keyboardShortcut; }
     int GetResourceID() const { return m_resourceID; }
+    const wxBitmap& GetBitmap() const { return m_bitmap; }
+    void SetBitmap(const wxBitmap& bitmap) { m_bitmap = bitmap; }
 };
 
 class WXDLLIMPEXP_SDK clGotoAnythingManager : public wxEvtHandler
 {
     std::unordered_map<wxString, clGotoEntry> m_actions;
+    std::unordered_map<wxString, clGotoEntry> m_pluginActions;
 
     clGotoAnythingManager();
     virtual ~clGotoAnythingManager();
@@ -45,12 +50,14 @@ class WXDLLIMPEXP_SDK clGotoAnythingManager : public wxEvtHandler
 protected:
     void OnActionSelected(clCommandEvent& e);
 
-private:
-    void Initialise();
-    
 public:
     static clGotoAnythingManager& Get();
-
+    
+    /**
+     * @brief fill the gotomanager with all the menu entries
+     */
+    void Initialise();
+    
     /**
      * @brief add action to the "Goto Anything"
      */
@@ -68,7 +75,7 @@ public:
     /**
      * @brief return list of all available actions
      */
-    std::vector<clGotoEntry> GetActions() const;
+    std::vector<clGotoEntry> GetActions();
 };
 
 #endif // CLGOTOANYTHINGMANAGER_H
