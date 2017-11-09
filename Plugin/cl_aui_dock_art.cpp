@@ -99,8 +99,8 @@ clAuiDockArt::~clAuiDockArt()
 }
 
 #define AUI_BUTTON_SIZE 12
-void clAuiDockArt::DrawPaneButton(wxDC& dc, wxWindow* window, int button, int button_state, const wxRect& _rect,
-                                  wxAuiPaneInfo& pane)
+void clAuiDockArt::DrawPaneButton(
+    wxDC& dc, wxWindow* window, int button, int button_state, const wxRect& _rect, wxAuiPaneInfo& pane)
 {
     int xx = _rect.GetTopLeft().x + ((_rect.GetWidth() - AUI_BUTTON_SIZE) / 2);
     int yy = _rect.GetTopLeft().y + ((_rect.GetHeight() - AUI_BUTTON_SIZE) / 2);
@@ -124,8 +124,8 @@ void clAuiDockArt::DrawPaneButton(wxDC& dc, wxWindow* window, int button, int bu
     }
 }
 
-void clAuiDockArt::DrawCaption(wxDC& dc, wxWindow* window, const wxString& text, const wxRect& rect,
-                               wxAuiPaneInfo& pane)
+void
+clAuiDockArt::DrawCaption(wxDC& dc, wxWindow* window, const wxString& text, const wxRect& rect, wxAuiPaneInfo& pane)
 {
     wxRect tmpRect(wxPoint(0, 0), rect.GetSize());
 
@@ -202,8 +202,14 @@ void clAuiDockArt::DrawCaption(wxDC& dc, wxWindow* window, const wxString& text,
 
         // Prepare the colours
         wxColour bgColour, penColour, textColour;
-        textColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
-        bgColour = wxSystemSettings::GetColour(wxSYS_COLOUR_3DFACE).ChangeLightness(90);
+        if(!DrawingUtils::IsDark(DrawingUtils::GetMenuBarBgColour())) {
+            textColour = wxSystemSettings::GetColour(wxSYS_COLOUR_CAPTIONTEXT);
+            bgColour = DrawingUtils::GetCaptionColour();
+        } else {
+            textColour = DrawingUtils::GetMenuBarTextColour();
+            bgColour = DrawingUtils::GetMenuBarBgColour().ChangeLightness(50);
+        }
+        
         // Same as the notebook background colour
         penColour = bgColour;
         penColour = m_useDarkColours ? m_darkBgColour : penColour;
@@ -254,13 +260,13 @@ void clAuiDockArt::DrawBackground(wxDC& dc, wxWindow* window, int orientation, c
     wxUnusedVar(window);
     wxUnusedVar(orientation);
     dc.SetPen(*wxTRANSPARENT_PEN);
-    dc.SetBrush(m_useDarkColours ? m_notebookTabAreaDarkBgColour : DrawingUtils::GetAUIPaneBGColour());
+    dc.SetBrush(m_useDarkColours ? m_notebookTabAreaDarkBgColour : DrawingUtils::GetMenuBarBgColour());
     dc.DrawRectangle(rect);
 }
 
 void clAuiDockArt::DrawBorder(wxDC& dc, wxWindow* window, const wxRect& rect, wxAuiPaneInfo& pane)
 {
-    wxColour penColour = wxSystemSettings::GetColour(wxSYS_COLOUR_3DFACE);
+    wxColour penColour = DrawingUtils::GetMenuBarBgColour();
     penColour = m_useDarkColours ? m_notebookTabAreaDarkBgColour : penColour;
     dc.SetPen(penColour);
     dc.SetBrush(*wxTRANSPARENT_BRUSH);
@@ -276,7 +282,11 @@ void clAuiDockArt::DrawSash(wxDC& dc, wxWindow* window, int orientation, const w
         dc.SetBrush(m_notebookTabAreaDarkBgColour);
         dc.DrawRectangle(rect);
     } else {
-        wxAuiDefaultDockArt::DrawSash(dc, window, orientation, rect);
+        wxUnusedVar(window);
+        wxUnusedVar(orientation);
+        dc.SetPen(*wxTRANSPARENT_PEN);
+        dc.SetBrush(DrawingUtils::GetMenuBarBgColour());
+        dc.DrawRectangle(rect);
     }
 }
 
