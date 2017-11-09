@@ -22,6 +22,8 @@
 #include "cl_command_event.h"
 #include <wx/busyinfo.h>
 #include "fileutils.h"
+#include "wxStringHash.h"
+#include <wx/msgdlg.h>
 
 // Upgrade macros
 #define LEXERS_VERSION_STRING "LexersVersion"
@@ -824,6 +826,10 @@ LexerConf::Ptr_t ColoursAndFontsManager::DoAddLexer(JSONElement json)
     if(lexer->GetName() == "javascript" && !lexer->GetFileSpec().Contains(".wxcp")) {
         lexer->SetFileSpec(lexer->GetFileSpec() + ";*.wxcp");
     }
+    if(lexer->GetName() == "text") {
+        lexer->SetFileSpec(wxEmptyString);
+    }
+
     // Set the JavaScript keywords
     if(lexer->GetName() == "php" && !lexer->GetKeyWords(1).Contains("instanceof")) {
         lexer->SetKeyWords(
@@ -891,3 +897,91 @@ void ColoursAndFontsManager::SetGlobalFont(const wxFont& font)
 }
 
 const wxFont& ColoursAndFontsManager::GetGlobalFont() const { return this->m_globalFont; }
+
+bool ColoursAndFontsManager::ExportThemesToFile(const wxFileName& outputFile, const wxArrayString& names) const
+{
+    wxStringSet_t M;
+    for(size_t i = 0; i < names.size(); ++i) {
+        M.insert(names.Item(i).Lower());
+    }
+
+    JSONRoot root(cJSON_Array);
+    JSONElement arr = root.toElement();
+    std::vector<LexerConf::Ptr_t> Lexers;
+    std::for_each(m_allLexers.begin(), m_allLexers.end(), [&](LexerConf::Ptr_t lexer) {
+        if(M.empty() || M.count(lexer->GetThemeName().Lower())) {
+            Lexers.push_back(lexer);
+        }
+    });
+    std::for_each(Lexers.begin(), Lexers.end(), [&](LexerConf::Ptr_t lexer) { arr.append(lexer->ToJSON()); });
+    return FileUtils::WriteFileContent(outputFile, root.toElement().format());
+}
+
+bool ColoursAndFontsManager::ImportLexersFile(const wxFileName& inputFile, bool prompt)
+{
+    JSONRoot root(inputFile);
+    if(!root.isOk()) {
+        clWARNING() << "Invalid lexers input file:" << inputFile << clEndl;
+        return false;
+    }
+
+    if(prompt) {
+        if(::wxMessageBox(
+               _("Importing syntax highlight file will override any duplicate syntax highlight settings.\nContinue?"),
+               "CodeLite", wxICON_QUESTION | wxYES_NO | wxCANCEL | wxYES_DEFAULT, NULL) != wxYES) {
+            return false;
+        }
+    }
+
+    std::vector<LexerConf::Ptr_t> Lexers;
+    JSONElement arr = root.toElement();
+    int arrSize = arr.arraySize();
+    for(int i = 0; i < arrSize; ++i) {
+        JSONElement lexerObj = arr.arrayItem(i);
+        LexerConf::Ptr_t lexer(new LexerConf());
+        lexer->FromJSON(lexerObj);
+        Lexers.push_back(lexer);
+    }
+
+    std::for_each(Lexers.begin(), Lexers.end(), [&](LexerConf::Ptr_t lexer) {
+        if(m_lexersMap.count(lexer->GetName()) == 0) {
+            m_lexersMap[lexer->GetName()] = Vec_t();
+        }
+        Vec_t& v = m_lexersMap[lexer->GetName()];
+        Vec_t::iterator iter = std::find_if(
+            v.begin(), v.end(), [&](LexerConf::Ptr_t l) { return l->GetThemeName() == lexer->GetThemeName(); });
+        if(prompt) {
+            // Override this theme with the new one
+            if(iter != v.end()) {
+                // erase old lexer
+                v.erase(iter);
+            }
+            v.push_back(lexer);
+        } else {
+            // We dont have this theme, add it
+            if(iter == v.end()) {
+                v.push_back(lexer);
+            }
+        }
+    });
+
+    // Rebuild "m_allLexers" after the merge
+    m_allLexers.clear();
+    std::for_each(m_lexersMap.begin(), m_lexersMap.end(), [&](ColoursAndFontsManager::Map_t::value_type& vt) {
+        std::for_each(vt.second.begin(), vt.second.end(),
+                      [&](LexerConf::Ptr_t lexer) { m_allLexers.push_back(lexer); });
+    });
+    Save();
+    Reload();
+    return true;
+}
+
+wxArrayString ColoursAndFontsManager::GetAllThemes() const
+{
+    wxStringSet_t themes;
+    std::for_each(m_allLexers.begin(), m_allLexers.end(),
+                  [&](LexerConf::Ptr_t lexer) { themes.insert(lexer->GetThemeName()); });
+    wxArrayString arr;
+    std::for_each(themes.begin(), themes.end(), [&](const wxString& name) { arr.push_back(name); });
+    return arr;
+}
