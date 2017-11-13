@@ -32,8 +32,6 @@ if (NOT CMAKE_VERSION VERSION_LESS 3.1) # THIS MUST STAY AT THE TOP OF THE FILE
     cmake_policy(VERSION 3.1) # Doing this prevents multiple, very verbose warnings about policy CMP0053 not being set
 endif()
 
-include( ./variable.cmake )
-
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 #############################################
@@ -111,7 +109,7 @@ endif()
 message("-- OS name ${OS_NAME}")
 
 if ( APPLE )
-  set(WX_COMPONENTS "std")
+  set(WX_COMPONENTS "std aui propgrid ribbon")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -stdlib=libc++")
 else ( APPLE )
   set(WX_COMPONENTS "std aui propgrid stc ribbon")
@@ -289,7 +287,7 @@ include(OSXInstall)
 OSX_MAKE_BUNDLE_DIRECTORY()
 
 add_definitions(-DYY_NEVER_INTERACTIVE=1)
-set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14" )
+set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11" )
 
 if (NOT MINGW)
     add_definitions(-DINSTALL_DIR=\"${CL_PREFIX}/share/codelite\")
@@ -358,10 +356,7 @@ else ()
             execute_process(COMMAND /usr/bin/dpkg-buildflags --get CPPFLAGS OUTPUT_VARIABLE EXTRA_CPPFLAGS OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
             execute_process(COMMAND /usr/bin/dpkg-buildflags --get CXXFLAGS OUTPUT_VARIABLE EXTRA_CXXFLAGS OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
             execute_process(COMMAND /usr/bin/dpkg-buildflags --get LDFLAGS OUTPUT_VARIABLE EXTRA_LDFLAGS OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-            set( EXTRA_CFLAGS "-O3 -fstack-protector --param=ssp-buffer-size=4 -Wformat -Werror=format-security -Werror=return-type -Wno-return-type-c-linkage" )
-            set( EXTRA_CXXFLAGS ${EXTRA_CFLAGS} )
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_CXXFLAGS}")
-			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EXTRA_CFLAGS}")
             add_definitions(${EXTRA_CPPFLAGS})
             set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EXTRA_CFLAGS}")
             set(LINKER_OPTIONS "${EXTRA_LDFLAGS}")
@@ -387,8 +382,7 @@ else ()
     message("-- Executables will be written into ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
     message("-- Shared Objects will be written into ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")        ## Optimize
-    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")        ## Optimize
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")        ## Optimize
     if(CMAKE_COMPILER_IS_GNUCXX)
         set(CMAKE_EXE_LINKER_FLAGS "-s")  ## Strip binary
     endif(CMAKE_COMPILER_IS_GNUCXX)
