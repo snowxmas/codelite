@@ -2,6 +2,7 @@
 #include "bitmap_loader.h"
 #include "clGotoAnythingManager.h"
 #include "clKeyboardManager.h"
+#include "cl_command_event.h"
 #include "codelite_events.h"
 #include "event_notifier.h"
 #include "file_logger.h"
@@ -11,8 +12,6 @@
 #include <queue>
 #include <wx/menu.h>
 #include <wx/xrc/xmlres.h>
-#include "cl_command_event.h"
-#include "codelite_events.h"
 
 clGotoAnythingManager::clGotoAnythingManager()
 {
@@ -33,9 +32,13 @@ clGotoAnythingManager& clGotoAnythingManager::Get()
 void clGotoAnythingManager::OnActionSelected(clGotoEvent& e)
 {
     e.Skip();
-    if(m_actions.count(e.GetString())) {
-        // Trigger the action
-        wxCommandEvent evtAction(wxEVT_MENU, m_actions[e.GetString()].GetResourceID());
+    // Trigger the action
+    const clGotoEntry& entry = e.GetEntry();
+    if(entry.GetResourceID() != wxID_ANY) {
+        wxCommandEvent evtAction(wxEVT_MENU, entry.GetResourceID());
+        if(entry.IsCheckable()) {
+            evtAction.SetInt(entry.IsChecked() ? 0 : 1); // Set the opposite value
+        }
         EventNotifier::Get()->TopFrame()->GetEventHandler()->AddPendingEvent(evtAction);
     }
 }
@@ -46,7 +49,7 @@ void clGotoAnythingManager::ShowDialog()
     clGotoEvent evtShowing(wxEVT_GOTO_ANYTHING_SHOWING);
     evtShowing.SetEntries(GetActions());
     EventNotifier::Get()->ProcessEvent(evtShowing);
-    
+
     // Let the plugins sort the content
     clGotoEvent evtSort(wxEVT_GOTO_ANYTHING_SORT_NEEDED);
     evtSort.GetEntries().swap(evtShowing.GetEntries());
@@ -74,9 +77,10 @@ void clGotoAnythingManager::Initialise()
     // Register the core actions
     m_actions.clear();
 
-    wxMenuBar* mb = EventNotifier::Get()->TopFrame()->GetMenuBar();
+    wxFrame* mainFrame = EventNotifier::Get()->TopFrame();
+    wxMenuBar* mb = mainFrame->GetMenuBar();
     if(!mb) return;
-    clDEBUG() << "clGotoAnythingManager::Initialise called." << (wxUIntPtr) this << clEndl;
+    clDEBUG() << "clGotoAnythingManager::Initialise called." << (wxUIntPtr)this << clEndl;
     // Get list of menu entries
     std::queue<std::pair<wxString, wxMenu*> > q;
     for(size_t i = 0; i < mb->GetMenuCount(); ++i) {
@@ -89,23 +93,26 @@ void clGotoAnythingManager::Initialise()
         wxString prefix = q.front().first;
         q.pop();
 
+        // Call this to ensure that any checkable items are marked as "checked" if needed
+        menu->UpdateUI(mainFrame->GetEventHandler());
+
         const wxMenuItemList& L = menu->GetMenuItems();
         wxMenuItemList::const_iterator iter = L.begin();
         for(; iter != L.end(); ++iter) {
             wxMenuItem* menuItem = *iter;
             if(menuItem->GetSubMenu()) {
                 wxString labelText = menuItem->GetItemLabelText();
-                if((labelText == "Recent Files") || (labelText == "Recent Workspaces")) {
-                    continue;
-                }
+                if((labelText == "Recent Files") || (labelText == "Recent Workspaces")) { continue; }
                 q.push(std::make_pair(menuItem->GetItemLabelText() + " > ", menuItem->GetSubMenu()));
             } else if((menuItem->GetId() != wxNOT_FOUND) && (menuItem->GetId() != wxID_SEPARATOR)) {
                 clGotoEntry entry;
                 wxString desc = menuItem->GetItemLabelText();
                 entry.SetDesc(prefix + desc);
-                if(menuItem->GetAccel()) {
-                    entry.SetKeyboardShortcut(menuItem->GetAccel()->ToString());
+                if(menuItem->IsCheck()) {
+                    entry.SetFlags(clGotoEntry::kItemCheck);
+                    entry.SetChecked(menuItem->IsChecked());
                 }
+                if(menuItem->GetAccel()) { entry.SetKeyboardShortcut(menuItem->GetAccel()->ToString()); }
                 entry.SetResourceID(menuItem->GetId());
                 entry.SetBitmap(menuItem->GetBitmap().IsOk() ? menuItem->GetBitmap() : defaultBitmap);
                 if(!entry.GetDesc().IsEmpty()) {
