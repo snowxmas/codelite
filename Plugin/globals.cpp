@@ -515,10 +515,10 @@ wxString DoExpandAllVariables(const wxString& expression, clCxxWorkspace* worksp
                 }
 
                 if(output.Find(wxT("$(ProjectFiles)")) != wxNOT_FOUND)
-                    output.Replace(wxT("$(ProjectFiles)"), proj->GetFiles());
+                    output.Replace(wxT("$(ProjectFiles)"), proj->GetFilesAsString(false));
 
                 if(output.Find(wxT("$(ProjectFilesAbs)")) != wxNOT_FOUND)
-                    output.Replace(wxT("$(ProjectFilesAbs)"), proj->GetFiles(true));
+                    output.Replace(wxT("$(ProjectFilesAbs)"), proj->GetFilesAsString(true));
             }
         }
 
@@ -863,9 +863,9 @@ static void DoReadProjectTemplatesFromFolder(const wxString& folder, std::list<P
         ProjectPtr exeProj(new Project());
         ProjectPtr libProj(new Project());
         ProjectPtr dllProj(new Project());
-        libProj->Create(wxT("Static Library"), wxEmptyString, folder, Project::STATIC_LIBRARY);
-        dllProj->Create(wxT("Dynamic Library"), wxEmptyString, folder, Project::DYNAMIC_LIBRARY);
-        exeProj->Create(wxT("Executable"), wxEmptyString, folder, Project::EXECUTABLE);
+        libProj->Create(wxT("Static Library"), wxEmptyString, folder, PROJECT_TYPE_STATIC_LIBRARY);
+        dllProj->Create(wxT("Dynamic Library"), wxEmptyString, folder, PROJECT_TYPE_DYNAMIC_LIBRARY);
+        exeProj->Create(wxT("Executable"), wxEmptyString, folder, PROJECT_TYPE_EXECUTABLE);
         list.push_back(libProj);
         list.push_back(dllProj);
         list.push_back(exeProj);
