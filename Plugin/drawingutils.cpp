@@ -22,10 +22,12 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
+#include "ColoursAndFontsManager.h"
 #include "drawingutils.h"
 #include "editor_config.h"
 #include "globals.h"
 #include "ieditor.h"
+#include "lexer_configuration.h"
 #include "wx/dc.h"
 #include "wx/settings.h"
 #include <wx/app.h>
@@ -697,24 +699,35 @@ wxFont DrawingUtils::GetDefaultFixedFont()
 clColourPalette DrawingUtils::GetColourPalette()
 {
     // basic dark colours
-    clColourPalette palette;
-    palette.bgColour = wxColour("rgb(64, 64, 64)");
-    palette.penColour = wxColour("rgb(100, 100, 100)");
-    palette.selecteTextColour = *wxWHITE;
-    palette.selectionBgColour = wxColour("rgb(87, 87, 87)");
-    palette.textColour = wxColour("rgb(200, 200, 200)");
+    clColourPalette p;
+    wxColour baseColour = DrawingUtils::GetPanelBgColour();
+    p.bgColour = baseColour;
+    p.penColour = p.bgColour.ChangeLightness(95);
+    p.textColour = DrawingUtils::GetPanelTextColour();
+    p.selecteTextColour = wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHTTEXT);
+    p.selectionBgColour = wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT);
 
-    if(::clGetManager()) {
-        IEditor* editor = ::clGetManager()->GetActiveEditor();
-        if(editor && !IsDark(editor->GetCtrl()->StyleGetBackground(0))) {
-            palette.bgColour = wxColour("rgb(230, 230, 230)");
-            palette.penColour = wxColour("rgb(207, 207, 207)");
-            palette.selecteTextColour = wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHTTEXT);
-            palette.selectionBgColour = wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT);
-            palette.textColour = wxColour("rgb(0, 0, 0)");
+    IManager* manager = ::clGetManager();
+    if(manager) {
+        IEditor* editor = manager->GetActiveEditor();
+        if(editor) {
+            ColoursAndFontsManager& mgr = ColoursAndFontsManager::Get();
+            LexerConf::Ptr_t lexer = mgr.GetLexer("C++", mgr.GetGlobalTheme());
+            if(lexer && lexer->IsDark()) {
+                // Dark colour
+                if(lexer) {
+                    wxColour bgColour = lexer->GetProperty(wxSTC_C_IDENTIFIER).GetBgColour();
+                    wxColour baseColour = bgColour.ChangeLightness(105);
+                    p.bgColour = baseColour;
+                    p.penColour = p.bgColour.ChangeLightness(110);
+                    p.textColour = lexer->GetProperty(wxSTC_C_IDENTIFIER).GetFgColour();
+                    p.selecteTextColour = wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHTTEXT);
+                    p.selectionBgColour = wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT);
+                }
+            }
         }
     }
-    return palette;
+    return p;
 }
 
 wxBitmap DrawingUtils::CreateDisabledBitmap(const wxBitmap& bmp)
@@ -745,8 +758,8 @@ wxBitmap DrawingUtils::CreateGrayBitmap(const wxBitmap& bmp)
 
 #define DROPDOWN_ARROW_SIZE 20
 
-void DrawingUtils::DrawButton(wxDC& dc, wxWindow* win, const wxRect& rect, const wxString& label, eButtonKind kind,
-                              eButtonState state)
+void DrawingUtils::DrawButton(wxDC& dc, wxWindow* win, const wxRect& rect, const wxString& label, const wxBitmap& bmp,
+                              eButtonKind kind, eButtonState state)
 {
     // Draw the background
     wxRect clientRect = rect;
@@ -758,13 +771,8 @@ void DrawingUtils::DrawButton(wxDC& dc, wxWindow* win, const wxRect& rect, const
     // Now draw the border around this control
     clientRect.Deflate(1);
 
-#if 0
-    wxColour baseColour = GetMenuBarBgColour();
-    wxColour textColour = GetMenuBarTextColour();
-#else
     wxColour baseColour = GetButtonBgColour();
     wxColour textColour = GetButtonTextColour();
-#endif
     wxColour penColour = baseColour.ChangeLightness(80);
 
     int bgLightness = 100;
@@ -821,7 +829,7 @@ void DrawingUtils::DrawButton(wxDC& dc, wxWindow* win, const wxRect& rect, const
     if(kind == eButtonKind::kDropDown) {
         dc.SetPen(penColour);
         dc.SetBrush(baseColour);
-        wxRendererNative::Get().DrawDropArrow(win, dc, arrowRect, wxCONTROL_CURRENT);
+        DrawDropDownArrow(win, dc, arrowRect, textColour);
         dc.SetPen(penColour);
         dc.DrawLine(arrowRect.GetX(), clientRect.GetTopLeft().y, arrowRect.GetX(), clientRect.GetBottomLeft().y);
     }
@@ -880,4 +888,43 @@ wxColour DrawingUtils::GetButtonTextColour()
 #else
     return wxSystemSettings::GetColour(wxSYS_COLOUR_BTNTEXT);
 #endif
+}
+
+void DrawingUtils::DrawButtonX(wxDC& dc, wxWindow* win, const wxRect& rect, const wxColour& penColour,
+                               eButtonState state)
+{
+    // Calculate the circle radius:
+    wxRect innerRect(rect);
+    innerRect.Deflate(1);
+    wxColour bgColour = GetButtonBgColour();
+    wxColour bgColourDark = GetButtonBgColour().ChangeLightness(90);
+
+    // wxCoord radiusLen = (innerRect.GetWidth() / 2);
+    // wxPoint radiusPt = wxPoint(rect.GetTopLeft().x + rect.GetWidth() / 2, rect.GetTopLeft().y + rect.GetHeight() /
+    // 2);
+    switch(state) {
+    case eButtonState::kHover:
+        dc.SetPen(bgColour);
+        dc.SetBrush(bgColour);
+        dc.DrawRoundedRectangle(rect, 1.5);
+        break;
+    case eButtonState::kPressed:
+        dc.SetPen(bgColourDark);
+        dc.SetBrush(bgColourDark);
+        dc.DrawRoundedRectangle(rect, 1.5);
+        break;
+    default:
+        break;
+    }
+
+    // Draw the 'x'
+    dc.SetPen(wxPen(penColour, 2));
+    dc.DrawLine(innerRect.GetTopLeft(), innerRect.GetBottomRight());
+    dc.DrawLine(innerRect.GetTopRight(), innerRect.GetBottomLeft());
+}
+
+void DrawingUtils::DrawDropDownArrow(wxWindow* win, wxDC& dc, const wxRect& rect, const wxColour& colour)
+{
+    wxUnusedVar(colour);
+    wxRendererNative::Get().DrawDropArrow(win, dc, rect, wxCONTROL_CURRENT);
 }
