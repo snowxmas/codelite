@@ -176,7 +176,11 @@ FileViewTree::FileViewTree(wxWindow* parent, const wxWindowID id, const wxPoint&
 {
     Create(parent, id, pos, size, style);
     m_colourHelper.Reset(new clTreeCtrlColourHelper(this));
+    
+#ifndef __WXGTK3__
     SetBackgroundColour(wxBG_STYLE_CUSTOM);
+#endif
+
     MSWSetNativeTheme(this);
     m_keyboardHelper.reset(new clTreeKeyboardInput(this));
 
@@ -3051,7 +3055,7 @@ void FileViewTree::ExcludeFileFromBuildUI(const wxTreeItemId& item, bool exclude
     }
 }
 
-bool FileViewTree::IsItemExcludedFromBuild(const wxTreeItemId& item, const wxString& configName) const {}
+bool FileViewTree::IsItemExcludedFromBuild(const wxTreeItemId& item, const wxString& configName) const { return false;}
 
 void FileViewTree::OnBuildConfigChanged(wxCommandEvent& e)
 {

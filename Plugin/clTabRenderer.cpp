@@ -1,3 +1,6 @@
+#include "cl_defs.h"
+
+#if !USE_AUI_NOTEBOOK
 #include "Notebook.h"
 #include "clTabRenderer.h"
 #include "clTabRendererSquare.h"
@@ -293,3 +296,4 @@ void clTabRenderer::DrawChevron(wxWindow* win, wxDC& dc, const wxRect& rect, con
 {
     DrawingUtils::DrawDropDownArrow(win, dc, rect, colours.activeTabPenColour);
 }
+#endif

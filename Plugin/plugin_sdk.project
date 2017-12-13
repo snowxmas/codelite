@@ -377,6 +377,11 @@
       <File Name="GotoAnythingDlg.h"/>
     </VirtualDirectory>
     <VirtualDirectory Name="Notebook">
+      <File Name="clTab.h"/>
+      <File Name="clTabHistory.cpp"/>
+      <File Name="clTabHistory.h"/>
+      <File Name="clAuiNotebook.cpp"/>
+      <File Name="clAuiNotebook.h"/>
       <File Name="drawingutils.cpp"/>
       <File Name="drawingutils.h"/>
       <File Name="dockablepane.cpp"/>
@@ -542,6 +547,8 @@
     <File Name="SSHTerminal.cpp"/>
   </VirtualDirectory>
   <VirtualDirectory Name="Diff">
+    <File Name="clDiffFrame.cpp"/>
+    <File Name="clDiffFrame.h"/>
     <VirtualDirectory Name="dtl">
       <File Name="dtl/Diff.hpp"/>
       <File Name="dtl/Diff3.hpp"/>
