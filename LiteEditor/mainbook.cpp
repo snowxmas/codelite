@@ -71,7 +71,8 @@ void MainBook::CreateGuiControls()
     sz->Add(m_messagePane, 0, wxALL | wxEXPAND, 5, NULL);
 
 #if USE_AUI_NOTEBOOK
-    long style = wxAUI_NB_DEFAULT_STYLE;
+    long style = wxAUI_NB_TOP | wxAUI_NB_TAB_SPLIT | wxAUI_NB_TAB_MOVE | wxAUI_NB_CLOSE_ON_ACTIVE_TAB |
+                 wxAUI_NB_WINDOWLIST_BUTTON | kNotebook_DynamicColours | kNotebook_MouseMiddleClickClosesTab;
 #else
     long style = kNotebook_AllowDnD |                  // Allow tabs to move
                  kNotebook_MouseMiddleClickClosesTab | // Handle mouse middle button when clicked on a tab

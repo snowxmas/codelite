@@ -15,6 +15,7 @@ class WXDLLIMPEXP_SDK clAuiNotebook : public wxAuiNotebook
 {
 private:
     clTabHistory::Ptr_t m_history;
+    long m_customFlags;
 
 protected:
     void OnAuiPageChanging(wxAuiNotebookEvent& evt);
@@ -24,12 +25,16 @@ protected:
     void OnAuiTabContextMenu(wxAuiNotebookEvent& evt);
     void OnTabCloseButton(wxAuiNotebookEvent& evt);
     void OnTabMiddleClicked(wxAuiNotebookEvent& evt);
+    void OnTabBgDClick(wxAuiNotebookEvent& evt);
+    void OnNavKey(wxNavigationKeyEvent& evt);
+    void OnThemeChanged(wxCommandEvent& evt);
 
 public:
     clAuiNotebook(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition,
                   const wxSize& size = wxDefaultSize, long style = 0, const wxString& name = wxEmptyString);
     ~clAuiNotebook();
-
+    long GetCustomFlags() const { return m_customFlags; }
+    
     // Backward compatiblity API
     long GetStyle() const { return GetWindowStyle(); }
     void SetStyle(size_t style) { SetWindowStyle(style); }
@@ -47,9 +52,13 @@ public:
     wxArrayString GetAllTabsLabels();
     void SetTabDirection(wxDirection d);
     void GetAllTabs(clTab::Vec_t& tabs);
-    
+
     bool DeletePage(size_t page);
     bool RemovePage(size_t page);
+    int FindPage(wxWindow* page) const;
+    bool AddPage(wxWindow* page, const wxString& caption, bool select = false, const wxBitmap& bitmap = wxNullBitmap);
+    bool InsertPage(size_t pageIdx, wxWindow* page, const wxString& caption, bool select = false,
+                    const wxBitmap& bitmap = wxNullBitmap);
 };
 
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_SDK, wxEVT_BOOK_PAGE_CHANGING, wxBookCtrlEvent);
