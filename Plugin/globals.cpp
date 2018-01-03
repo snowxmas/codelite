@@ -1117,7 +1117,7 @@ wxString wxShellExec(const wxString& cmd, const wxString& projectName)
     wxFFile fp(filename, wxT("r"));
     if(fp.IsOpened()) { fp.ReadAll(&content); }
     fp.Close();
-    wxRemoveFile(filename);
+    clRemoveFile(filename);
     return content;
 }
 
@@ -1138,6 +1138,11 @@ wxFileName wxReadLink(const wxFileName& filename)
 {
 #ifndef __WXMSW__
     if(wxIsFileSymlink(filename)) {
+    #if defined(__WXGTK__)
+        // Use 'realpath' on Linux, otherwise this breaks on relative symlinks, and (untested) on symlinks-to-symlinks
+        return wxFileName(CLRealPath(filename.GetFullPath()));
+
+    #else // OSX
         wxFileName realFileName;
         char _tmp[512];
         memset(_tmp, 0, sizeof(_tmp));
@@ -1146,6 +1151,7 @@ wxFileName wxReadLink(const wxFileName& filename)
             realFileName = wxFileName(wxString(_tmp, wxConvUTF8, len));
             return realFileName;
         }
+    #endif // !OSX
     }
     return filename;
 
@@ -2228,26 +2234,4 @@ int clFindMenuItemPosition(wxMenu* menu, int menuItemId)
     return wxNOT_FOUND;
 }
 
-bool clNextWord(const wxString& str, size_t& offset, wxString& word)
-{
-    if(offset == str.size()) { return false; }
-    size_t start = wxString::npos;
-    for(; offset < str.size(); ++offset) {
-        bool isWhitespace = (str[offset] == ' ') || (str[offset] == '\t');
-        if(isWhitespace && (start != wxString::npos)) {
-            // we found a trailing whitespace
-            break;
-        } else if(isWhitespace && (start == wxString::npos)) {
-            // skip leading whitespace
-            continue;
-        } else if(start == wxString::npos) {
-            start = offset;
-        }
-    }
-
-    if((start != wxString::npos) && (offset > start)) {
-        word = str.Mid(start, offset - start);
-        return true;
-    }
-    return false;
-}
+bool clNextWord(const wxString& str, size_t& offset, wxString& word) { return FileUtils::NextWord(str, offset, word); }

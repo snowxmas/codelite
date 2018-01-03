@@ -151,6 +151,7 @@ bool CxxVariableScanner::ReadType(CxxVariable::LexerToken::Vec_t& vartype, bool&
                     break;
                 case '*':
                 case '&':
+                case '@': // AngelScript
                     // Part of the name
                     UngetToken(token);
                     return true;
@@ -175,9 +176,24 @@ bool CxxVariableScanner::ReadName(wxString& varname, wxString& pointerOrRef, wxS
 {
     CxxLexerToken token;
     while(GetNextToken(token)) {
-        if(token.GetType() == T_IDENTIFIER) {
+        if(token.GetType() == '@') {
+            // AngelScript. @ is similar to * in C/C++
+            // @see https://github.com/eranif/codelite/issues/1839
+            if(!GetNextToken(token) || token.GetType() != T_IDENTIFIER) {
+                varname.Clear();
+                return false;
+            }
             varname = token.GetWXString();
-
+            varInitialization.Clear();
+            pointerOrRef = "@";
+            return true;
+        } else if(token.GetType() == T_IDENTIFIER) {
+            varname = token.GetWXString();
+            
+            // When parsing function signature, we don't have multiple arguments 
+            // tied to the same TYPE
+            if(m_isFuncSignature) { return false; }
+            
             // Peek at the next token
             // We can expect "=", "," "(", ";" or ")"
             // Examples:
@@ -193,11 +209,13 @@ bool CxxVariableScanner::ReadName(wxString& varname, wxString& pointerOrRef, wxS
                 s_validLocalTerminators.insert((int)')');
                 s_validLocalTerminators.insert((int)'(');
                 s_validLocalTerminators.insert((int)'{'); // C++11 initialization, e.g: vector<int> v {1,2,3};
+                s_validLocalTerminators.insert((int)'['); // Array
             }
 
             // Now that we got the name, check if have more variables to expect
             if(!GetNextToken(token)) {
-                varname.Clear();
+                // We reached EOF, but we do got the variable name
+                // se we return false ("don't continue") but we dont clear the name
                 return false;
             }
 
@@ -230,7 +248,6 @@ bool CxxVariableScanner::ReadName(wxString& varname, wxString& pointerOrRef, wxS
                 UngetToken(token);
                 return false;
             }
-
         } else if(token.GetType() == '*' || token.GetType() == '&') {
             pointerOrRef << token.GetWXString();
         } else {
@@ -258,6 +275,18 @@ void CxxVariableScanner::ConsumeInitialization(wxString& consumed)
         delims.insert(';');
         delims.insert(',');
         delims.insert('{');
+        type = ReadUntil(delims, token, dummy);
+
+    } else if(tokType == '[') {
+        // Array
+        std::unordered_set<int> delims;
+        delims.insert(']');
+        if(ReadUntil(delims, token, consumed) == wxNOT_FOUND) { return; }
+        consumed.Prepend("[");
+        // Now read until the delimiter
+        delims.clear();
+        delims.insert(';');
+        delims.insert(',');
         type = ReadUntil(delims, token, dummy);
 
     } else if(tokType == '{') {
@@ -419,12 +448,12 @@ void CxxVariableScanner::OptimizeBuffer(const wxString& buffer, wxString& stripp
         case ')':
             --parenthesisDepth;
             buffer = PopBuffer();
+            buffer << ")";
             // The closing curly bracket is added *after* we switch buffers
-            if(parenthesisDepth == 0) {
-                buffer << tok.GetWXString();
-            } else {
-                buffer << ";";
-            }
+            // if(parenthesisDepth == 0) {
+            //     buffer << tok.GetWXString();
+            // } else {
+            // }
             break;
         default:
             buffer << tok.GetWXString() << " ";
@@ -486,8 +515,9 @@ CxxVariable::Vec_t CxxVariableScanner::DoGetVariables(const wxString& buffer, bo
 bool CxxVariableScanner::TypeHasIdentifier(const CxxVariable::LexerToken::Vec_t& type)
 {
     // do we have an identifier in the type?
-    CxxVariable::LexerToken::Vec_t::const_iterator iter = std::find_if(
-        type.begin(), type.end(), [&](const CxxVariable::LexerToken& token) { return (token.GetType() == T_IDENTIFIER); });
+    CxxVariable::LexerToken::Vec_t::const_iterator iter =
+        std::find_if(type.begin(), type.end(),
+                     [&](const CxxVariable::LexerToken& token) { return (token.GetType() == T_IDENTIFIER); });
     return (iter != type.end());
 }
 
@@ -583,6 +613,7 @@ bool CxxVariableScanner::OnForLoop(Scanner_t scanner)
             if(depth == 0) return true;
             break;
         case ';':
+        case ':': // C++11 ranged for
             if(lookingForFirstSemiColon) { buffer << ";"; }
             lookingForFirstSemiColon = false;
             break;

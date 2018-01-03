@@ -1,3 +1,7 @@
+#include "cl_defs.h"
+#include "cl_config.h"
+
+#if !USE_AUI_NOTEBOOK
 #include "Notebook.h"
 #include "clTabRenderer.h"
 #include "clTabRendererSquare.h"
@@ -52,9 +56,6 @@ void clTabColours::InitDarkColours()
     InitLightColours();
     activeTabTextColour = "WHITE";
     activeTabBgColour = *wxBLACK;
-    inactiveTabBgColour = tabAreaColour;
-    inactiveTabPenColour = tabAreaColour;
-    inactiveTabInnerPenColour = tabAreaColour;
 }
 
 void clTabColours::InitLightColours()
@@ -74,19 +75,15 @@ void clTabColours::InitLightColours()
         activeTabPenColour = faceColour.ChangeLightness(70);
     }
 
-    activeTabInnerPenColour = activeTabBgColour; //"#ffffff";
+    activeTabInnerPenColour = activeTabBgColour;
     if(DrawingUtils::IsDark(activeTabBgColour)) { activeTabTextColour = *wxWHITE; }
 
     tabAreaColour = faceColour;
-    markerColour = DrawingUtils::GetCaptionColour();
+    markerColour = clConfig::Get().Read("ActiveTabMarkerColour", wxColour("#80ccff"));
 
-    inactiveTabBgColour = tabAreaColour;
-    inactiveTabPenColour = tabAreaColour;
+    inactiveTabBgColour = tabAreaColour.ChangeLightness(95);
+    inactiveTabPenColour = tabAreaColour.ChangeLightness(85);
     inactiveTabInnerPenColour = tabAreaColour;
-
-    inactiveTabBgColour = tabAreaColour;
-    inactiveTabInnerPenColour = tabAreaColour;
-    inactiveTabPenColour = tabAreaColour;
 }
 
 bool clTabColours::IsDarkColours() const { return DrawingUtils::IsDark(activeTabBgColour); }
@@ -235,14 +232,12 @@ wxFont clTabRenderer::GetTabFont() { return DrawingUtils::GetDefaultGuiFont(); }
 void clTabRenderer::ClearActiveTabExtraLine(clTabInfo::Ptr_t activeTab, wxDC& dc, const clTabColours& colours,
                                             size_t style)
 {
-    bool isSquareStyle = (dynamic_cast<clTabRendererSquare*>(this)) != nullptr;
     wxPoint pt1, pt2;
     dc.SetPen(colours.activeTabPenColour);
     if(style & kNotebook_LeftTabs) {
         dc.SetPen(colours.activeTabBgColour);
         pt1 = activeTab->GetRect().GetTopRight();
         pt2 = activeTab->GetRect().GetBottomRight();
-        if(isSquareStyle) { pt1.y += 3; }
         pt2.y -= 1;
         DRAW_LINE(pt1, pt2);
 
@@ -255,7 +250,6 @@ void clTabRenderer::ClearActiveTabExtraLine(clTabInfo::Ptr_t activeTab, wxDC& dc
         dc.SetPen(colours.activeTabBgColour);
         pt1 = activeTab->GetRect().GetTopLeft();
         pt2 = activeTab->GetRect().GetBottomLeft();
-        if(isSquareStyle) { pt1.y += 3; }
         pt2.y -= 1;
         DRAW_LINE(pt1, pt2);
 
@@ -264,11 +258,7 @@ void clTabRenderer::ClearActiveTabExtraLine(clTabInfo::Ptr_t activeTab, wxDC& dc
         dc.SetPen(colours.activeTabBgColour);
         pt1 = activeTab->GetRect().GetTopLeft();
         pt2 = activeTab->GetRect().GetTopRight();
-        if(style & kNotebook_UnderlineActiveTab && isSquareStyle) {
-            pt1.x += 3;
-        } else {
-            pt1.x += 1;
-        }
+        pt1.x += 1;
         pt2.x -= 1;
         DRAW_LINE(pt1, pt2);
 
@@ -277,11 +267,7 @@ void clTabRenderer::ClearActiveTabExtraLine(clTabInfo::Ptr_t activeTab, wxDC& dc
         dc.SetPen(colours.activeTabBgColour);
         pt1 = activeTab->GetRect().GetBottomLeft();
         pt2 = activeTab->GetRect().GetBottomRight();
-        if(style & kNotebook_UnderlineActiveTab && isSquareStyle) {
-            pt1.x += 3;
-        } else {
-            pt1.x += 1;
-        }
+        pt1.x += 1;
         pt2.x -= 1;
         DRAW_LINE(pt1, pt2);
 
@@ -293,49 +279,11 @@ void clTabRenderer::ClearActiveTabExtraLine(clTabInfo::Ptr_t activeTab, wxDC& dc
 
 void clTabRenderer::DrawButton(wxDC& dc, const wxRect& rect, const clTabColours& colours, eButtonState state)
 {
-    // Calculate the circle radius:
-    wxRect innerRect(rect);
-    innerRect.Deflate(1);
-    wxColour darkPenColour = wxSystemSettings::GetColour(wxSYS_COLOUR_3DDKSHADOW);
-    wxCoord radiusLen = (innerRect.GetWidth() / 2);
-    wxPoint radiusPt = wxPoint(rect.GetTopLeft().x + rect.GetWidth() / 2, rect.GetTopLeft().y + rect.GetHeight() / 2);
-    if(state == eButtonState::kPressed) {
-        dc.SetPen(darkPenColour);
-        dc.SetBrush(darkPenColour);
-        dc.DrawCircle(radiusPt, radiusLen);
-    }
-
-    // Draw the 'x'
-    dc.SetPen(wxPen(colours.markerColour, 2));
-    dc.DrawLine(innerRect.GetTopLeft(), innerRect.GetBottomRight());
-    dc.DrawLine(innerRect.GetTopRight(), innerRect.GetBottomLeft());
+    DrawingUtils::DrawButtonX(dc, nullptr, rect, colours.markerColour, state);
 }
 
 void clTabRenderer::DrawChevron(wxWindow* win, wxDC& dc, const wxRect& rect, const clTabColours& colours)
 {
-#if 1
-    wxRendererNative::Get().DrawDropArrow(win, dc, rect, wxCONTROL_CURRENT);
-#else
-    wxCoord small = wxMin(rect.GetWidth(), rect.GetHeight());
-    wxPoint pt;
-    pt.x = ((rect.GetWidth() - small) / 2) + rect.x;
-    pt.y = (((rect.GetHeight() - small) / 2) + rect.y) + 2;
-
-    wxRect rr(pt, wxSize(small, small));
-    rr.Deflate(3);
-
-    dc.SetPen(colours.inactiveTabTextColour);
-    dc.SetBrush(colours.inactiveTabTextColour);
-
-    wxPointList pl;
-    wxPoint p1 = rr.GetTopLeft();
-    wxPoint p2 = rr.GetTopRight();
-    wxPoint p3 = rr.GetBottomLeft();
-    p3.x += (rr.GetWidth() / 2);
-    p1 = rr.GetTopLeft();
-    pl.Append(&p1);
-    pl.Append(&p2);
-    pl.Append(&p3);
-    dc.DrawPolygon(&pl);
-#endif
+    DrawingUtils::DrawDropDownArrow(win, dc, rect, colours.activeTabPenColour);
 }
+#endif

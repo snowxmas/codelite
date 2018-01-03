@@ -1140,7 +1140,7 @@ void PHPLookupTable::ResetDatabase()
     if(curfile.IsOk() && curfile.Exists()) {
         // Delete it from the file system
         wxLogNull noLog;
-        if(!::wxRemoveFile(curfile.GetFullPath())) {
+        if(!clRemoveFile(curfile.GetFullPath())) {
             // CL_WARNING("PHPLookupTable::ResetDatabase: failed to remove file '%s'", curfile.GetFullPath());
         }
     }
@@ -1176,7 +1176,7 @@ void PHPLookupTable::EnsureIntegrity(const wxFileName& filename)
             // disk image is malformed
             db.Close();
             wxLogNull noLog;
-            ::wxRemoveFile(filename.GetFullPath());
+            clRemoveFile(filename.GetFullPath());
         }
     }
 }
@@ -1349,4 +1349,27 @@ PHPEntityBase::Ptr_t PHPLookupTable::FindFunctionNearLine(const wxFileName& file
         clWARNING() << "PHPLookupTable::FindFunctionNearLine:" << e.GetMessage() << clEndl;
     }
     return PHPEntityBase::Ptr_t(NULL);
+}
+
+size_t PHPLookupTable::FindFunctionsByFile(const wxFileName& filename, PHPEntityBase::List_t& functions)
+{
+    wxString sql;
+    try {
+
+        // limit by 2 for performance reason
+        // we will return NULL incase the number of matches is greater than 1...
+        // SELECT * from FUNCTION_TABLE WHERE
+        sql << "SELECT * from FUNCTION_TABLE WHERE FILE_NAME='" << filename.GetFullPath()
+            << "' order by LINE_NUMBER ASC";
+        wxSQLite3Statement st = m_db.PrepareStatement(sql);
+        wxSQLite3ResultSet res = st.ExecuteQuery();
+        while(res.NextRow()) {
+            PHPEntityBase::Ptr_t func(new PHPEntityFunction());
+            func->FromResultSet(res);
+            functions.push_back(func);
+        }
+    } catch(wxSQLite3Exception& e) {
+        clWARNING() << "SQLite 3 error:" << e.GetMessage() << clEndl;
+    }
+    return functions.size();
 }

@@ -70,9 +70,10 @@ void MainBook::CreateGuiControls()
     m_messagePane = new MessagePane(this);
     sz->Add(m_messagePane, 0, wxALL | wxEXPAND, 5, NULL);
 
-    m_navBar = new clEditorBar(this);
-    sz->Add(m_navBar, 0, wxEXPAND);
-
+#if USE_AUI_NOTEBOOK
+    long style = wxAUI_NB_TOP | wxAUI_NB_TAB_SPLIT | wxAUI_NB_TAB_MOVE | wxAUI_NB_CLOSE_ON_ACTIVE_TAB |
+                 wxAUI_NB_WINDOWLIST_BUTTON | kNotebook_DynamicColours | kNotebook_MouseMiddleClickClosesTab;
+#else
     long style = kNotebook_AllowDnD |                  // Allow tabs to move
                  kNotebook_MouseMiddleClickClosesTab | // Handle mouse middle button when clicked on a tab
                  kNotebook_MouseMiddleClickFireEvent | // instead of closing the tab, fire an event
@@ -80,16 +81,18 @@ void MainBook::CreateGuiControls()
                  kNotebook_EnableNavigationEvent |     // Notify when user hit Ctrl-TAB or Ctrl-PGDN/UP
                  kNotebook_UnderlineActiveTab |        // Mark active tab with dedicated coloured line
                  kNotebook_DynamicColours;             // The tabs colour adjust to the editor's theme
-
     if(EditorConfigST::Get()->GetOptions()->IsTabHasXButton()) {
         style |= (kNotebook_CloseButtonOnActiveTabFireEvent | kNotebook_CloseButtonOnActiveTab);
     }
-
     if(EditorConfigST::Get()->GetOptions()->IsMouseScrollSwitchTabs()) { style |= kNotebook_MouseScrollSwitchTabs; }
+#endif
 
     // load the notebook style from the configuration settings
     m_book = new Notebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, style);
     sz->Add(m_book, 1, wxEXPAND);
+
+    m_navBar = new clEditorBar(this);
+    sz->Add(m_navBar, 0, wxEXPAND);
 
     m_quickFindBar = new QuickFindBar(this);
     DoPositionFindBar(2);
@@ -125,6 +128,9 @@ void MainBook::ConnectEvents()
     EventNotifier::Get()->Bind(wxEVT_CXX_SYMBOLS_CACHE_UPDATED, &MainBook::OnCacheUpdated, this);
     EventNotifier::Get()->Bind(wxEVT_CC_UPDATE_NAVBAR, &MainBook::OnUpdateNavigationBar, this);
     EventNotifier::Get()->Bind(wxEVT_CMD_COLOURS_FONTS_UPDATED, &MainBook::OnColoursAndFontsChanged, this);
+    EventNotifier::Get()->Bind(wxEVT_NAVBAR_SCOPE_MENU_SHOWING, &MainBook::OnNavigationBarMenuShowing, this);
+    EventNotifier::Get()->Bind(wxEVT_NAVBAR_SCOPE_MENU_SELECTION_MADE, &MainBook::OnNavigationBarMenuSelectionMade,
+                               this);
 }
 
 MainBook::~MainBook()
@@ -158,6 +164,9 @@ MainBook::~MainBook()
     EventNotifier::Get()->Unbind(wxEVT_CXX_SYMBOLS_CACHE_UPDATED, &MainBook::OnCacheUpdated, this);
     EventNotifier::Get()->Unbind(wxEVT_CC_UPDATE_NAVBAR, &MainBook::OnUpdateNavigationBar, this);
     EventNotifier::Get()->Unbind(wxEVT_CMD_COLOURS_FONTS_UPDATED, &MainBook::OnColoursAndFontsChanged, this);
+    EventNotifier::Get()->Unbind(wxEVT_NAVBAR_SCOPE_MENU_SHOWING, &MainBook::OnNavigationBarMenuShowing, this);
+    EventNotifier::Get()->Unbind(wxEVT_NAVBAR_SCOPE_MENU_SELECTION_MADE, &MainBook::OnNavigationBarMenuSelectionMade,
+                                 this);
 }
 
 void MainBook::OnMouseDClick(wxBookCtrlEvent& e)
@@ -380,6 +389,9 @@ LEditor* MainBook::GetActiveEditor(bool includeDetachedEditors)
 void MainBook::GetAllTabs(clTab::Vec_t& tabs)
 {
     tabs.clear();
+#if USE_AUI_NOTEBOOK
+    m_book->GetAllTabs(tabs);
+#else
     clTabInfo::Vec_t tabsInfo;
     m_book->GetAllTabs(tabsInfo);
 
@@ -398,6 +410,7 @@ void MainBook::GetAllTabs(clTab::Vec_t& tabs)
         }
         tabs.push_back(t);
     });
+#endif
 }
 
 void MainBook::GetAllEditors(LEditor::Vec_t& editors, size_t flags)
@@ -694,7 +707,13 @@ bool MainBook::AddPage(wxWindow* win, const wxString& text, const wxString& tool
 bool MainBook::SelectPage(wxWindow* win)
 {
     int index = m_book->GetPageIndex(win);
-    if(index != wxNOT_FOUND && m_book->GetSelection() != index) { m_book->SetSelection(index); }
+    if(index != wxNOT_FOUND && m_book->GetSelection() != index) {
+#if USE_AUI_NOTEBOOK
+        m_book->ChangeSelection(index);
+#else
+        m_book->SetSelection(index);
+#endif
+    }
     return DoSelectPage(win);
 }
 
@@ -1169,7 +1188,7 @@ void MainBook::OnClosePage(wxBookCtrlEvent& e)
     int where = e.GetSelection();
     if(where == wxNOT_FOUND) { return; }
     wxWindow* page = m_book->GetPage((size_t)where);
-    if(page) ClosePage(page);
+    if(page) { ClosePage(page); }
 }
 
 void MainBook::DoPositionFindBar(int where)
@@ -1238,6 +1257,7 @@ size_t MainBook::GetPageCount() const { return m_book->GetPageCount(); }
 
 void MainBook::DetachActiveEditor()
 {
+#if !USE_AUI_NOTEBOOK
     if(GetActiveEditor()) {
         LEditor* editor = GetActiveEditor();
         m_book->RemovePage(m_book->GetSelection(), true);
@@ -1249,6 +1269,7 @@ void MainBook::DetachActiveEditor()
         frame->Raise();
         m_detachedEditors.push_back(frame);
     }
+#endif
 }
 
 void MainBook::OnDetachedEditorClosed(clCommandEvent& e)
@@ -1417,7 +1438,13 @@ void MainBook::OnTabLabelContextMenu(wxBookCtrlEvent& e)
 {
     e.Skip();
     wxWindow* tabCtrl = static_cast<wxWindow*>(e.GetEventObject());
-    if((e.GetSelection() == m_book->GetSelection()) && (tabCtrl->GetParent() == m_book)) {
+    if((e.GetSelection() == m_book->GetSelection()) &&
+#if USE_AUI_NOTEBOOK
+       (tabCtrl == m_book)
+#else
+       (tabCtrl->GetParent() == m_book)
+#endif
+    ) {
         // we only show context menu for the active tab
         e.Skip(false);
         wxMenu* contextMenu = wxXmlResource::Get()->LoadMenu(wxT("editor_tab_right_click"));
@@ -1438,7 +1465,21 @@ bool MainBook::ClosePage(IEditor* editor, bool notify)
     wxWindow* page = dynamic_cast<wxWindow*>(editor->GetCtrl());
     if(!page) return false;
     int pos = m_book->GetPageIndex(page);
+
+#if USE_AUI_NOTEBOOK
+    if(notify) {
+        return (pos != wxNOT_FOUND) && (m_book->DeletePage(pos));
+    } else {
+        if(pos == wxNOT_FOUND) { return false; }
+        wxWindow* win = m_book->GetPage(pos);
+        if(win == nullptr) { return false; }
+        bool res = m_book->RemovePage(pos);
+        if(res) { win->Destroy(); }
+        return res;
+    }
+#else
     return (pos != wxNOT_FOUND) && (m_book->DeletePage(pos, notify));
+#endif
 }
 
 void MainBook::GetDetachedTabs(clTab::Vec_t& tabs)
@@ -1504,4 +1545,41 @@ void MainBook::DoUpdateEditorsThemes()
     for(size_t i = 0; i < editors.size(); i++) {
         editors[i]->SetSyntaxHighlight(editors[i]->GetContext()->GetName());
     }
+}
+
+void MainBook::OnNavigationBarMenuShowing(clContextMenuEvent& e)
+{
+    e.Skip();
+    m_currentNavBarTags.clear();
+    IEditor* editor = GetActiveEditor(true);
+    if(m_navBar->IsShown() && editor) {
+        TagEntryPtrVector_t tags;
+        if(!TagsManagerST::Get()->GetFileCache()->Find(editor->GetFileName(), tags,
+                                                       clCxxFileCacheSymbols::kFunctions) ||
+           tags.empty()) {
+            return;
+        }
+        wxMenu* menu = e.GetMenu();
+        std::for_each(tags.begin(), tags.end(), [&](TagEntryPtr tag) {
+            wxString fullname = tag->GetFullDisplayName();
+            menu->Append(wxID_ANY, fullname);
+            m_currentNavBarTags.insert({ fullname, tag });
+        });
+    }
+}
+
+void MainBook::OnNavigationBarMenuSelectionMade(clCommandEvent& e)
+{
+    e.Skip();
+    const wxString& selection = e.GetString();
+    if(m_currentNavBarTags.count(selection) == 0) { return; }
+
+    TagEntryPtr tag = m_currentNavBarTags[selection];
+    // Ours to handle
+    e.Skip(false);
+
+    IEditor* editor = GetActiveEditor(true);
+    if(!editor) { return; }
+
+    editor->FindAndSelect(tag->GetPattern(), tag->GetName(), editor->PosFromLine(tag->GetLine() - 1), nullptr);
 }

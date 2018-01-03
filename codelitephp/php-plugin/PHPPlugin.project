@@ -81,6 +81,8 @@
     <Topleveldir>../php-plugin</Topleveldir>
   </Reconciliation>
   <VirtualDirectory Name="src">
+    <File Name="PhpSFTPHandler.cpp"/>
+    <File Name="PhpSFTPHandler.h"/>
     <File Name="php.cpp"/>
     <File Name="php_editor_context_menu.cpp"/>
     <File Name="ssh_workspace_settings.h"/>
@@ -203,9 +205,6 @@
   </Dependencies>
   <Dependencies Name="Win_x64_Debug">
     <Project Name="libCodeLite"/>
-    <Project Name="PHPParser"/>
-  </Dependencies>
-  <Dependencies Name="Win_x64_Release">
     <Project Name="PHPParser"/>
   </Dependencies>
   <Dependencies Name="Win_x86_Release">
@@ -540,4 +539,8 @@ PATH=$(WXWIN)\lib\gcc_dll;$(PATH)]]>
       </Completion>
     </Configuration>
   </Settings>
+  <Dependencies Name="Win_x64_Release">
+    <Project Name="libCodeLite"/>
+    <Project Name="PHPParser"/>
+  </Dependencies>
 </CodeLite_Project>
