@@ -48,7 +48,7 @@ public:
     wxString GetCurrentWspPath() const { return m_currentWspPath; }
 
     void SetCheckContinuous(bool value);
-    bool GetCheckContinuous() const { return m_checkContinuous; }
+    bool GetCheckContinuous() const { return m_options.GetCheckContinuous(); }
     bool IsTag(const wxString& token);
     IEditor* GetEditor();
     wxMenu* CreateSubMenu();
@@ -87,11 +87,13 @@ protected:
     void ClearIndicatorsFromEditors();
 
 protected:
-    bool m_checkContinuous;
     IHunSpell* m_pEngine;
     wxTimer m_timer;
     wxString m_currentWspPath;
     wxAuiToolBar* m_pToolbar;
+
+    IEditor* m_pLastEditor;             // The editor checked last time the spell check ran.
+    wxUint64 m_lastModificationCount;   // Modification count of the editor last time the spell check ran.
 };
 //------------------------------------------------------------
 #endif // SpellCheck

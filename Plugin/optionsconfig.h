@@ -73,6 +73,7 @@ public:
 
     enum {
         Opt2_MouseScrollSwitchTabs = (1 << 0),
+        Opt2_SortTabsDropdownAlphabetically = (1 << 1),
     };
 
     enum { nbTabHt_Tiny = 1, nbTabHt_Short, nbTabHt_Medium, nbTabHt_Tall };
@@ -135,6 +136,7 @@ protected:
     bool m_disableSemicolonShift;
     int m_caretLineAlpha;
     bool m_dontAutoFoldResults;
+    bool m_dontOverrideSearchStringWithSelection;
     bool m_showDebugOnRun;
     bool m_caretUseCamelCase;
     bool m_dontTrimCaretLine;
@@ -151,7 +153,7 @@ protected:
     wxDirection m_outputTabsDirection;    // Up/Down
     bool m_indentedComments;
     int m_nbTabHeight; // Should notebook tabs be too tall, too short or...
-    
+
 public:
     // Helpers
     void EnableOption(size_t flag, bool b)
@@ -202,6 +204,8 @@ public:
     bool IsTabHasXButton() const { return !HasOption(Opt_TabNoXButton); }
     bool IsMouseScrollSwitchTabs() const { return HasOption2(Opt2_MouseScrollSwitchTabs); }
     void SetMouseScrollSwitchTabs(bool b) { EnableOption2(Opt2_MouseScrollSwitchTabs, b); }
+    bool IsSortTabsDropdownAlphabetically() const { return HasOption2(Opt2_SortTabsDropdownAlphabetically); }
+    void SetSortTabsDropdownAlphabetically(bool b) { EnableOption2(Opt2_SortTabsDropdownAlphabetically, b); }
 
     void SetOptions(size_t options) { this->m_options = options; }
     size_t GetOptions() const { return m_options; }
@@ -219,6 +223,8 @@ public:
     bool GetCaretUseCamelCase() const { return m_caretUseCamelCase; }
     void SetDontAutoFoldResults(bool dontAutoFoldResults) { this->m_dontAutoFoldResults = dontAutoFoldResults; }
     bool GetDontAutoFoldResults() const { return m_dontAutoFoldResults; }
+    void SetDontOverrideSearchStringWithSelection(bool dontOverrideSearchStringWithSelection) { m_dontOverrideSearchStringWithSelection = dontOverrideSearchStringWithSelection; }
+    bool GetDontOverrideSearchStringWithSelection() const { return m_dontOverrideSearchStringWithSelection; }
     void SetShowDebugOnRun(bool showDebugOnRun) { this->m_showDebugOnRun = showDebugOnRun; }
     bool GetShowDebugOnRun() const { return m_showDebugOnRun; }
     bool GetDisableSemicolonShift() const { return m_disableSemicolonShift; }

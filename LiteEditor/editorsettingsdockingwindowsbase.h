@@ -59,6 +59,7 @@ protected:
     wxCheckBox* m_checkBoxEditorTabsFollowsTheme;
     wxCheckBox* m_checkBoxUseDarkTabTheme;
     wxCheckBox* m_checkBoxMouseScrollSwitchTabs;
+    wxCheckBox* m_checkBoxSortTabsDropdownAlphabetically;
     wxPanel* m_panel12;
     wxRadioBox* m_radioBoxHint;
     wxCheckBox* m_checkBoxHideCaptions;
@@ -66,6 +67,7 @@ protected:
     wxPanel* m_panel14;
     wxCheckBox* m_checkBoxFindBarAtBottom;
     wxCheckBox* m_checkBoxDontFoldSearchResults;
+    wxCheckBox* m_checkBoxDontOverrideSearchStringWithSelection;
     wxPanel* m_panel16;
     wxCheckBox* m_checkBoxHideOutputPaneOnClick;
     wxCheckBox* m_checkBoxHideOutputPaneNotIfBuild;
@@ -104,6 +106,7 @@ public:
     wxCheckBox* GetCheckBoxEditorTabsFollowsTheme() { return m_checkBoxEditorTabsFollowsTheme; }
     wxCheckBox* GetCheckBoxUseDarkTabTheme() { return m_checkBoxUseDarkTabTheme; }
     wxCheckBox* GetCheckBoxMouseScrollSwitchTabs() { return m_checkBoxMouseScrollSwitchTabs; }
+    wxCheckBox* GetCheckBoxSortTabsDropdownAlphabetically() { return m_checkBoxSortTabsDropdownAlphabetically; }
     wxPanel* GetPanelTabs() { return m_panelTabs; }
     wxRadioBox* GetRadioBoxHint() { return m_radioBoxHint; }
     wxCheckBox* GetCheckBoxHideCaptions() { return m_checkBoxHideCaptions; }
@@ -111,6 +114,7 @@ public:
     wxPanel* GetPanel12() { return m_panel12; }
     wxCheckBox* GetCheckBoxFindBarAtBottom() { return m_checkBoxFindBarAtBottom; }
     wxCheckBox* GetCheckBoxDontFoldSearchResults() { return m_checkBoxDontFoldSearchResults; }
+    wxCheckBox* GetCheckBoxDontOverrideSearchStringWithSelection() { return m_checkBoxDontOverrideSearchStringWithSelection; }
     wxPanel* GetPanel14() { return m_panel14; }
     wxCheckBox* GetCheckBoxHideOutputPaneOnClick() { return m_checkBoxHideOutputPaneOnClick; }
     wxCheckBox* GetCheckBoxHideOutputPaneNotIfBuild() { return m_checkBoxHideOutputPaneNotIfBuild; }

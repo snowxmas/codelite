@@ -131,6 +131,12 @@ EditorSettingsDockingWindowsBase::EditorSettingsDockingWindowsBase(wxWindow* par
     
     boxSizer56->Add(m_checkBoxMouseScrollSwitchTabs, 0, wxALL, WXC_FROM_DIP(5));
     
+    m_checkBoxSortTabsDropdownAlphabetically = new wxCheckBox(m_panelTabs, wxID_ANY, _("Sort the 'More...' dropdown alphabetically"), wxDefaultPosition, wxDLG_UNIT(m_panelTabs, wxSize(-1,-1)), 0);
+    m_checkBoxSortTabsDropdownAlphabetically->SetValue(false);
+    m_checkBoxSortTabsDropdownAlphabetically->SetToolTip(_("Display the 'More tabs...' dropdown sorted alphabetically, rather than by tab order\n"));
+    
+    boxSizer56->Add(m_checkBoxSortTabsDropdownAlphabetically, 0, wxALL, WXC_FROM_DIP(5));
+    
     m_panel12 = new wxPanel(m_notebook10, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_notebook10, wxSize(-1,-1)), wxTAB_TRAVERSAL);
     m_notebook10->AddPage(m_panel12, _("Docking"), false);
     
@@ -181,6 +187,12 @@ EditorSettingsDockingWindowsBase::EditorSettingsDockingWindowsBase(wxWindow* par
     m_checkBoxDontFoldSearchResults->SetToolTip(_("By default, all but the first results of 'Search' are automatically folded; you have to click on each subsequent file to see its contained matches. Tick this box to prevent this.\nYou can still fold and unfold results with the button in the output pane toolbar."));
     
     boxSizer20->Add(m_checkBoxDontFoldSearchResults, 0, wxALL, WXC_FROM_DIP(5));
+    
+    m_checkBoxDontOverrideSearchStringWithSelection = new wxCheckBox(m_panel14, wxID_ANY, _("Don't override search string with current selection on find next/previous"), wxDefaultPosition, wxDLG_UNIT(m_panel14, wxSize(-1, -1)), 0);
+    m_checkBoxDontOverrideSearchStringWithSelection->SetValue(false);
+    m_checkBoxDontOverrideSearchStringWithSelection->SetToolTip(_("By default, the search string is overridden by the current text selection in the editor when doing a find next/previous. Tick this box to prevent this"));
+    
+    boxSizer20->Add(m_checkBoxDontOverrideSearchStringWithSelection, 0, wxALL, WXC_FROM_DIP(5));
     
     m_panel16 = new wxPanel(m_notebook10, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_notebook10, wxSize(-1,-1)), wxTAB_TRAVERSAL);
     m_notebook10->AddPage(m_panel16, _("Debug / Output panes"), false);
