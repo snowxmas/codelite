@@ -26,6 +26,7 @@
 #ifndef SFTPTREEVIEW_H
 #define SFTPTREEVIEW_H
 
+#include "SFTPSessionInfo.h"
 #include "UI.h"
 #include "bitmap_loader.h"
 #include "clTreeKeyboardInput.h"
@@ -47,6 +48,7 @@ class SFTPTreeView : public SFTPTreeViewBase
     SFTP* m_plugin;
     wxString m_commandOutput;
     clTreeKeyboardInput::Ptr_t m_keyboardHelper;
+    SFTPSessionInfoList m_sessions;
 
 public:
     enum {
@@ -85,6 +87,7 @@ protected:
     virtual void OnMenuOpenContainingFolder(wxCommandEvent& event);
     virtual void OnMenuRefreshFolder(wxCommandEvent& event);
     void OnFileDropped(clCommandEvent& event);
+    void OnEditorClosing(wxCommandEvent& evt);
 
     // Edit events
     void OnCopy(wxCommandEvent& event);
@@ -99,6 +102,11 @@ protected:
     bool DoExpandItem(const wxTreeItemId& item);
     void DoBuildTree(const wxString& initialFolder);
     void ManageBookmarks();
+    /**
+     * @brief open remote file path
+     * @param path the remote file path
+     */
+    void DoOpenFile(const wxString& path);
 
     wxTreeItemId DoAddFolder(const wxTreeItemId& parent, const wxString& path);
     wxTreeItemId DoAddFile(const wxTreeItemId& parent, const wxString& path);
@@ -108,7 +116,9 @@ protected:
     bool DoOpenFile(const wxTreeItemId& item);
     void DoDeleteColumn(int colIdx);
     bool GetAccountFromUser(SSHAccountInfo& account);
-
+    SFTPSessionInfo& GetSession(bool createIfMissing);
+    void DoLoadSession();
+    
 protected:
     virtual void OnItemActivated(wxTreeEvent& event);
     virtual void OnItemExpanding(wxTreeEvent& event);

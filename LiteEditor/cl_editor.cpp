@@ -318,6 +318,7 @@ LEditor::LEditor(wxWindow* parent)
     , m_popupIsOn(false)
     , m_isDragging(false)
     , m_modifyTime(0)
+    , m_modificationCount(0)
     , m_isVisible(true)
     , m_hyperLinkIndicatroStart(wxNOT_FOUND)
     , m_hyperLinkIndicatroEnd(wxNOT_FOUND)
@@ -494,7 +495,7 @@ BPtoMarker LEditor::GetMarkerForBreakpt(enum BreakpointType bp_type)
     for(; iter != m_BPstoMarkers.end(); ++iter) {
         if((*iter).bp_type == bp_type) { return *iter; }
     }
-    wxLogMessage(wxT("Breakpoint type not in vector!?"));
+    clLogMessage(wxT("Breakpoint type not in vector!?"));
     return *iter;
 }
 
@@ -512,7 +513,7 @@ void LEditor::SetProperties()
 #else
     UsePopUp(0);
 #endif
-    
+
     SetRectangularSelectionModifier(wxSTC_KEYMOD_CTRL);
     SetAdditionalSelectionTyping(true);
     OptionsConfigPtr options = GetOptions();
@@ -612,7 +613,7 @@ void LEditor::SetProperties()
 
     // Show the separator margin only if the fold margin is hidden
     // (otherwise the fold margin is the separator)
-    SetMarginWidth(SYMBOLS_MARGIN_SEP_ID, 0);
+    SetMarginWidth(SYMBOLS_MARGIN_SEP_ID, GetLexer() == wxSTC_LEX_CPP ? 1 : 0);
 
     // allow everything except for the folding symbols
     SetMarginMask(SYMBOLS_MARGIN_ID, ~(wxSTC_MASK_FOLDERS));
@@ -3105,7 +3106,7 @@ void LEditor::OnKeyDown(wxKeyEvent& event)
             int wordEnd = WordEndPos(pos, true);
             wxString wordAtMouse = GetTextRange(wordStart, wordEnd);
             if(!wordAtMouse.IsEmpty()) {
-                // wxLogMessage("Event wxEVT_DBG_EXPR_TOOLTIP is fired for string: %s", wordAtMouse);
+                // clLogMessage("Event wxEVT_DBG_EXPR_TOOLTIP is fired for string: %s", wordAtMouse);
                 clDebugEvent tipEvent(wxEVT_DBG_EXPR_TOOLTIP);
                 tipEvent.SetString(wordAtMouse);
                 if(EventNotifier::Get()->ProcessEvent(tipEvent)) { return; }
@@ -4175,6 +4176,8 @@ void LEditor::SetEOL()
 void LEditor::OnChange(wxStyledTextEvent& event)
 {
     event.Skip();
+    ++m_modificationCount;
+
     bool isCoalesceStart = event.GetModificationType() & wxSTC_STARTACTION;
     bool isInsert = event.GetModificationType() & wxSTC_MOD_INSERTTEXT;
     bool isDelete = event.GetModificationType() & wxSTC_MOD_DELETETEXT;
@@ -4607,7 +4610,7 @@ void LEditor::OnHighlightWordChecked(wxCommandEvent& e)
 // buffered drawing on and off
 #ifdef __WXMAC__
     SetBufferedDraw(e.GetInt() == 1 ? true : false);
-    // wxLogMessage("Settings buffered drawing to: %d", e.GetInt());
+    // clLogMessage("Settings buffered drawing to: %d", e.GetInt());
     if(e.GetInt()) { Refresh(); }
 #endif
 }
@@ -5252,7 +5255,7 @@ void LEditor::Print()
         if(wxPrinter::GetLastError() == wxPRINTER_ERROR) {
             wxLogError(wxT("There was a problem printing. Perhaps your current printer is not set correctly?"));
         } else {
-            wxLogMessage(wxT("You canceled printing"));
+            clLogMessage(wxT("You canceled printing"));
         }
     } else {
         (*g_printData) = printer.GetPrintDialogData().GetPrintData();

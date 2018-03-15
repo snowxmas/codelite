@@ -83,7 +83,7 @@ OptionsConfig::OptionsConfig(wxXmlNode* node)
     , m_edgeColour(wxColour(wxT("LIGHT GREY")))
     , m_highlightMatchedBraces(true)
     , m_foldBgColour(wxColour(240, 240, 240))
-    , m_autoAdjustHScrollBarWidth(true)
+    , m_autoAdjustHScrollBarWidth(false)
     , m_caretWidth(1)
     , m_caretBlinkPeriod(500)
     , m_programConsoleCommand(TERMINAL_CMD)
@@ -112,6 +112,7 @@ OptionsConfig::OptionsConfig(wxXmlNode* node)
     , m_disableSemicolonShift(false)
     , m_caretLineAlpha(30)
     , m_dontAutoFoldResults(true)
+    , m_dontOverrideSearchStringWithSelection(false)
     , m_showDebugOnRun(true)
     , m_caretUseCamelCase(true)
     , m_wordWrap(false)
@@ -200,6 +201,7 @@ OptionsConfig::OptionsConfig(wxXmlNode* node)
         m_disableSemicolonShift = XmlUtils::ReadBool(node, wxT("DisableSemicolonShift"), m_disableSemicolonShift);
         m_caretLineAlpha = XmlUtils::ReadLong(node, wxT("CaretLineAlpha"), m_caretLineAlpha);
         m_dontAutoFoldResults = XmlUtils::ReadBool(node, wxT("DontAutoFoldResults"), m_dontAutoFoldResults);
+        m_dontOverrideSearchStringWithSelection = XmlUtils::ReadBool(node, wxT("DontOverrideSearchStringWithSelection"), m_dontOverrideSearchStringWithSelection);
         m_showDebugOnRun = XmlUtils::ReadBool(node, wxT("ShowDebugOnRun"), m_showDebugOnRun);
         m_caretUseCamelCase = XmlUtils::ReadBool(node, wxT("m_caretUseCamelCase"), m_caretUseCamelCase);
         m_wordWrap = XmlUtils::ReadBool(node, wxT("m_wordWrap"), m_wordWrap);
@@ -230,6 +232,10 @@ OptionsConfig::OptionsConfig(wxXmlNode* node)
             (wxDirection)XmlUtils::ReadLong(node, "OutputTabsDirection", (int)m_outputTabsDirection);
         m_workspaceTabsDirection =
             (wxDirection)XmlUtils::ReadLong(node, "WorkspaceTabsDirection", (int)m_workspaceTabsDirection);
+#ifdef __WXOSX__
+        if(m_workspaceTabsDirection == wxLEFT) { m_workspaceTabsDirection = wxTOP; }
+        if(m_workspaceTabsDirection == wxRIGHT) { m_workspaceTabsDirection = wxBOTTOM; }
+#endif
     }
 #ifdef __WXMSW__
     if(!(wxUxThemeEngine::GetIfActive() && major >= 6 /* Win 7 and up */)) { m_mswTheme = false; }
@@ -296,6 +302,7 @@ wxXmlNode* OptionsConfig::ToXml() const
     n->AddProperty(wxT("DisableSmartIndent"), BoolToString(m_disableSmartIndent));
     n->AddProperty(wxT("DisableSemicolonShift"), BoolToString(m_disableSemicolonShift));
     n->AddProperty(wxT("DontAutoFoldResults"), BoolToString(m_dontAutoFoldResults));
+    n->AddProperty(wxT("DontOverrideSearchStringWithSelection"), BoolToString(m_dontOverrideSearchStringWithSelection));
     n->AddProperty(wxT("ShowDebugOnRun"), BoolToString(m_showDebugOnRun));
     n->AddProperty(wxT("ConsoleCommand"), m_programConsoleCommand);
     n->AddProperty(wxT("EOLMode"), m_eolMode);

@@ -51,6 +51,7 @@ EditorSettingsDockingWindows::EditorSettingsDockingWindows(wxWindow* parent)
     m_checkBoxHideOutputPaneNotIfMemCheck->SetValue(options->GetHideOutputPaneNotIfMemCheck());
     m_checkBoxFindBarAtBottom->SetValue(options->GetFindBarAtBottom());
     m_checkBoxDontFoldSearchResults->SetValue(options->GetDontAutoFoldResults());
+    m_checkBoxDontOverrideSearchStringWithSelection->SetValue(options->GetDontOverrideSearchStringWithSelection());
     m_checkBoxShowDebugOnRun->SetValue(options->GetShowDebugOnRun());
     m_radioBoxHint->SetSelection(options->GetDockingStyle());
     m_checkBoxHideCaptions->SetValue(!options->IsShowDockingWindowCaption());
@@ -74,6 +75,7 @@ EditorSettingsDockingWindows::EditorSettingsDockingWindows(wxWindow* parent)
     m_checkBoxEditorTabsFollowsTheme->SetValue(options->IsTabColourMatchesTheme());
     m_checkBoxUseDarkTabTheme->SetValue(options->IsTabColourDark());
     m_checkBoxMouseScrollSwitchTabs->SetValue(options->IsMouseScrollSwitchTabs());
+    m_checkBoxSortTabsDropdownAlphabetically->SetValue(options->IsSortTabsDropdownAlphabetically());
 #else
     m_checkBoxEditorTabsFollowsTheme->SetValue(true);
     m_checkBoxEditorTabsFollowsTheme->Enable(false);
@@ -81,6 +83,8 @@ EditorSettingsDockingWindows::EditorSettingsDockingWindows(wxWindow* parent)
     m_checkBoxUseDarkTabTheme->Enable(false);
     m_checkBoxMouseScrollSwitchTabs->SetValue(false);
     m_checkBoxMouseScrollSwitchTabs->Enable(false);
+    m_checkBoxSortTabsDropdownAlphabetically->SetValue(false);
+    m_checkBoxSortTabsDropdownAlphabetically->Enable(false);
 #endif
 
     int sel(0);
@@ -115,6 +119,20 @@ EditorSettingsDockingWindows::EditorSettingsDockingWindows(wxWindow* parent)
     default:
         break;
     }
+#ifdef __WXOSX__
+    switch(options->GetWorkspaceTabsDirection()) {
+    case wxLEFT:
+    case wxTOP:
+        m_choiceWorkspaceTabsOrientation->SetSelection(2);
+        break;
+    case wxRIGHT:
+    case wxBOTTOM:
+        m_choiceWorkspaceTabsOrientation->SetSelection(3);
+        break;
+    default:
+        break;
+    }
+#else
     switch(options->GetWorkspaceTabsDirection()) {
     case wxLEFT:
         m_choiceWorkspaceTabsOrientation->SetSelection(0);
@@ -131,6 +149,7 @@ EditorSettingsDockingWindows::EditorSettingsDockingWindows(wxWindow* parent)
     default:
         break;
     }
+#endif
 #endif
     // Set the marker colour
     m_colourPickerMarker->SetColour(clConfig::Get().Read("ActiveTabMarkerColour", wxColour("#80ccff")));
@@ -159,6 +178,7 @@ void EditorSettingsDockingWindows::Save(OptionsConfigPtr options)
     options->SetHideOutputPaneNotIfMemCheck(m_checkBoxHideOutputPaneNotIfMemCheck->IsChecked());
     options->SetFindBarAtBottom(m_checkBoxFindBarAtBottom->IsChecked());
     options->SetDontAutoFoldResults(m_checkBoxDontFoldSearchResults->IsChecked());
+    options->SetDontOverrideSearchStringWithSelection(m_checkBoxDontOverrideSearchStringWithSelection->IsChecked());
     options->SetShowDebugOnRun(m_checkBoxShowDebugOnRun->IsChecked());
     options->SetDockingStyle(m_radioBoxHint->GetSelection());
     options->SetShowDockingWindowCaption(!m_checkBoxHideCaptions->IsChecked());
@@ -173,6 +193,7 @@ void EditorSettingsDockingWindows::Save(OptionsConfigPtr options)
 #endif
     options->SetTabHasXButton(m_checkBoxShowXButton->IsChecked());
     options->SetMouseScrollSwitchTabs(m_checkBoxMouseScrollSwitchTabs->IsChecked());
+    options->SetSortTabsDropdownAlphabetically(m_checkBoxSortTabsDropdownAlphabetically->IsChecked());
 
     int ht(0);
     switch(m_choiceTabHeight->GetSelection()) {
@@ -212,6 +233,20 @@ void EditorSettingsDockingWindows::Save(OptionsConfigPtr options)
     default:
         break;
     }
+#ifdef __WXOSX__
+    switch(m_choiceWorkspaceTabsOrientation->GetSelection()) {
+    case 0:
+    case 2:
+        options->SetWorkspaceTabsDirection(wxTOP);
+        break;
+    case 1:
+    case 3:
+        options->SetWorkspaceTabsDirection(wxBOTTOM);
+        break;
+    default:
+        break;
+    }
+#else
     switch(m_choiceWorkspaceTabsOrientation->GetSelection()) {
     case 0:
         options->SetWorkspaceTabsDirection(wxLEFT);
@@ -228,6 +263,7 @@ void EditorSettingsDockingWindows::Save(OptionsConfigPtr options)
     default:
         break;
     }
+#endif
 #endif
 }
 

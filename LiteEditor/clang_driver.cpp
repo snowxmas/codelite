@@ -326,6 +326,11 @@ FileTypeCmpArgs_t ClangDriver::DoPrepareCompilationArgs(const wxString& projectN
         cppCompileArgs.Add(wxT("-std=c++14"));
         // cCompileArgs.Add(wxT("-std=c++14"));
     }
+	
+	if(workspaceFlags & LocalWorkspace::EnableCpp17) {
+        cppCompileArgs.Add(wxT("-std=c++17"));
+        // cCompileArgs.Add(wxT("-std=c++14"));
+    }
 
     ///////////////////////////////////////////////////////////////////////
     // Project setting additional flags
@@ -758,10 +763,6 @@ ClangThreadRequest::List_t ClangDriver::DoCreateListOfModifiedBuffers(IEditor* e
     return modifiedBuffers;
 }
 
-void ClangDriver::DoDeleteTempFile(const wxString& fileName)
-{
-    wxLogNull noLog;
-    clRemoveFile(fileName);
-}
+void ClangDriver::DoDeleteTempFile(const wxString& fileName) { wxUnusedVar(fileName); }
 
 #endif // HAS_LIBCLANG

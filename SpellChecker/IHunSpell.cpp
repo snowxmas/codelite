@@ -36,6 +36,7 @@
 // For compilers that support precompilation, includes "wx/wx.h".
 #include "wx/wxprec.h"
 #include <wx/log.h>
+#include "file_logger.h"
 
 #ifndef WX_PRECOMP
 #include "wx/wx.h"
@@ -55,15 +56,14 @@
 // ------------------------------------------------------------
 #define MIN_TOKEN_LEN 3
 // ------------------------------------------------------------
-IHunSpell::IHunSpell()
+IHunSpell::IHunSpell() :
+    m_caseSensitiveUserDictionary(true),
+    m_pSpell(nullptr),
+    m_pPlugIn(nullptr),
+    m_pSpellDlg(nullptr),
+    m_scanners(0)
 {
-    m_pSpell = NULL;
-    m_pPlugIn = NULL;
-    m_dictionary.Empty();
-    m_dicPath.Empty();
-    m_pSpellDlg = NULL;
     InitLanguageList();
-    m_scanners = 0;
 }
 // ------------------------------------------------------------
 IHunSpell::~IHunSpell()
@@ -77,6 +77,11 @@ bool IHunSpell::InitEngine()
 {
     // check if we are already initialized
     if(m_pSpell != NULL) return true;
+
+    m_ignoreList = CustomDictionary(0, StringHashOptionalCase(m_caseSensitiveUserDictionary),
+        StringCompareOptionalCase(m_caseSensitiveUserDictionary));
+    m_userDict = CustomDictionary(0, StringHashOptionalCase(m_caseSensitiveUserDictionary),
+        StringCompareOptionalCase(m_caseSensitiveUserDictionary));
 
     // check base path
     if(!m_dicPath.IsEmpty() && !wxEndsWithPathSeparator(m_dicPath)) m_dicPath += wxFILE_SEP_PATH;
@@ -92,23 +97,20 @@ bool IHunSpell::InitEngine()
     wxFileName fna(aff);
 
     if(!fna.FileExists()) {
-        wxLogMessage(_("Could not find aff file!"));
+        clLogMessage(_("Could not find aff file!"));
         return false;
     }
     wxFileName fnd(dict);
 
     if(!fnd.FileExists()) {
-        wxLogMessage(_("Could not find dictionary file!"));
+        clLogMessage(_("Could not find dictionary file!"));
         return false;
     }
     // so far ok, init engine
     m_pSpell = Hunspell_create(affBuffer, dicBuffer);
-
     return true;
-
-    wxLogMessage(_("Could not initialize spelling engine!"));
-    return false;
 }
+
 // ------------------------------------------------------------
 void IHunSpell::CloseEngine()
 {
@@ -256,12 +258,12 @@ void IHunSpell::CheckSpelling(const wxString& check)
         // process token
         if(!CheckWord(token)) {
             // look in ignore list
-            if(m_ignoreList.Index(token) != wxNOT_FOUND) continue;
+            if(m_ignoreList.count(token) != 0) continue;
 
             // look in user list
-            if(m_userDict.Index(token) != wxNOT_FOUND) continue;
+            if(m_userDict.count(token) != 0) continue;
 
-			// see if hex number 
+			// see if hex number
 			if(rehex.Matches(token)) continue;
 
             pEditor->SetUserIndicator(pos, token.Len());
@@ -321,14 +323,14 @@ void IHunSpell::AddWordToIgnoreList(const wxString& word)
 {
     if(word.IsEmpty()) return;
 
-    if(m_ignoreList.Index(word) == wxNOT_FOUND) m_ignoreList.Add(word);
+    m_ignoreList.insert(word);
 }
 // ------------------------------------------------------------
 void IHunSpell::AddWordToUserDict(const wxString& word)
 {
     if(word.IsEmpty()) return;
 
-    if(m_userDict.Index(word) == wxNOT_FOUND) m_userDict.Add(word);
+    m_userDict.insert(word);
 }
 // ------------------------------------------------------------
 bool IHunSpell::LoadUserDict(const wxString& filename)
@@ -337,12 +339,12 @@ bool IHunSpell::LoadUserDict(const wxString& filename)
 
     if(!tf.Exists()) return false;
 
-    m_userDict.Clear();
+    m_userDict.clear();
 
     tf.Open();
 
     for(wxUint32 i = 0; i < tf.GetLineCount(); i++) {
-        m_userDict.Add(tf.GetLine(i));
+        m_userDict.insert(tf.GetLine(i));
     }
     tf.Close();
 
@@ -352,16 +354,23 @@ bool IHunSpell::LoadUserDict(const wxString& filename)
 bool IHunSpell::SaveUserDict(const wxString& filename)
 {
     wxTextFile tf(filename);
+    CustomDictionary fileUserDict(m_userDict);
 
     if(!tf.Exists()) {
         if(!tf.Create()) return false;
     } else {
         if(!tf.Open()) return false;
+
+        // Re-read contents from disk in case another CodeLite instance has updated the user dictionary.
+        for(wxUint32 i = 0; i < tf.GetLineCount(); i++) {
+            fileUserDict.insert(tf.GetLine(i));
+        }
+
         tf.Clear();
     }
 
-    for(wxUint32 i = 0; i < m_userDict.GetCount(); i++) {
-        tf.AddLine(m_userDict[i]);
+    for(const auto &word : fileUserDict) {
+        tf.AddLine(word);
     }
     tf.Write();
     tf.Close();
@@ -526,12 +535,12 @@ int IHunSpell::CheckCppType(IEditor* pEditor)
 
             if(!CheckWord(token)) {
                 // look in ignore list
-                if(m_ignoreList.Index(token) != wxNOT_FOUND) continue;
+                if(m_ignoreList.count(token) != 0) continue;
 
                 // look in user list
-                if(m_userDict.Index(token) != wxNOT_FOUND) continue;
+                if(m_userDict.count(token) != 0) continue;
 
-				// see if hex number 
+				// see if hex number
 				if(rehex.Matches(token)) continue;
 
                 pEditor->SetUserIndicator(pos, token.Len());
@@ -612,12 +621,12 @@ int IHunSpell::MarkErrors(IEditor* pEditor)
             //			}
             if(!CheckWord(token)) {
                 // look in ignore list
-                if(m_ignoreList.Index(token) != wxNOT_FOUND) continue;
+                if(m_ignoreList.count(token) != 0) continue;
 
                 // look in user list
-                if(m_userDict.Index(token) != wxNOT_FOUND) continue;
+                if(m_userDict.count(token) != 0) continue;
 
-				// see if hex number 
+				// see if hex number
 				if(rehex.Matches(token)) continue;
 
                 pEditor->SetUserIndicator(pos, token.Len());
@@ -629,10 +638,26 @@ int IHunSpell::MarkErrors(IEditor* pEditor)
     return counter;
 }
 
+void IHunSpell::SetCaseSensitiveUserDictionary(const bool caseSensitiveUserDictionary) {
+    if (caseSensitiveUserDictionary != m_caseSensitiveUserDictionary)
+    {
+        m_caseSensitiveUserDictionary = caseSensitiveUserDictionary;
+
+        // Re-order user dictionary and ignores.
+        CustomDictionary userDict(m_userDict.begin(), m_userDict.end(), 0, StringHashOptionalCase(caseSensitiveUserDictionary),
+            StringCompareOptionalCase(caseSensitiveUserDictionary));
+        m_userDict.swap(userDict);
+
+        CustomDictionary ignoreList(m_ignoreList.begin(), m_ignoreList.end(), 0,
+            StringHashOptionalCase(caseSensitiveUserDictionary), StringCompareOptionalCase(caseSensitiveUserDictionary));
+        m_ignoreList.swap(ignoreList);
+    }
+}
+
 void IHunSpell::AddWord(const wxString& word)
 {
 #if wxUSE_STL
-    // Implict conversions are disabled when building with wxUSE_STL=1
+    // Implicit conversions are disabled when building with wxUSE_STL=1
     Hunspell_add(m_pSpell, word.mb_str().data());
 #else
     Hunspell_add(m_pSpell, word);
