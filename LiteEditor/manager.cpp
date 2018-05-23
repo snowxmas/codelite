@@ -211,6 +211,8 @@ Manager::Manager(void)
     EventNotifier::Get()->Connect(wxEVT_CMD_FIND_IN_FILES_DISMISSED,
                                   clCommandEventHandler(Manager::OnFindInFilesDismissed), NULL, this);
 
+    EventNotifier::Get()->Bind(wxEVT_DEBUGGER_REFRESH_PANE, &Manager::OnUpdateDebuggerActiveView, this);
+    EventNotifier::Get()->Bind(wxEVT_DEBUGGER_SET_MEMORY, &Manager::OnDebuggerSetMemory, this);
     // Add new workspace type
     clWorkspaceManager::Get().RegisterWorkspace(new clCxxWorkspace());
 
@@ -230,6 +232,9 @@ Manager::~Manager(void)
     EventNotifier::Get()->Disconnect(wxEVT_PROJ_RENAMED, clCommandEventHandler(Manager::OnProjectRenamed), NULL, this);
     EventNotifier::Get()->Disconnect(wxEVT_CMD_FIND_IN_FILES_DISMISSED,
                                      clCommandEventHandler(Manager::OnFindInFilesDismissed), NULL, this);
+    EventNotifier::Get()->Unbind(wxEVT_DEBUGGER_REFRESH_PANE, &Manager::OnUpdateDebuggerActiveView, this);
+    EventNotifier::Get()->Unbind(wxEVT_DEBUGGER_SET_MEMORY, &Manager::OnDebuggerSetMemory, this);
+
     // stop background processes
     IDebugger* debugger = DebuggerMgr::Get().GetActiveDebugger();
 
@@ -948,9 +953,7 @@ void Manager::RetagFile(const wxString& filename)
         clLogMessage(wxString::Format(wxT("Workspace in being closed, skipping re-tag for file %s"), filename.c_str()));
         return;
     }
-    if(!TagsManagerST::Get()->IsValidCtagsFile(wxFileName(filename))) {
-        return;
-    }
+    if(!TagsManagerST::Get()->IsValidCtagsFile(wxFileName(filename))) { return; }
 
     wxFileName absFile(filename);
     absFile.MakeAbsolute();
@@ -2028,7 +2031,7 @@ void Manager::DbgStart(long attachPid)
     if(bldConf && !bldConf->IsGUIProgram()) { // debugging a project and the project is not considered a "GUI" program
         m_debuggerTerminal.Clear();
 #ifndef __WXMSW__
-        m_debuggerTerminal.Launch(wxString() << _("Debugging: ") << exepath << wxT(" ") << args);
+        m_debuggerTerminal.Launch(clDebuggerTerminalPOSIX::MakeExeTitle(exepath, args));
         if(!m_debuggerTerminal.IsValid()) {
             ::wxMessageBox(_("Could not launch terminal for debugger"), "CodeLite", wxOK | wxCENTER | wxICON_ERROR,
                            clMainFrame::Get());
@@ -3579,5 +3582,24 @@ void Manager::ShowNewProjectWizard(const wxString& workspaceFolder)
 
         // Carry on with the default behaviour
         CreateProject(data, workspaceFolder);
+    }
+}
+
+void Manager::OnUpdateDebuggerActiveView(clDebugEvent& event)
+{
+    if(DebuggerMgr::Get().IsNativeDebuggerRunning()) {
+        UpdateDebuggerPane();
+
+    } else {
+        event.Skip();
+    }
+}
+
+void Manager::OnDebuggerSetMemory(clDebugEvent& event)
+{
+    if(DebuggerMgr::Get().IsNativeDebuggerRunning()) {
+        SetMemory(event.GetMemoryAddress(), event.GetMemoryBlockSize(), event.GetMemoryBlockValue());
+    } else {
+        event.Skip();
     }
 }

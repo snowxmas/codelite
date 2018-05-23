@@ -38,7 +38,6 @@ wxDEFINE_EVENT(wxEVT_BOOK_PAGE_CLOSING, wxBookCtrlEvent);
 wxDEFINE_EVENT(wxEVT_BOOK_PAGE_CLOSED, wxBookCtrlEvent);
 wxDEFINE_EVENT(wxEVT_BOOK_PAGE_CLOSE_BUTTON, wxBookCtrlEvent);
 wxDEFINE_EVENT(wxEVT_BOOK_TAB_DCLICKED, wxBookCtrlEvent);
-wxDEFINE_EVENT(wxEVT_BOOK_NAVIGATING, wxBookCtrlEvent);
 wxDEFINE_EVENT(wxEVT_BOOK_TABAREA_DCLICKED, wxBookCtrlEvent);
 wxDEFINE_EVENT(wxEVT_BOOK_TAB_CONTEXT_MENU, wxBookCtrlEvent);
 
@@ -172,6 +171,11 @@ void Notebook::SetTabDirection(wxDirection d)
     SetStyle(flags);
 }
 
+bool Notebook::MoveActivePage(int newIndex) 
+{
+    return m_tabCtrl->MoveActiveToIndex(newIndex, GetSelection() > newIndex ? eDirection::kLeft : eDirection::kRight);
+}
+
 //----------------------------------------------------------
 // Notebook header
 //----------------------------------------------------------
@@ -222,6 +226,7 @@ clTabCtrl::clTabCtrl(wxWindow* notebook, size_t style)
     } else {
         m_colours.InitLightColours();
     }
+    SetStyle(m_style);
     // The history object
     m_history.reset(new clTabHistory());
 }
@@ -314,35 +319,7 @@ clTabCtrl::~clTabCtrl()
     GetParent()->Unbind(wxEVT_KEY_DOWN, &clTabCtrl::OnWindowKeyDown, this);
 }
 
-void clTabCtrl::OnWindowKeyDown(wxKeyEvent& event)
-{
-    if(GetStyle() & kNotebook_EnableNavigationEvent) {
-#ifdef __WXOSX__
-        if(event.AltDown())
-#else
-        if(event.CmdDown())
-#endif
-        {
-            switch(event.GetUnicodeKey()) {
-            case WXK_TAB:
-            case WXK_PAGEDOWN:
-            case WXK_PAGEUP: {
-#if CL_BUILD
-                CL_DEBUG("Firing navigation event");
-#endif
-                // Fire the navigation event
-                wxBookCtrlEvent e(wxEVT_BOOK_NAVIGATING);
-                e.SetEventObject(GetParent());
-                GetParent()->GetEventHandler()->AddPendingEvent(e);
-                return;
-            }
-            default:
-                break;
-            }
-        }
-    }
-    event.Skip();
-}
+void clTabCtrl::OnWindowKeyDown(wxKeyEvent& event) { event.Skip(); }
 
 void clTabCtrl::OnSize(wxSizeEvent& event)
 {
@@ -620,11 +597,7 @@ int clTabCtrl::ChangeSelection(size_t tabIdx)
 
 int clTabCtrl::SetSelection(size_t tabIdx)
 {
-#ifdef __WXMSW__
     DoChangeSelection(tabIdx);
-#else
-    CallAfter(&clTabCtrl::DoChangeSelection, tabIdx);
-#endif
     return wxNOT_FOUND;
 }
 
@@ -1106,7 +1079,7 @@ void clTabCtrl::OnContextMenu(wxContextMenuEvent& event)
         } else {
             // fire an event for the selected tab
             wxBookCtrlEvent menuEvent(wxEVT_BOOK_TAB_CONTEXT_MENU);
-            menuEvent.SetEventObject(this);
+            menuEvent.SetEventObject(GetParent());
             menuEvent.SetSelection(realPos);
             GetParent()->GetEventHandler()->ProcessEvent(menuEvent);
         }
@@ -1146,7 +1119,7 @@ void clTabCtrl::DoShowTabList()
     int selection = GetPopupMenuSelectionFromUser(menu, m_chevronRect.GetBottomLeft());
     if(selection != wxID_NONE) {
         selection -= firstTabPageID;
-        if(selection < sortedIndexes.size()) {
+        if(selection < (int)sortedIndexes.size()) {
             const int newSelection = sortedIndexes[selection];
 
             // don't change the selection unless the selection is really changing

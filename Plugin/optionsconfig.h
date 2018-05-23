@@ -74,6 +74,9 @@ public:
     enum {
         Opt2_MouseScrollSwitchTabs = (1 << 0),
         Opt2_SortTabsDropdownAlphabetically = (1 << 1),
+        Opt2_PlaceNavBarAtTheTop = (1 << 2),
+        Opt2_DisableCtrlTabForTabSwitching = (1 << 3),
+        Opt2_SortNavBarDropdown = (1 << 4),
     };
 
     enum { nbTabHt_Tiny = 1, nbTabHt_Short, nbTabHt_Medium, nbTabHt_Tall };
@@ -110,6 +113,7 @@ protected:
     bool m_autoAdjustHScrollBarWidth;
     int m_caretWidth;
     int m_caretBlinkPeriod;
+    bool m_copyLineEmptySelection;
     wxString m_programConsoleCommand;
     wxString m_eolMode;
     bool m_hideChangeMarkerMargin;
@@ -153,6 +157,7 @@ protected:
     wxDirection m_outputTabsDirection;    // Up/Down
     bool m_indentedComments;
     int m_nbTabHeight; // Should notebook tabs be too tall, too short or...
+    wxString m_webSearchPrefix;
 
 public:
     // Helpers
@@ -206,6 +211,12 @@ public:
     void SetMouseScrollSwitchTabs(bool b) { EnableOption2(Opt2_MouseScrollSwitchTabs, b); }
     bool IsSortTabsDropdownAlphabetically() const { return HasOption2(Opt2_SortTabsDropdownAlphabetically); }
     void SetSortTabsDropdownAlphabetically(bool b) { EnableOption2(Opt2_SortTabsDropdownAlphabetically, b); }
+    bool IsNavBarTop() const { return HasOption2(Opt2_PlaceNavBarAtTheTop); }
+    void SetNavBarTop(bool b) { EnableOption2(Opt2_PlaceNavBarAtTheTop, b); }
+    bool IsCtrlTabEnabled() const { return !HasOption2(Opt2_DisableCtrlTabForTabSwitching); }
+    void SetCtrlTabEnabled(bool b) { EnableOption2(Opt2_DisableCtrlTabForTabSwitching, !b); }
+    bool IsSortNavBarDropdown() const { return HasOption2(Opt2_SortNavBarDropdown); }
+    void SetSortNavBarDropdown(bool b) { EnableOption2(Opt2_SortNavBarDropdown, b); }
 
     void SetOptions(size_t options) { this->m_options = options; }
     size_t GetOptions() const { return m_options; }
@@ -424,6 +435,9 @@ public:
     const int& GetCaretBlinkPeriod() const { return m_caretBlinkPeriod; }
     const int& GetCaretWidth() const { return m_caretWidth; }
 
+    void SetCopyLineEmptySelection(const bool copyLineEmptySelection) { m_copyLineEmptySelection = copyLineEmptySelection; }
+    bool GetCopyLineEmptySelection() const { return m_copyLineEmptySelection; }
+
     void SetProgramConsoleCommand(const wxString& programConsoleCommand)
     {
         this->m_programConsoleCommand = programConsoleCommand;
@@ -458,6 +472,9 @@ public:
     bool MSWIsWrapCmdWithDoubleQuotes() const { return true; }
     bool IsMouseZoomEnabled() const { return !HasOption(Opt_DisableMouseCtrlZoom); }
     void SetMouseZoomEnabled(bool b) { EnableOption(Opt_DisableMouseCtrlZoom, !b); }
+
+    const wxString& GetWebSearchPrefix() const { return m_webSearchPrefix; }
+    void SetWebSearchPrefix(const wxString& webSearchPrefix) { this->m_webSearchPrefix = webSearchPrefix; }
 
     void UpdateFromEditorConfig(const clEditorConfigSection& section);
 

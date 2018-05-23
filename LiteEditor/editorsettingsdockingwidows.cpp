@@ -56,8 +56,9 @@ EditorSettingsDockingWindows::EditorSettingsDockingWindows(wxWindow* parent)
     m_radioBoxHint->SetSelection(options->GetDockingStyle());
     m_checkBoxHideCaptions->SetValue(!options->IsShowDockingWindowCaption());
     m_checkBoxEnsureCaptionsVisible->SetValue(options->IsEnsureCaptionsVisible());
-
+    m_checkBoxNavBarTop->SetValue(options->IsNavBarTop());
     m_checkBoxShowXButton->SetValue(options->IsTabHasXButton());
+    m_checkBoxNavBarSortDropdown->SetValue(options->IsSortNavBarDropdown());
 
     // DEFAULT 0
     // MINIMAL 1
@@ -86,6 +87,7 @@ EditorSettingsDockingWindows::EditorSettingsDockingWindows(wxWindow* parent)
     m_checkBoxSortTabsDropdownAlphabetically->SetValue(false);
     m_checkBoxSortTabsDropdownAlphabetically->Enable(false);
 #endif
+    m_checkBoxEnableTabSwitchingKey->SetValue(options->IsCtrlTabEnabled());
 
     int sel(0);
     switch(options->GetNotebookTabHeight()) {
@@ -183,6 +185,9 @@ void EditorSettingsDockingWindows::Save(OptionsConfigPtr options)
     options->SetDockingStyle(m_radioBoxHint->GetSelection());
     options->SetShowDockingWindowCaption(!m_checkBoxHideCaptions->IsChecked());
     options->SetEnsureCaptionsVisible(m_checkBoxEnsureCaptionsVisible->IsChecked());
+    options->SetNavBarTop(m_checkBoxNavBarTop->IsChecked());
+    options->SetCtrlTabEnabled(m_checkBoxEnableTabSwitchingKey->IsChecked());
+    options->SetSortNavBarDropdown(m_checkBoxNavBarSortDropdown->IsChecked());
 
 #if USE_AUI_NOTEBOOK
     options->SetTabColourMatchesTheme(true);
