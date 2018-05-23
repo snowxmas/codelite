@@ -672,7 +672,7 @@ void CodeLiteLLDBApp::ApplyBreakpoints(const LLDBCommand& command)
                 case LLDBBreakpoint::kFileLine: {
                     wxPrintf("codelite-lldb: creating breakpoint by location: %s,%d\n", breakPoint->GetFilename(),
                              breakPoint->GetLineNumber());
-                    m_target.BreakpointCreateByLocation(breakPoint->GetFilename().mb_str().data(),
+                    m_target.BreakpointCreateByLocation(breakPoint->GetFilename(),
                                                         breakPoint->GetLineNumber());
                     break;
                 }
