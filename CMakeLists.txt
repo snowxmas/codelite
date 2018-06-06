@@ -112,7 +112,7 @@ message("-- OS name ${OS_NAME}")
 
 if ( APPLE )
   set(WX_COMPONENTS "std aui propgrid ribbon")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -stdlib=libc++")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -stdlib=libc++")
 else ( APPLE )
   set(WX_COMPONENTS "std aui propgrid stc ribbon")
 endif()
@@ -289,7 +289,7 @@ include(OSXInstall)
 OSX_MAKE_BUNDLE_DIRECTORY()
 
 add_definitions(-DYY_NEVER_INTERACTIVE=1)
-set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17" )
+set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14" )
 
 if (NOT MINGW)
     add_definitions(-DINSTALL_DIR=\"${CL_PREFIX}/share/codelite\")
