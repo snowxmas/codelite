@@ -5,7 +5,7 @@
 AppName=CodeLite
 AppVerName=CodeLite
 AppPublisher=Eran Ifrah
-AppVersion=12.0.3
+AppVersion=12.0.4
 AppPublisherURL=http://codelite.org
 AppSupportURL=http://codelite.org
 AppUpdatesURL=http://codelite.org
@@ -13,7 +13,7 @@ DefaultDirName={pf64}\CodeLite
 DefaultGroupName=CodeLite
 LicenseFile=license.txt
 OutputDir=output
-OutputBaseFilename=codelite-amd64-12.0.3
+OutputBaseFilename=codelite-amd64-12.0.4
 ChangesEnvironment=yes
 FlatComponentsList=yes
 SetupIconFile=box_software.ico
@@ -28,7 +28,7 @@ UninstallDisplayIcon={app}\codelite.exe,0
 ;;==================================
 #define CODELITE_ROOT "C:\src\codelite"
 #define WXWIN "D:\src\wx-src"
-#define BINUTILS_DIR "D:\bin"
+#define BINUTILS_DIR "C:\Program Files\CodeLite"
 #define MINGW_DIR "D:\software\MinGW-w64\mingw64\bin"
 
 

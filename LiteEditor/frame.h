@@ -55,6 +55,7 @@
 #include <wx/splash.h>
 
 // forward decls
+class clToolBar;
 class WebUpdateJob;
 class CodeLiteApp;
 class clSingleInstanceThread;
@@ -111,6 +112,7 @@ class clMainFrame : public wxFrame
     MyMenuBar* m_myMenuBar;
     wxMenu* m_bookmarksDropDownMenu;
     ThemeHandler m_themeHandler;
+    bool m_noSavePerspectivePrompt;
 
 #ifndef __WXMSW__
     ZombieReaperPOSIX m_zombieReaper;
@@ -128,9 +130,9 @@ class clMainFrame : public wxFrame
 
     // Printing
     wxPrintDialogData m_printDlgData;
-    wxToolBar* m_mainToolBar;
     clMainFrameHelper::Ptr_t m_frameHelper;
     WebUpdateJob* m_webUpdate;
+    clToolBar* m_toolbar;
 
 public:
     static bool m_initCompleted;
@@ -144,7 +146,7 @@ protected:
 public:
     static clMainFrame* Get();
     static void Initialize(bool loadLastSession);
-
+    
     /**
      * @brief goto anything..
      */
@@ -281,7 +283,6 @@ public:
      */
     void CompleteInitialization();
 
-    void RegisterToolbar(int menuItemId, const wxString& name);
     void RegisterDockWindow(int menuItemId, const wxString& name);
 
     const GeneralInfo& GetFrameGeneralInfo() const { return m_frameGeneralInfo; }
@@ -360,14 +361,8 @@ private:
     void OnSplitSelectionUI(wxUpdateUIEvent& event);
 
     /// Toolbar management
-    void CreateToolbars24();
-    void CreateToolbars16();
-    void CreateNativeToolbar24();
-    void CreateNativeToolbar16();
+    void CreateToolBar(int toolSize);
     void ToggleToolBars(bool all);
-
-    void SetToolBar(wxToolBar* tb);
-
     void ViewPaneUI(const wxString& paneName, wxUpdateUIEvent& event);
     void CreateRecentlyOpenedFilesMenu();
     void CreateWelcomePage();
@@ -381,12 +376,28 @@ private:
      */
     bool StartSetupWizard();
 
+    /**
+     * @brief see if the wizard changed developer profile
+     * @return true if the 'Save Perspective' dialog should not be shown
+     */
+    bool GetAndResetNoSavePerspectivePrompt() {
+        bool ans = m_noSavePerspectivePrompt;
+        m_noSavePerspectivePrompt = false;
+        return ans;
+    }
+    /**
+     * @brief mark not to show the 'Save Perspective' dialog on next close
+     */
+    void SetNoSavePerspectivePrompt(bool devProfileChanged) {
+        m_noSavePerspectivePrompt = devProfileChanged;
+    }
+
     void DoShowCaptions(bool show);
 
 public:
     void ViewPane(const wxString& paneName, bool checked);
     void ShowOrHideCaptions();
-    wxToolBar* GetMainToolBar() const { return m_mainToolBar; }
+    clToolBar* GetMainToolBar() const { return m_toolbar; }
 
 protected:
     //----------------------------------------------------
@@ -469,7 +480,7 @@ protected:
     void OnCtagsOptions(wxCommandEvent& event);
     void OnBuildProject(wxCommandEvent& event);
     void OnBuildProjectOnly(wxCommandEvent& event);
-    void OnShowAuiBuildMenu(wxAuiToolBarEvent& e);
+    void OnShowBuildMenu(wxCommandEvent& e);
     void OnBuildAndRunProject(wxCommandEvent& event);
     void OnRebuildProject(wxCommandEvent& event);
     void OnRetagWorkspace(wxCommandEvent& event);
@@ -635,12 +646,10 @@ protected:
     // Misc
     void OnActivateEditor(wxCommandEvent& e);
     void OnActiveEditorChanged(wxCommandEvent& e);
-    void OnUpdateCustomTargetsDropDownMenu(wxCommandEvent& e);
     void OnWorkspaceLoaded(wxCommandEvent& e);
     void OnRefactoringCacheStatus(wxCommandEvent& e);
     void OnWorkspaceClosed(wxCommandEvent& e);
     void OnChangeActiveBookmarkType(wxCommandEvent& e);
-    void OnShowBookmarkMenu(wxAuiToolBarEvent& e);
     void OnSettingsChanged(wxCommandEvent& e);
     void OnEditMenuOpened(wxMenuEvent& e);
     void OnProjectRenamed(clCommandEvent& event);

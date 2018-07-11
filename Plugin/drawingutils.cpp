@@ -23,6 +23,7 @@
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 #include "ColoursAndFontsManager.h"
+#include "cl_config.h"
 #include "drawingutils.h"
 #include "editor_config.h"
 #include "globals.h"
@@ -437,7 +438,7 @@ wxColour DrawingUtils::GetPanelBgColour()
     static wxColour bgColour(wxSystemSettings::GetColour(wxSYS_COLOUR_3DFACE));
     if(!intitialized) {
         // try to get the background colour from a menu
-        GtkWidget *label = gtk_label_new("Label");
+        GtkWidget* label = gtk_label_new("Label");
         bgColour = GtkGetBgColourFromWidget(label, bgColour);
         intitialized = true;
     }
@@ -515,11 +516,28 @@ wxColour DrawingUtils::GetMenuBarBgColour()
         intitialized = true;
     }
     return bgColour;
+#elif defined(__WXOSX__)
+    return wxColour("rgb(209, 209, 209)");
 #else
     return wxSystemSettings::GetColour(wxSYS_COLOUR_MENUBAR);
 #endif
 }
 
+void DrawingUtils::FillMenuBarBgColour(wxDC& dc, const wxRect& rect)
+{
+#if defined(__WXOSX__) || defined(__WXMSW__)
+    wxColour startColour("rgb(231, 229, 231)");
+    wxColour endColour("rgb(180, 180, 180)");
+    dc.GradientFillLinear(rect, startColour, endColour, wxSOUTH);
+    endColour = endColour.ChangeLightness(90);
+    dc.SetPen(endColour);
+    dc.DrawLine(rect.GetBottomLeft(), rect.GetBottomRight());
+#else
+    dc.SetPen(GetMenuBarBgColour());
+    dc.SetBrush(GetMenuBarBgColour());
+    dc.DrawRectangle(rect);
+#endif
+}
 wxColour DrawingUtils::GetMenuBarTextColour()
 {
 #if defined(__WXGTK__) && !defined(__WXGTK3__)
@@ -659,26 +677,16 @@ bool DrawingUtils::DrawStippleBackground(const wxRect& rect, wxDC& dc)
 
 wxColour DrawingUtils::GetCaptionColour()
 {
-#ifdef __WXMSW__
-    wxRegKey re(wxRegKey::HKCU, "Software\\Microsoft\\Windows\\DWM");
-
-    unsigned long colVal = -1;
-    if(re.Exists() && re.QueryValue("ColorizationColor", (long*)&colVal)) {
-        // Colour format is: 0xAARRGGBB
-        int r = (colVal >> 16) & 0xff;
-        int g = (colVal >> 8) & 0xff;
-        int b = colVal & 0xff;
-        return wxColour(r, g, b);
-    } else {
-        return wxSystemSettings::GetColour(wxSYS_COLOUR_ACTIVECAPTION);
-    }
-#else
+    wxColour defaultCaptionColour;
 #ifdef __WXGTK3__
-    return wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT);
+    defaultCaptionColour = wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT);
 #else
-    return wxSystemSettings::GetColour(wxSYS_COLOUR_ACTIVECAPTION);
+    defaultCaptionColour = wxSystemSettings::GetColour(wxSYS_COLOUR_ACTIVECAPTION);
 #endif
-#endif
+    wxColour captionColour = defaultCaptionColour;
+    bool useCustomCaptionColour = clConfig::Get().Read("UseCustomCaptionsColour", false);
+    if(useCustomCaptionColour) { captionColour = clConfig::Get().Read("CustomCaptionColour", captionColour); }
+    return captionColour;
 }
 
 wxFont DrawingUtils::GetDefaultFixedFont()
@@ -738,11 +746,21 @@ wxBitmap DrawingUtils::CreateDisabledBitmap(const wxBitmap& bmp)
 #endif
 }
 
+#ifdef __WXOSX__
+double wxOSXGetMainScreenContentScaleFactor();
+#endif
+
 wxBitmap DrawingUtils::CreateGrayBitmap(const wxBitmap& bmp)
 {
     wxImage img = bmp.ConvertToImage();
     img = img.ConvertToGreyscale();
+#ifdef __WXOSX__
+    double scale = 1.0;
+    if(wxOSXGetMainScreenContentScaleFactor() > 1.9) { scale = 2.0; }
+    wxBitmap greyBmp(img, -1, scale);
+#else
     wxBitmap greyBmp(img);
+#endif
     return greyBmp;
 }
 
@@ -758,7 +776,7 @@ void DrawingUtils::DrawButton(wxDC& dc, wxWindow* win, const wxRect& rect, const
     dc.DrawRectangle(clientRect);
 
     // Now draw the border around this control
-    clientRect.Deflate(2);
+    // clientRect.Deflate(2);
 
     wxColour baseColour = GetButtonBgColour();
     wxColour textColour = GetButtonTextColour();
@@ -904,7 +922,7 @@ void DrawingUtils::DrawButtonX(wxDC& dc, wxWindow* win, const wxRect& rect, cons
     // Calculate the circle radius:
     wxRect innerRect(rect);
     wxColour colour = penColour;
-    
+
     // Default state: "normal"
     dc.SetBrush(*wxTRANSPARENT_BRUSH);
 
@@ -929,4 +947,14 @@ void DrawingUtils::DrawDropDownArrow(wxWindow* win, wxDC& dc, const wxRect& rect
 {
     wxUnusedVar(colour);
     wxRendererNative::Get().DrawDropArrow(win, dc, rect, wxCONTROL_CURRENT);
+}
+
+wxColour DrawingUtils::GetCaptionTextColour()
+{
+    wxColour captionColour = GetCaptionColour();
+    if(IsDark(captionColour)) {
+        return *wxWHITE;
+    } else {
+        return *wxBLACK;
+    }
 }

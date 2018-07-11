@@ -44,6 +44,22 @@
  }]]]>
     </Plugin>
   </Plugins>
+  <VirtualDirectory Name="clToolBar">
+    <File Name="cLToolBarControl.h"/>
+    <File Name="cLToolBarControl.cpp"/>
+    <File Name="clToolBarToggleButton.h"/>
+    <File Name="clToolBarToggleButton.cpp"/>
+    <File Name="clToolBarSeparator.h"/>
+    <File Name="clToolBarSeparator.cpp"/>
+    <File Name="clToolBarMenuButton.h"/>
+    <File Name="clToolBarMenuButton.cpp"/>
+    <File Name="clToolBarButtonBase.h"/>
+    <File Name="clToolBarButtonBase.cpp"/>
+    <File Name="clToolBarButton.h"/>
+    <File Name="clToolBarButton.cpp"/>
+    <File Name="clToolBar.h"/>
+    <File Name="clToolBar.cpp"/>
+  </VirtualDirectory>
   <Reconciliation>
     <Regexes/>
     <Excludepaths/>

@@ -23,20 +23,20 @@
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
+#include "clStatusBar.h"
+#include "clTabRenderer.h"
 #include "cl_aui_dock_art.h"
+#include "cl_command_event.h"
+#include "cl_config.h"
+#include "codelite_events.h"
+#include "drawingutils.h"
+#include "event_notifier.h"
+#include "globals.h"
 #include "imanager.h"
+#include <editor_config.h>
 #include <wx/dcmemory.h>
 #include <wx/settings.h>
-#include <editor_config.h>
-#include "globals.h"
-#include "cl_command_event.h"
-#include "event_notifier.h"
-#include "drawingutils.h"
-#include "imanager.h"
-#include "clStatusBar.h"
 #include <wx/xrc/xmlres.h>
-#include "codelite_events.h"
-#include "clTabRenderer.h"
 
 // --------------------------------------------
 
@@ -72,6 +72,10 @@ clAuiDockArt::clAuiDockArt(IManager* manager)
 {
     EventNotifier::Get()->Bind(wxEVT_EDITOR_CONFIG_CHANGED, &clAuiDockArt::OnSettingsChanged, this);
     m_useDarkColours = EditorConfigST::Get()->GetOptions()->IsTabColourDark();
+    m_captionColour = DrawingUtils::GetCaptionColour();
+    m_captionTextColour = DrawingUtils::GetCaptionTextColour();
+    m_useCustomCaptionColour = clConfig::Get().Read("UseCustomCaptionsColour", false);
+
     m_darkBgColour = wxColour("rgb(80,80,80)");
 #ifdef __WXOSX__
     m_notebookTabAreaDarkBgColour = *wxBLACK;
@@ -99,8 +103,8 @@ clAuiDockArt::~clAuiDockArt()
 }
 
 #define AUI_BUTTON_SIZE 12
-void clAuiDockArt::DrawPaneButton(
-    wxDC& dc, wxWindow* window, int button, int button_state, const wxRect& _rect, wxAuiPaneInfo& pane)
+void clAuiDockArt::DrawPaneButton(wxDC& dc, wxWindow* window, int button, int button_state, const wxRect& _rect,
+                                  wxAuiPaneInfo& pane)
 {
     int xx = _rect.GetTopLeft().x + ((_rect.GetWidth() - AUI_BUTTON_SIZE) / 2);
     int yy = _rect.GetTopLeft().y + ((_rect.GetHeight() - AUI_BUTTON_SIZE) / 2);
@@ -124,41 +128,31 @@ void clAuiDockArt::DrawPaneButton(
     }
 }
 
-void
-clAuiDockArt::DrawCaption(wxDC& dc, wxWindow* window, const wxString& text, const wxRect& rect, wxAuiPaneInfo& pane)
+void clAuiDockArt::DrawCaption(wxDC& dc, wxWindow* window, const wxString& text, const wxRect& rect,
+                               wxAuiPaneInfo& pane)
 {
     wxRect tmpRect(wxPoint(0, 0), rect.GetSize());
 
     // Hackishly prevent assertions on linux
     if(tmpRect.GetHeight() == 0) tmpRect.SetHeight(1);
     if(tmpRect.GetWidth() == 0) tmpRect.SetWidth(1);
-#ifdef __WXOSX__
+
+#if defined(__WXOSX__)
     tmpRect = rect;
     window->PrepareDC(dc);
 
     // Prepare the colours
-    wxColour bgColour, penColour, textColour;
-    textColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
-    bgColour = wxSystemSettings::GetColour(wxSYS_COLOUR_3DFACE).ChangeLightness(90);
-
-    penColour = bgColour;
-    // Same as the notebook background colour?
-    penColour = m_useDarkColours ? m_darkBgColour : penColour;
-    bgColour = m_useDarkColours ? m_darkBgColour : bgColour;
-    textColour = m_useDarkColours ? "WHITE" : textColour;
-
     wxFont f = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
     dc.SetFont(f);
-    dc.SetPen(penColour);
-    dc.SetBrush(bgColour);
-    dc.DrawRectangle(tmpRect);
 
-    // Fill the caption to look like OSX caption
-    if(!m_useDarkColours) {
-        dc.SetPen(wxSystemSettings::GetColour(wxSYS_COLOUR_3DFACE));
-        dc.SetBrush(bgColour);
+    if(m_useCustomCaptionColour) {
+        dc.SetPen(m_captionColour);
+        dc.SetBrush(m_captionColour);
         dc.DrawRectangle(tmpRect);
+    } else {
+        DrawingUtils::FillMenuBarBgColour(dc, tmpRect);
     }
+
     int caption_offset = 0;
     if(pane.icon.IsOk()) {
         DrawIcon(dc, tmpRect, pane);
@@ -166,21 +160,20 @@ clAuiDockArt::DrawCaption(wxDC& dc, wxWindow* window, const wxString& text, cons
     } else {
         caption_offset = 3;
     }
-    dc.SetTextForeground(textColour);
+    dc.SetTextForeground(m_captionTextColour);
     wxCoord w, h;
     dc.GetTextExtent(wxT("ABCDEFHXfgkj"), &w, &h);
 
     wxRect clip_rect = tmpRect;
     clip_rect.width -= 3; // text offset
     clip_rect.width -= 2; // button padding
-    if(pane.HasCloseButton()) clip_rect.width -= m_buttonSize;
-    if(pane.HasPinButton()) clip_rect.width -= m_buttonSize;
-    if(pane.HasMaximizeButton()) clip_rect.width -= m_buttonSize;
+    if(pane.HasCloseButton()) { clip_rect.width -= m_buttonSize; }
+    if(pane.HasPinButton()) { clip_rect.width -= m_buttonSize; }
+    if(pane.HasMaximizeButton()) { clip_rect.width -= m_buttonSize; }
 
     wxString draw_text = wxAuiChopText(dc, text, clip_rect.width);
     wxSize textSize = dc.GetTextExtent(draw_text);
 
-    dc.SetTextForeground(textColour);
     dc.DrawText(draw_text, tmpRect.x + 3 + caption_offset, tmpRect.y + ((tmpRect.height - textSize.y) / 2));
 #else
     wxBitmap bmp(tmpRect.GetSize());
@@ -200,30 +193,10 @@ clAuiDockArt::DrawCaption(wxDC& dc, wxWindow* window, const wxString& text, cons
         }
 #endif
 
-        // Prepare the colours
-        wxColour bgColour, penColour, textColour;
-        if(!DrawingUtils::IsDark(DrawingUtils::GetPanelBgColour())) {
-            bgColour = DrawingUtils::GetPanelBgColour().ChangeLightness(90);
-            textColour = DrawingUtils::GetPanelTextColour();
-        } else {
-            textColour = DrawingUtils::GetPanelTextColour();
-            bgColour = DrawingUtils::GetPanelBgColour().ChangeLightness(50);
-        }
-        
-        // Same as the notebook background colour
-        penColour = bgColour;
-        penColour = m_useDarkColours ? m_darkBgColour : penColour;
-        bgColour = m_useDarkColours ? m_darkBgColour : bgColour;
-        textColour = m_useDarkColours ? "WHITE" : textColour;
-
         wxFont f = DrawingUtils::GetDefaultGuiFont();
         pDC->SetFont(f);
-        pDC->SetPen(penColour);
-        pDC->SetBrush(bgColour);
-        pDC->DrawRectangle(tmpRect);
-
-        pDC->SetPen(penColour);
-        pDC->SetBrush(*wxTRANSPARENT_BRUSH);
+        pDC->SetPen(m_captionColour);
+        pDC->SetBrush(m_captionColour);
         pDC->DrawRectangle(tmpRect);
 
         int caption_offset = 0;
@@ -233,8 +206,8 @@ clAuiDockArt::DrawCaption(wxDC& dc, wxWindow* window, const wxString& text, cons
         } else {
             caption_offset = 3;
         }
-        pDC->SetTextForeground(textColour);
         wxCoord w, h;
+        pDC->SetFont(f);
         pDC->GetTextExtent(wxT("ABCDEFHXfgkj"), &w, &h);
 
         wxRect clip_rect = tmpRect;
@@ -247,7 +220,7 @@ clAuiDockArt::DrawCaption(wxDC& dc, wxWindow* window, const wxString& text, cons
         wxString draw_text = wxAuiChopText(gdc, text, clip_rect.width);
 
         wxSize textSize = pDC->GetTextExtent(draw_text);
-        pDC->SetTextForeground(textColour);
+        pDC->SetTextForeground(m_captionTextColour);
         pDC->DrawText(draw_text, tmpRect.x + 3 + caption_offset, tmpRect.y + ((tmpRect.height - textSize.y) / 2));
         memDc.SelectObject(wxNullBitmap);
     }
@@ -294,6 +267,9 @@ void clAuiDockArt::OnSettingsChanged(wxCommandEvent& event)
 {
     event.Skip();
     m_useDarkColours = EditorConfigST::Get()->GetOptions()->IsTabColourDark();
+    m_captionColour = DrawingUtils::GetCaptionColour();
+    m_captionTextColour = DrawingUtils::GetCaptionTextColour();
+    m_useCustomCaptionColour = clConfig::Get().Read("UseCustomCaptionsColour", false);
 
     // update the bitmaps
     if(m_useDarkColours) {

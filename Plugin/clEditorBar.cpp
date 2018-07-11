@@ -44,14 +44,16 @@ clEditorBar::clEditorBar(wxWindow* parent)
     m_bgColour = DrawingUtils::GetPanelBgColour();
     m_textFont = m_textFont = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
     LexerConf::Ptr_t defaultLexer = ColoursAndFontsManager::Get().GetLexer("default");
-    if(defaultLexer) { m_textFont = defaultLexer->GetFontForSyle(0); }
+    if(defaultLexer) {
+        m_textFont = defaultLexer->GetFontForSyle(0);
+    }
 
     m_functionBmp = clGetManager()->GetStdIcons()->LoadBitmap("function_public", 16);
     SetBackgroundStyle(wxBG_STYLE_PAINT);
 
     memDC.SetFont(m_textFont);
     wxSize sz = memDC.GetTextExtent("Tp");
-    //wxCoord baseY = wxMax(sz.y, m_functionBmp.GetScaledHeight());
+    // wxCoord baseY = wxMax(sz.y, m_functionBmp.GetScaledHeight());
     wxCoord baseY = sz.y;
     baseY += (2 * Y_SPACER); // 2*3 pixels
     SetSizeHints(wxSize(-1, baseY));
@@ -85,7 +87,7 @@ void clEditorBar::OnPaint(wxPaintEvent& e)
     wxAutoBufferedPaintDC bdc(this);
     PrepareDC(bdc);
 #ifdef __WXGTK__
-    wxDC &gcdc = bdc;
+    wxDC& gcdc = bdc;
 #else
     wxGCDC gcdc(bdc);
 #endif
@@ -108,8 +110,12 @@ void clEditorBar::OnPaint(wxPaintEvent& e)
     gcdc.SetFont(guiFont);
 
     wxString fulltext;
-    if(!m_classname.IsEmpty()) { fulltext << m_classname << "::"; }
-    if(!m_function.IsEmpty()) { fulltext << m_function; }
+    if(!m_classname.IsEmpty()) {
+        fulltext << m_classname << "::";
+    }
+    if(!m_function.IsEmpty()) {
+        fulltext << m_function;
+    }
 
     if(!fulltext.IsEmpty()) {
         int scopeButtonWidth =
@@ -118,6 +124,7 @@ void clEditorBar::OnPaint(wxPaintEvent& e)
         DrawingUtils::DrawButton(gcdc, this, m_scopeRect, fulltext, wxNullBitmap, eButtonKind::kDropDown,
                                  m_scopeButtonState);
         textX += m_scopeRect.GetWidth();
+        textX += X_SPACER;
     }
 
     if(!m_breadcrumbs.IsEmpty()) {
@@ -133,14 +140,19 @@ void clEditorBar::OnPaint(wxPaintEvent& e)
         wxString bookmarksLabel = _("Bookmarks");
         wxSize bookmarksTextSize = gcdc.GetTextExtent(bookmarksLabel);
 
-        int total_width = filenameButtonWidth + 20; // The file name button width
-        if(!m_bookmarks.empty()) {
-            total_width += X_SPACER +                     // Separator between the buttons
-                           bookmarksTextSize.GetWidth() + // The bookmarks button size
-                           60; // Add 60 (40 for the image and 20 needed for the drop down button)
-        }
-
-        textX = GetClientRect().GetWidth() - total_width;
+        // int total_width = filenameButtonWidth + 20; // The file name button width
+        // if(!m_bookmarks.empty()) {
+        //     total_width += X_SPACER +                     // Separator between the buttons
+        //                    bookmarksTextSize.GetWidth() + // The bookmarks button size
+        //                    60; // Add 60 (40 for the image and 20 needed for the drop down button)
+        // }
+        // Draw the file name button
+        // We add 20 since its the drop down button size
+        m_filenameRect = wxRect(textX, 0, filenameButtonWidth + 20, rect.GetHeight() - 2);
+        DrawingUtils::DrawButton(gcdc, this, m_filenameRect, breadcumbsText, wxNullBitmap, eButtonKind::kDropDown,
+                                 m_state);
+        textX += m_filenameRect.GetWidth();
+        textX += X_SPACER;
 
         if(!m_bookmarks.empty()) {
             // Update the bookmarks bitmap according to the user settings
@@ -154,14 +166,6 @@ void clEditorBar::OnPaint(wxPaintEvent& e)
             textX += m_bookmarksRect.GetWidth();
             textX += X_SPACER;
         }
-
-        // Draw the file name button
-        // We add 20 since its the drop down button size
-        m_filenameRect = wxRect(textX, 0, filenameButtonWidth + 20, rect.GetHeight() - 2);
-        DrawingUtils::DrawButton(gcdc, this, m_filenameRect, breadcumbsText, wxNullBitmap, eButtonKind::kDropDown,
-                                 m_state);
-        textX += m_filenameRect.GetWidth();
-        textX += X_SPACER;
     }
 }
 
@@ -182,7 +186,9 @@ void clEditorBar::SetMessage(const wxString& className, const wxString& function
 
 void clEditorBar::DoShow(bool s)
 {
-    if(Show(s)) { GetParent()->GetSizer()->Layout(); }
+    if(Show(s)) {
+        GetParent()->GetSizer()->Layout();
+    }
 }
 
 void clEditorBar::OnThemeChanged(wxCommandEvent& e)
@@ -249,11 +255,11 @@ void clEditorBar::OnEditorSize(wxSizeEvent& event)
 void clEditorBar::OnLeftDown(wxMouseEvent& e) { e.Skip(); }
 
 #ifdef __WXOSX__
-#define MENU_POINT(rect, menuPoint)           \
-    menuPoint = rect.GetTopLeft(); \
-    menuPoint.y -= 5;
+#define MENU_POINT(rect, menuPoint)   \
+    menuPoint = rect.GetBottomLeft(); \
+    menuPoint.y += 5;
 #else
-#define MENU_POINT(rect, menuPoint) menuPoint = rect.GetTopLeft();
+#define MENU_POINT(rect, menuPoint) menuPoint = rect.GetBottomLeft();
 #endif
 
 void clEditorBar::OnLeftUp(wxMouseEvent& e)
@@ -290,7 +296,7 @@ void clEditorBar::OnLeftUp(wxMouseEvent& e)
 
         wxPoint menuPoint;
         MENU_POINT(m_filenameRect, menuPoint);
-        
+
         int selection = GetPopupMenuSelectionFromUser(menu, menuPoint);
         if(selection == wxID_NONE) return;
 
@@ -328,7 +334,7 @@ void clEditorBar::OnLeftUp(wxMouseEvent& e)
             // We got something to display
             wxPoint menuPoint;
             MENU_POINT(m_bookmarksRect, menuPoint);
-            
+
             int selection = GetPopupMenuSelectionFromUser(menu, menuPoint);
             if(selection == wxID_NONE) return;
             if(M.count(selection)) {
@@ -378,7 +384,9 @@ void clEditorBar::DoRefresh() { Refresh(); }
 void clEditorBar::OnIdle(wxIdleEvent& event)
 {
     event.Skip();
-    if(!IsShown()) { return; }
+    if(!IsShown()) {
+        return;
+    }
     wxPoint pos = ScreenToClient(::wxGetMousePosition());
     if(GetClientRect().Contains(pos)) {
         m_state = m_bookmarksButtonState = m_scopeButtonState = eButtonState::kNormal;
@@ -396,14 +404,18 @@ void clEditorBar::OnIdle(wxIdleEvent& event)
 void clEditorBar::OnMarkerChanged(clCommandEvent& event)
 {
     event.Skip();
-    if(!IsShown()) { return; }
+    if(!IsShown()) {
+        return;
+    }
     clDEBUG1() << "Marker Changed, updating Navigation Bar (" << event.GetFileName() << ":" << event.GetLineNumber()
                << ")";
     IEditor* editor = clGetManager()->GetActiveEditor();
 
     // Update the markers
     m_bookmarks.clear();
-    if(editor) { editor->GetFindMarkers(m_bookmarks); }
+    if(editor) {
+        editor->GetFindMarkers(m_bookmarks);
+    }
     Refresh();
 }
 

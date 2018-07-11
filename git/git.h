@@ -137,6 +137,7 @@ class GitPlugin : public IPlugin
         gitRevertCommit,
         gitStash,
         gitStashPop,
+        gitConfig,
     };
 
     wxArrayString m_localBranchList;
@@ -329,7 +330,7 @@ public:
     //--------------------------------------------
     // Abstract methods
     //--------------------------------------------
-    virtual clToolBar* CreateToolBar(wxWindow* parent);
+    virtual void CreateToolBar(clToolBar* toolbar);
     virtual void CreatePluginMenu(wxMenu* pluginsMenu);
     virtual void HookPopupMenu(wxMenu* menu, MenuType type);
     virtual void UnPlug();

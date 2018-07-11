@@ -68,7 +68,7 @@ public:
     static wxColour GetMenuTextColour();
     static wxColour GetMenuBarBgColour();
     static wxColour GetMenuBarTextColour();
-
+    static void FillMenuBarBgColour(wxDC& dc, const wxRect& rect);
     static void TruncateText(const wxString& text, int maxWidth, wxDC& dc, wxString& fixedText);
     static void PaintStraightGradientBox(wxDC& dc, const wxRect& rect, const wxColour& startColor,
                                          const wxColour& endColor, bool vertical);
@@ -157,6 +157,11 @@ public:
      * @brief get the caption colour
      */
     static wxColour GetCaptionColour();
+    
+    /**
+     * @brief return the colour suitable for drawing on the caption
+     */
+    static wxColour GetCaptionTextColour();
 
     /**
      * @brief stipple brush used for painting on various wxPanels
