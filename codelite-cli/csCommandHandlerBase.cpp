@@ -1,0 +1,25 @@
+#include "csCommandHandlerBase.h"
+wxDEFINE_EVENT(wxEVT_COMMAND_PROCESSED, clCommandEvent);
+
+csCommandHandlerBase::csCommandHandlerBase(wxEvtHandler* sink)
+    : m_sink(sink)
+    , m_notifyOnExit(true)
+{
+}
+
+csCommandHandlerBase::~csCommandHandlerBase() {}
+
+void csCommandHandlerBase::NotifyCompletion()
+{
+    clCommandEvent e(wxEVT_COMMAND_PROCESSED);
+    m_sink->AddPendingEvent(e);
+}
+
+void csCommandHandlerBase::Process(const JSONElement& options)
+{
+    DoProcessCommand(options);
+    if(m_notifyOnExit) {
+        // Make sure we call 'NotifyCompletion' here if needed
+        NotifyCompletion();
+    }
+}

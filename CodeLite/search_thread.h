@@ -28,7 +28,6 @@
 #include "codelite_exports.h"
 #include "cppwordscanner.h"
 #include "singleton.h"
-#include "stringsearcher.h"
 #include "worker_thread.h"
 #include "wx/event.h"
 #include "wx/filename.h"
@@ -38,6 +37,7 @@
 #include <map>
 #include <wx/regex.h>
 #include <wx/string.h>
+#include "json_node.h"
 
 class wxEvtHandler;
 class SearchResult;
@@ -46,8 +46,22 @@ class SearchThread;
 //----------------------------------------------------------
 // The searched data class to be passed to the search thread
 //----------------------------------------------------------
+// Possible search data options:
+enum {
+    wxSD_MATCHCASE = 0x00000001,
+    wxSD_MATCHWHOLEWORD = 0x00000002,
+    wxSD_REGULAREXPRESSION = 0x00000004,
+    wxSD_SEARCH_BACKWARD = 0x00000008,
+    wxSD_USE_EDITOR_ENCODING = 0x00000010,
+    wxSD_PRINT_SCOPE = 0x00000020,
+    wxSD_SKIP_COMMENTS = 0x00000040,
+    wxSD_SKIP_STRINGS = 0x00000080,
+    wxSD_COLOUR_COMMENTS = 0x00000100,
+    wxSD_WILDCARD = 0x00000200,
+    wxSD_ENABLE_PIPE_SUPPORT = 0x00000400,
+};
 
-class WXDLLIMPEXP_SDK SearchData : public ThreadRequest
+class WXDLLIMPEXP_CL SearchData : public ThreadRequest
 {
     wxArrayString m_rootDirs;
     wxString m_findString;
@@ -89,9 +103,7 @@ public:
 
     SearchData& operator=(const SearchData& rhs)
     {
-        if(this == &rhs) {
-            return *this;
-        }
+        if(this == &rhs) { return *this; }
 
         m_findString = rhs.m_findString.c_str();
         m_flags = rhs.m_flags;
@@ -156,7 +168,7 @@ public:
 //------------------------------------------
 // class containing the search result
 //------------------------------------------
-class WXDLLIMPEXP_SDK SearchResult : public wxObject
+class WXDLLIMPEXP_CL SearchResult : public wxObject
 {
     wxString m_pattern;
     int m_position;
@@ -196,7 +208,10 @@ public:
         m_scope = rhs.m_scope.c_str();
         return *this;
     }
-
+    
+    JSONElement ToJSON() const;
+    void FromJSON(const JSONElement& json);
+    
     //------------------------------------------------------
     // Setters/getters
 
@@ -247,7 +262,7 @@ public:
 
 typedef std::list<SearchResult> SearchResultList;
 
-class WXDLLIMPEXP_SDK SearchSummary : public wxObject
+class WXDLLIMPEXP_CL SearchSummary : public wxObject
 {
     int m_fileScanned;
     int m_matchesFound;
@@ -265,7 +280,7 @@ public:
     }
 
     virtual ~SearchSummary() {}
-
+    
     SearchSummary(const SearchSummary& rhs) { *this = rhs; }
 
     SearchSummary& operator=(const SearchSummary& rhs)
@@ -280,7 +295,10 @@ public:
         m_replaceWith = rhs.m_replaceWith;
         return *this;
     }
-
+    
+    JSONElement ToJSON() const;
+    void FromJSON(const JSONElement& json);
+    
     void SetFindWhat(const wxString& findWhat) { this->m_findWhat = findWhat; }
     void SetReplaceWith(const wxString& replaceWith) { this->m_replaceWith = replaceWith; }
     const wxString& GetFindWhat() const { return m_findWhat; }
@@ -319,7 +337,7 @@ public:
 // The search thread
 //----------------------------------------------------------
 
-class WXDLLIMPEXP_SDK SearchThread : public WorkerThread
+class WXDLLIMPEXP_CL SearchThread : public WorkerThread
 {
     friend class SearchThreadST;
     wxString m_wordChars;
@@ -417,16 +435,16 @@ private:
     void FilterFiles(wxArrayString& files, const SearchData* data);
 };
 
-class WXDLLIMPEXP_SDK SearchThreadST
+class WXDLLIMPEXP_CL SearchThreadST
 {
 public:
     static SearchThread* Get();
     static void Free();
 };
 
-extern WXDLLIMPEXP_SDK const wxEventType wxEVT_SEARCH_THREAD_MATCHFOUND;
-extern WXDLLIMPEXP_SDK const wxEventType wxEVT_SEARCH_THREAD_SEARCHEND;
-extern WXDLLIMPEXP_SDK const wxEventType wxEVT_SEARCH_THREAD_SEARCHCANCELED;
-extern WXDLLIMPEXP_SDK const wxEventType wxEVT_SEARCH_THREAD_SEARCHSTARTED;
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CL, wxEVT_SEARCH_THREAD_MATCHFOUND, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CL, wxEVT_SEARCH_THREAD_SEARCHEND, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CL, wxEVT_SEARCH_THREAD_SEARCHCANCELED, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CL, wxEVT_SEARCH_THREAD_SEARCHSTARTED, wxCommandEvent);
 
 #endif // SEARCH_THREAD_H

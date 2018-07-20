@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<CodeLite_Project Name="codelite-server" Version="10.0.0" InternalType="Console">
+<CodeLite_Project Name="codelite-cli" Version="10.0.0" InternalType="Console">
   <Plugins>
     <Plugin Name="qmake">
       <![CDATA[00010001N0013Debug_Windows000000000000]]>
@@ -8,6 +8,22 @@
   <Description/>
   <Dependencies/>
   <VirtualDirectory Name="src">
+    <File Name="csFindInFilesResults.cpp"/>
+    <File Name="csFindInFilesResults.h"/>
+    <VirtualDirectory Name="Handlers">
+      <File Name="csParseFolderHandler.cpp"/>
+      <File Name="csParseFolderHandler.h"/>
+      <File Name="csParsePHPFolderHandler.cpp"/>
+      <File Name="csParsePHPFolderHandler.h"/>
+      <File Name="csFindInFilesCommandHandler.cpp"/>
+      <File Name="csFindInFilesCommandHandler.h"/>
+      <File Name="csCommandHandlerManager.cpp"/>
+      <File Name="csCommandHandlerManager.h"/>
+      <File Name="csListCommandHandler.cpp"/>
+      <File Name="csListCommandHandler.h"/>
+      <File Name="csCommandHandlerBase.h"/>
+      <File Name="csCommandHandlerBase.cpp"/>
+    </VirtualDirectory>
     <File Name="csJoinableThread.cpp"/>
     <File Name="csJoinableThread.h"/>
     <File Name="csNetworkReaderThread.cpp"/>
@@ -43,7 +59,7 @@
       </Compiler>
       <Linker Options="$(shell wx-config --libs) " Required="yes"/>
       <ResourceCompiler Options="" Required="no"/>
-      <General OutputFile="$(IntermediateDirectory)/$(ProjectName)" IntermediateDirectory="./Debug" Command="/home/eran/devl/codelite/codelite-server/build-debug/codelite-server" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="$(IntermediateDirectory)" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>
+      <General OutputFile="$(IntermediateDirectory)/$(ProjectName)" IntermediateDirectory="./Debug" Command="/home/eran/devl/codelite/codelite-cli/build-debug/bin/codelite-cli" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="$(IntermediateDirectory)" PauseExecWhenProcTerminates="yes" IsGUIProgram="yes" IsEnabled="yes"/>
       <BuildSystem Name="Default"/>
       <Environment EnvVarSetName="&lt;Use Defaults&gt;" DbgSetName="&lt;Use Defaults&gt;">
         <![CDATA[]]>
@@ -86,12 +102,12 @@ $(WorkspacePath)/../CodeLite/SocketAPI</SearchPaths>
         <IncludePath Value="$(CL_HOME)/sdk/codelite_indexer/network"/>
         <Preprocessor Value="wxUSE_GUI=0"/>
       </Compiler>
-      <Linker Options="-O0;$(shell wx-config --libs base,xml)" Required="yes">
+      <Linker Options="-O0;$(shell wx-config --libs base,xml,core)" Required="yes">
         <LibraryPath Value="$(WorkspacePath)/lib"/>
         <Library Value="codelitelib.a"/>
       </Linker>
       <ResourceCompiler Options="" Required="no"/>
-      <General OutputFile="$(WorkspacePath)/bin/codelite-server" IntermediateDirectory="./Debug" Command="$(WorkspacePath)/bin/codelite-server" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="$(WorkspacePath)/Debug" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>
+      <General OutputFile="$(WorkspacePath)/bin/codelite-cli" IntermediateDirectory="./Debug" Command="$(WorkspacePath)/bin/codelite-cli" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="$(WorkspacePath)/Debug" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>
       <BuildSystem Name="Default"/>
       <Environment EnvVarSetName="&lt;Use Defaults&gt;" DbgSetName="&lt;Use Defaults&gt;">
         <![CDATA[]]>

@@ -22,30 +22,33 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
-#include <set>
-#include "editor_config.h"
+#include "clFilesCollector.h"
+#include "cppwordscanner.h"
+#include "dirtraverser.h"
+#include "fileutils.h"
+#include "macros.h"
 #include "search_thread.h"
 #include "wx/event.h"
+#include <algorithm>
+#include <iostream>
+#include <set>
+#include <wx/dir.h>
+#if wxUSE_GUI
+#include <wx/fontmap.h>
+#endif
+#include <wx/log.h>
+#include <wx/tokenzr.h>
 #include <wx/txtstrm.h>
 #include <wx/wfstream.h>
-#include "cppwordscanner.h"
-#include <iostream>
-#include <wx/tokenzr.h>
-#include <wx/dir.h>
-#include <wx/fontmap.h>
-#include <wx/log.h>
-#include "dirtraverser.h"
-#include "macros.h"
-#include "workspace.h"
-#include "globals.h"
-#include <algorithm>
-#include "fileutils.h"
-#include "clFilesCollector.h"
 
-const wxEventType wxEVT_SEARCH_THREAD_MATCHFOUND = wxNewEventType();
-const wxEventType wxEVT_SEARCH_THREAD_SEARCHEND = wxNewEventType();
-const wxEventType wxEVT_SEARCH_THREAD_SEARCHCANCELED = wxNewEventType();
-const wxEventType wxEVT_SEARCH_THREAD_SEARCHSTARTED = wxNewEventType();
+#if !wxUSE_GUI
+#include "cl_command_event.h" // Needed for the definition of wxCommandEvent
+#endif
+
+wxDEFINE_EVENT(wxEVT_SEARCH_THREAD_MATCHFOUND, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_SEARCH_THREAD_SEARCHEND, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_SEARCH_THREAD_SEARCHCANCELED, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_SEARCH_THREAD_SEARCHSTARTED, wxCommandEvent);
 
 #define SEND_ST_EVENT()                       \
     if(owner) {                               \
@@ -229,6 +232,7 @@ void SearchThread::DoSearchFile(const wxString& fileName, const SearchData* data
     wxString fileData;
     fileData.Alloc(size);
 
+#if wxUSE_GUI
     // support for other encoding
     wxFontEncoding enc = wxFontMapper::GetEncodingFromName(data->GetEncoding().c_str());
     wxCSConv fontEncConv(enc);
@@ -236,7 +240,12 @@ void SearchThread::DoSearchFile(const wxString& fileName, const SearchData* data
         m_summary.GetFailedFiles().Add(fileName);
         return;
     }
-
+#else
+    if(!thefile.ReadAll(&fileData, wxConvLibc)) {
+        m_summary.GetFailedFiles().Add(fileName);
+        return;
+    }
+#endif
     // take a wild guess and see if we really need to construct
     // a TextStatesPtr object (it is quite an expensive operation)
     bool shouldCreateStates(true);
@@ -302,14 +311,12 @@ void SearchThread::DoSearchFile(const wxString& fileName, const SearchData* data
         }
     }
 
-    if(m_results.empty() == false) SendEvent(wxEVT_SEARCH_THREAD_MATCHFOUND, data->GetOwner());
+    if(m_results.empty() == false) {
+        SendEvent(wxEVT_SEARCH_THREAD_MATCHFOUND, data->GetOwner());
+    }
 }
-void SearchThread::DoSearchLineRE(const wxString& line,
-                                  const int lineNum,
-                                  const int lineOffset,
-                                  const wxString& fileName,
-                                  const SearchData* data,
-                                  TextStatesPtr statesPtr)
+void SearchThread::DoSearchLineRE(const wxString& line, const int lineNum, const int lineOffset,
+                                  const wxString& fileName, const SearchData* data, TextStatesPtr statesPtr)
 {
     wxRegEx& re = GetRegex(data->GetFindString(), data->IsMatchCase());
     size_t col = 0;
@@ -324,8 +331,8 @@ void SearchThread::DoSearchLineRE(const wxString& line,
 
             // Notify our match
             // correct search Pos and Length owing to non plain ASCII multibyte characters
-            iCorrectedCol = clUTF8Length(line.c_str(), col);
-            iCorrectedLen = clUTF8Length(line.c_str(), col + len) - iCorrectedCol;
+            iCorrectedCol = FileUtils::UTF8Length(line.c_str(), col);
+            iCorrectedLen = FileUtils::UTF8Length(line.c_str(), col + len) - iCorrectedCol;
             SearchResult result;
             result.SetPosition(lineOffset + col);
             result.SetColumnInChars((int)col);
@@ -390,13 +397,8 @@ void SearchThread::DoSearchLineRE(const wxString& line,
     }
 }
 
-void SearchThread::DoSearchLine(const wxString& line,
-                                const int lineNum,
-                                const int lineOffset,
-                                const wxString& fileName,
-                                const SearchData* data,
-                                const wxString& findWhat,
-                                const wxArrayString& filters,
+void SearchThread::DoSearchLine(const wxString& line, const int lineNum, const int lineOffset, const wxString& fileName,
+                                const SearchData* data, const wxString& findWhat, const wxArrayString& filters,
                                 TextStatesPtr statesPtr)
 {
     wxString modLine = line;
@@ -457,8 +459,8 @@ void SearchThread::DoSearchLine(const wxString& line,
 
             // Notify our match
             // correct search Pos and Length owing to non plain ASCII multibyte characters
-            iCorrectedCol = clUTF8Length(line.c_str(), col);
-            iCorrectedLen = clUTF8Length(findWhat.c_str(), findWhat.Length());
+            iCorrectedCol = FileUtils::UTF8Length(line.c_str(), col);
+            iCorrectedLen = FileUtils::UTF8Length(findWhat.c_str(), findWhat.Length());
             SearchResult result;
             result.SetPosition(lineOffset + col);
             result.SetColumnInChars(col);
@@ -555,15 +557,12 @@ void SearchThread::SendEvent(wxEventType type, wxEvtHandler* owner)
         counter++;
         wxThread::Sleep(10);
 
-    } else if(type == wxEVT_SEARCH_THREAD_SEARCHEND) {
+    } else if((type == wxEVT_SEARCH_THREAD_SEARCHEND) || (type == wxEVT_SEARCH_THREAD_SEARCHCANCELED)) {
         // search eneded, if we got any matches "buffed" send them before the
         // the summary event
         if(m_results.empty() == false) {
             wxCommandEvent evt(wxEVT_SEARCH_THREAD_MATCHFOUND, GetId());
             evt.SetClientData(new SearchResultList(m_results));
-            m_results.clear();
-            counter = 0;
-
             if(owner) {
                 wxPostEvent(owner, evt);
             } else if(m_notifiedWindow) {
@@ -571,17 +570,11 @@ void SearchThread::SendEvent(wxEventType type, wxEvtHandler* owner)
             }
         }
 
-        // Now send the summary event
-        event.SetClientData(new SearchSummary(m_summary));
-        SEND_ST_EVENT();
-
-    } else if(type == wxEVT_SEARCH_THREAD_SEARCHCANCELED) {
-        // search cancelled, we dont care about any matches which haven't
-        // been reported yet
-        event.SetClientData(new wxString(wxT("Search cancelled by user")));
         m_results.clear();
         counter = 0;
-
+        
+        // Now send the summary event
+        event.SetClientData(type == wxEVT_SEARCH_THREAD_SEARCHEND ? new SearchSummary(m_summary) : nullptr);
         SEND_ST_EVENT();
     }
 }
@@ -614,4 +607,60 @@ SearchThread* SearchThreadST::Get()
 {
     if(gs_SearchThread == NULL) gs_SearchThread = new SearchThread;
     return gs_SearchThread;
+}
+
+JSONElement SearchResult::ToJSON() const
+{
+    JSONElement json = JSONElement::createObject();
+    json.addProperty("file", m_fileName);
+    json.addProperty("line", m_lineNumber);
+    json.addProperty("col", m_column);
+    json.addProperty("pos", m_position);
+    json.addProperty("pattern", m_pattern);
+    json.addProperty("len", m_len);
+    json.addProperty("flags", m_flags);
+    json.addProperty("columnInChars", m_columnInChars);
+    json.addProperty("lenInChars", m_lenInChars);
+    //json.addProperty("findWhat", m_findWhat);
+    //json.addProperty("matchState", (int)m_matchState);
+    //json.addProperty("scope", m_scope);
+    return json;
+}
+
+void SearchResult::FromJSON(const JSONElement& json)
+{
+    m_position = json.namedObject("pos").toInt(m_position);
+    m_column = json.namedObject("col").toInt(m_column);
+    m_lineNumber = json.namedObject("line").toInt(m_lineNumber);
+    m_pattern = json.namedObject("pattern").toString(m_pattern);
+    m_fileName = json.namedObject("file").toString(m_fileName);
+    m_len = json.namedObject("len").toInt(m_len);
+    m_flags = json.namedObject("flags").toSize_t(m_flags);
+    m_columnInChars = json.namedObject("columnInChars").toInt(m_columnInChars);
+    m_lenInChars = json.namedObject("lenInChars").toInt(m_lenInChars);
+    //m_findWhat = json.namedObject("findWhat").toString(m_findWhat);
+    //m_matchState = json.namedObject("matchState").toInt(m_matchState);
+    //m_scope = json.namedObject("scope").toString(m_scope);
+}
+
+JSONElement SearchSummary::ToJSON() const
+{
+    JSONElement json = JSONElement::createObject();
+    json.addProperty("filesScanned", m_fileScanned);
+    json.addProperty("matchesFound", m_matchesFound);
+    json.addProperty("elapsed", m_elapsed);
+    json.addProperty("failedFiles", m_failedFiles);
+    json.addProperty("findWhat", m_findWhat);
+    json.addProperty("replaceWith", m_replaceWith);
+    return json;
+}
+
+void SearchSummary::FromJSON(const JSONElement& json)
+{
+    m_fileScanned = json.namedObject("filesScanned").toInt(m_fileScanned);
+    m_matchesFound = json.namedObject("matchesFound").toInt(m_matchesFound);
+    m_elapsed = json.namedObject("elapsed").toInt(m_elapsed);
+    m_failedFiles = json.namedObject("failedFiles").toArrayString();
+    m_findWhat = json.namedObject("findWhat").toString();
+    m_replaceWith = json.namedObject("replaceWith").toString();
 }

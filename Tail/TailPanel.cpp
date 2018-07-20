@@ -65,8 +65,18 @@ void TailPanel::OnFileModified(clFileSystemEvent& event)
     size_t cursize = FileUtils::GetFileSize(m_file);
     wxFFile fp(m_file.GetFullPath(), "rb");
     if(fp.IsOpened() && fp.Seek(m_lastPos)) {
-        wxString content;
-        if(fp.ReadAll(&content)) { DoAppendText(content); }
+        if(cursize > m_lastPos) {
+            size_t bufferSize = cursize - m_lastPos;
+            char* buffer = new char[bufferSize + 1];
+            if(fp.Read(buffer, bufferSize) == bufferSize) { 
+                buffer[bufferSize] = '\0';
+                wxString content((const char*)buffer, wxConvUTF8);
+                DoAppendText(content); 
+            }
+            wxDELETEA(buffer);
+        } else {
+            DoAppendText(_("\n>>> File truncated <<<\n"));
+        }
         m_lastPos = cursize;
     }
 }
@@ -219,7 +229,7 @@ void TailPanel::DoBuildToolbar()
     m_toolbar->AddTool(XRCID("tail_clear"), _("Clear"), clGetManager()->GetStdIcons()->LoadBitmap("clear"));
     m_toolbar->AddSeparator();
     m_toolbar->AddTool(XRCID("tail_pause"), _("Pause"), clGetManager()->GetStdIcons()->LoadBitmap("interrupt"));
-    m_toolbar->AddTool(XRCID("tail_play"), _("Pause"), clGetManager()->GetStdIcons()->LoadBitmap("interrupt"));
+    m_toolbar->AddTool(XRCID("tail_play"), _("Play"), clGetManager()->GetStdIcons()->LoadBitmap("debugger_start"));
     m_toolbar->AddSeparator();
     m_toolbar->AddTool(XRCID("tail_detach"), _("Detach window"), clGetManager()->GetStdIcons()->LoadBitmap("windows"));
 

@@ -5,7 +5,6 @@
       <![CDATA[00010001N0013Debug_Windows000000000000]]>
     </Plugin>
   </Plugins>
-  <VirtualDirectory Name="src"/>
   <VirtualDirectory Name="wxsqlite3">
     <File Name="sqlite3.h"/>
     <File Name="sqlite3.c"/>
@@ -31,6 +30,10 @@
     </VirtualDirectory>
   </VirtualDirectory>
   <VirtualDirectory Name="libCodeLite">
+    <File Name="../CodeLite/search_thread.h"/>
+    <File Name="../CodeLite/search_thread.cpp"/>
+    <File Name="../CodeLite/clNetworkMessage.cpp"/>
+    <File Name="../CodeLite/clNetworkMessage.h"/>
     <VirtualDirectory Name="SocketAPI">
       <File Name="../CodeLite/SocketAPI/clSocketServer.h"/>
       <File Name="../CodeLite/SocketAPI/clSocketServer.cpp"/>
