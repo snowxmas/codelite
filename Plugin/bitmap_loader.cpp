@@ -201,6 +201,7 @@ wxImageList* BitmapLoader::MakeStandardMimeImageList()
     AddImage(imageList->Add(LoadBitmap(wxT("mime-js"))), FileExtManager::TypeJS);
     AddImage(imageList->Add(LoadBitmap(wxT("cxx-workspace"))), FileExtManager::TypeWorkspace);
     AddImage(imageList->Add(LoadBitmap(wxT("php-workspace"))), FileExtManager::TypeWorkspacePHP);
+    AddImage(imageList->Add(LoadBitmap(wxT("docker"))), FileExtManager::TypeWorkspaceDocker);
     AddImage(imageList->Add(LoadBitmap(wxT("nodejs-workspace"))), FileExtManager::TypeWorkspaceNodeJS);
     AddImage(imageList->Add(LoadBitmap(wxT("project"))), FileExtManager::TypeProject);
     AddImage(imageList->Add(LoadBitmap(wxT("blocks"))), FileExtManager::TypeWxCrafter);
@@ -212,6 +213,9 @@ wxImageList* BitmapLoader::MakeStandardMimeImageList()
     AddImage(imageList->Add(LoadBitmap(wxT("mime-as"))), FileExtManager::TypeAsm);
     AddImage(imageList->Add(LoadBitmap(wxT("cmake"))), FileExtManager::TypeCMake);
     AddImage(imageList->Add(LoadBitmap(wxT("qt"))), FileExtManager::TypeQMake);
+    AddImage(imageList->Add(LoadBitmap(wxT("docker"))), FileExtManager::TypeDockerfile);
+    AddImage(imageList->Add(LoadBitmap(wxT("yml"))), FileExtManager::TypeYAML);
+    AddImage(imageList->Add(LoadBitmap(wxT("database"))), FileExtManager::TypeDatabase);
 
     std::for_each(m_userBitmaps.begin(), m_userBitmaps.end(),
                   [&](const std::pair<FileExtManager::FileType, wxBitmap>& p) {
@@ -251,6 +255,7 @@ BitmapLoader::BitmapMap_t BitmapLoader::MakeStandardMimeMap()
     images[FileExtManager::TypeJS] = LoadBitmap(wxT("mime-js"));
     images[FileExtManager::TypeWorkspace] = LoadBitmap("cxx-workspace");
     images[FileExtManager::TypeWorkspacePHP] = LoadBitmap("php-workspace");
+    images[FileExtManager::TypeWorkspaceDocker] = LoadBitmap("docker");
     images[FileExtManager::TypeWorkspaceNodeJS] = LoadBitmap("nodejs-workspace");
     images[FileExtManager::TypeProject] = LoadBitmap(wxT("project"));
     images[FileExtManager::TypeWxCrafter] = LoadBitmap(wxT("blocks"));
@@ -263,6 +268,9 @@ BitmapLoader::BitmapMap_t BitmapLoader::MakeStandardMimeMap()
     images[FileExtManager::TypeAsm] = LoadBitmap(wxT("mime-as"));
     images[FileExtManager::TypeCMake] = LoadBitmap(wxT("cmake"));
     images[FileExtManager::TypeQMake] = LoadBitmap(wxT("qt"));
+    images[FileExtManager::TypeDockerfile] = LoadBitmap(wxT("docker"));
+    images[FileExtManager::TypeYAML] = LoadBitmap(wxT("yml"));
+    images[FileExtManager::TypeDatabase] = LoadBitmap(wxT("database"));
 
     BitmapLoader::BitmapMap_t merged;
     merged.insert(m_userBitmaps.begin(), m_userBitmaps.end());

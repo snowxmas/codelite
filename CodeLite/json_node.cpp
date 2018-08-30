@@ -23,11 +23,12 @@
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
+#include "clFontHelper.h"
+#include "fileutils.h"
 #include "json_node.h"
 #include <stdlib.h>
-#include <wx/filename.h>
 #include <wx/ffile.h>
-#include "clFontHelper.h"
+#include <wx/filename.h>
 
 JSONRoot::JSONRoot(const wxString& text)
     : _json(NULL)
@@ -48,12 +49,10 @@ JSONRoot::JSONRoot(const wxFileName& filename)
     : _json(NULL)
 {
     wxString content;
-    wxFFile fp(filename.GetFullPath(), wxT("rb"));
-    if(fp.IsOpened()) {
-        if(fp.ReadAll(&content, wxConvUTF8)) {
-            _json = cJSON_Parse(content.mb_str(wxConvUTF8).data());
-        }
+    if(!FileUtils::ReadFileContent(filename, content)) {
+        return;
     }
+    _json = cJSON_Parse(content.mb_str(wxConvUTF8).data());
 
     if(!_json) {
         _json = cJSON_CreateObject();
@@ -309,7 +308,7 @@ wxString JSONElement::format(bool formatted) const
     if(!_json) {
         return wxT("");
     }
-    
+
     char* p = formatted ? cJSON_Print(_json) : cJSON_PrintUnformatted(_json);
     wxString output(p, wxConvUTF8);
     free(p);
@@ -448,15 +447,6 @@ JSONElement& JSONElement::addProperty(const wxString& name, const wxSize& sz)
     return addProperty(name, szStr);
 }
 
-JSONElement& JSONElement::addProperty(const wxString& name, const JSONElement& element)
-{
-    if(!_json) {
-        return *this;
-    }
-    cJSON_AddItemToObject(_json, name.mb_str(wxConvUTF8).data(), element._json);
-    return *this;
-}
-
 wxPoint JSONElement::toPoint() const
 {
     if(!_json) {
@@ -486,7 +476,6 @@ wxColour JSONElement::toColour(const wxColour& defaultColour) const
     if(_json->type != cJSON_String) {
         return defaultColour;
     }
-
     return wxColour(_json->valuestring);
 }
 
@@ -496,6 +485,15 @@ wxSize JSONElement::toSize() const
     return wxSize(pt.x, pt.y);
 }
 #endif
+
+JSONElement& JSONElement::addProperty(const wxString& name, const JSONElement& element)
+{
+    if(!_json) {
+        return *this;
+    }
+    cJSON_AddItemToObject(_json, name.mb_str(wxConvUTF8).data(), element._json);
+    return *this;
+}
 
 void JSONElement::removeProperty(const wxString& name)
 {

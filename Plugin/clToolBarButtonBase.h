@@ -6,6 +6,7 @@
 #include <wx/dc.h>
 #include <wx/settings.h>
 #include <wx/string.h>
+#include <wx/toolbar.h>
 
 #define CL_TOOL_BAR_X_MARGIN 5
 #define CL_TOOL_BAR_Y_MARGIN 5
@@ -14,7 +15,8 @@
 #else
 #define CL_TOOL_BAR_DROPDOWN_ARROW_SIZE 8
 #endif
-class WXDLLIMPEXP_SDK clToolBarButtonBase
+
+class WXDLLIMPEXP_SDK clToolBarButtonBase : public wxToolBarToolBase
 {
 protected:
     clToolBar* m_toolbar;
@@ -25,6 +27,7 @@ protected:
     wxRect m_dropDownArrowRect;
     wxRect m_buttonRect;
     size_t m_renderFlags;
+    wxMenu* m_menu;
 
 public:
     enum eFlags {
@@ -34,6 +37,7 @@ public:
         kDisabled = (1 << 3),
         kSeparator = (1 << 4),
         kControl = (1 << 5),
+        kHidden = (1 << 6),
     };
 
     enum eRenderFlags {
@@ -42,8 +46,8 @@ public:
     };
 
 public:
-    clToolBarButtonBase(
-        clToolBar* parent, wxWindowID id, const wxBitmap& bmp, const wxString& label = "", size_t flags = 0);
+    clToolBarButtonBase(clToolBar* parent, wxWindowID id, const wxBitmap& bmp, const wxString& label = "",
+                        size_t flags = 0);
     virtual ~clToolBarButtonBase();
 
 public:
@@ -79,8 +83,6 @@ protected:
     }
 
 public:
-    static void FillMenuBarBgColour(wxDC& dc, const wxRect& rect);
-
     void SetBmp(const wxBitmap& bmp) { this->m_bmp = bmp; }
     void SetLabel(const wxString& label) { this->m_label = label; }
     const wxBitmap& GetBmp() const { return m_bmp; }
@@ -89,12 +91,13 @@ public:
     /**
      * @brief does this button has a menu?
      */
-    bool HasMenu() const { return m_flags & kHasMenu; }
+    bool IsMenuButton() const { return m_flags & kHasMenu; }
     wxWindowID GetId() const { return m_id; }
     clToolBar* GetToolbar() { return m_toolbar; }
-
+    void SetMenu(wxMenu* menu);
+    wxMenu* GetMenu() const { return m_menu; }
     virtual bool Contains(const wxPoint& pt) const { return m_buttonRect.Contains(pt); }
-    bool InsideMenuButton(const wxPoint& pt) const { return HasMenu() && (m_dropDownArrowRect.Contains(pt)); }
+    bool InsideMenuButton(const wxPoint& pt) const { return IsMenuButton() && (m_dropDownArrowRect.Contains(pt)); }
 
     void SetRenderFlags(size_t flags) { m_renderFlags = flags; }
     bool IsHover() const { return m_renderFlags & kHover; }
@@ -117,12 +120,16 @@ public:
     bool IsSeparator() const { return m_flags & kSeparator; }
     bool IsEnabled() const { return !(m_flags & kDisabled); }
     bool IsControl() const { return m_flags & kControl; }
-    void Enable(bool b) { EnableFlag(kDisabled, !b); }
-    template <typename T>
-    T* Cast()
+    bool Enable(bool b)
     {
-        return dynamic_cast<T*>(this);
+        EnableFlag(kDisabled, !b);
+        return true;
     }
+    bool IsHidden() const { return m_flags & kHidden; }
+    bool IsShown() const { return !IsHidden(); }
+    void Show(bool b) { EnableFlag(kHidden, !b); }
+    
+    template <typename T> T* Cast() { return dynamic_cast<T*>(this); }
 };
 
 #endif // CLTOOLBARBUTTONBASE_H

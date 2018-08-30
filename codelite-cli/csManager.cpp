@@ -1,3 +1,4 @@
+#include "csCodeCompleteHandler.h"
 #include "csFindInFilesCommandHandler.h"
 #include "csListCommandHandler.h"
 #include "csManager.h"
@@ -13,10 +14,12 @@
 
 csManager::csManager()
     : m_startupCalled(false)
+    , m_exitNow(false)
 {
     m_handlers.Register("list", csCommandHandlerBase::Ptr_t(new csListCommandHandler(this)));
     m_handlers.Register("find", csCommandHandlerBase::Ptr_t(new csFindInFilesCommandHandler(this)));
     m_handlers.Register("parse", csCommandHandlerBase::Ptr_t(new csParseFolderHandler(this)));
+    m_handlers.Register("code-complete", csCommandHandlerBase::Ptr_t(new csCodeCompleteHandler(this)));
 
     SearchThreadST::Get()->Start();
     SearchThreadST::Get()->SetNotifyWindow(this);
@@ -39,6 +42,11 @@ csManager::~csManager()
 
 bool csManager::Startup()
 {
+    if(m_exitNow) {
+        CallAfter(&csManager::OnExit);
+        return true;
+    }
+
     Bind(wxEVT_COMMAND_PROCESSED, &csManager::OnCommandProcessedCompleted, this);
     // Search thread events
     Bind(wxEVT_SEARCH_THREAD_MATCHFOUND, &csManager::OnSearchThreadMatch, this);
@@ -91,7 +99,7 @@ void csManager::OnSearchThreadEneded(wxCommandEvent& event)
     SearchSummary* summary = reinterpret_cast<SearchSummary*>(event.GetClientData());
     m_findInFilesMatches->toElement().arrayAppend(summary->ToJSON());
     wxDELETE(summary);
-    wxString output = m_findInFilesMatches->toElement().format(false);
+    wxString output = m_findInFilesMatches->toElement().format(GetConfig().IsPrettyJSON());
     std::cout << output << std::endl;
     clDEBUG1() << output;
     clDEBUG() << "Search completed";
@@ -103,3 +111,5 @@ void csManager::LoadCommandFromINI()
     m_command = m_config.GetCommand();
     m_options = m_config.GetOptions();
 }
+
+void csManager::OnExit() { wxExit(); }

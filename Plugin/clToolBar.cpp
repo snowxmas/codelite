@@ -5,17 +5,25 @@
 #include "clToolBarMenuButton.h"
 #include "clToolBarSeparator.h"
 #include "clToolBarToggleButton.h"
+#include "drawingutils.h"
+#include "macros.h"
 #include <algorithm>
 #include <wx/dcbuffer.h>
 #include <wx/dcmemory.h>
 #include <wx/renderer.h>
 #include <wx/settings.h>
+#include <wx/xrc/xmlres.h>
 
-clToolBar::clToolBar(
-    wxWindow* parent, wxWindowID winid, const wxPoint& pos, const wxSize& size, long style, const wxString& name)
+wxDEFINE_EVENT(wxEVT_TOOLBAR_CUSTOMISE, wxCommandEvent);
+clToolBar::clToolBar(wxWindow* parent, wxWindowID winid, const wxPoint& pos, const wxSize& size, long style,
+                     const wxString& name)
     : wxPanel(parent, winid, pos, size, style, name)
     , m_popupShown(false)
+#if defined(__WXMSW__) || defined(__WXOSX__)
+    , m_flags(kThemedColour)
+#else
     , m_flags(0)
+#endif
 {
     Bind(wxEVT_PAINT, &clToolBar::OnPaint, this);
     Bind(wxEVT_ERASE_BACKGROUND, &clToolBar::OnEraseBackground, this);
@@ -24,6 +32,7 @@ clToolBar::clToolBar(
     Bind(wxEVT_MOTION, &clToolBar::OnMotion, this);
     Bind(wxEVT_ENTER_WINDOW, &clToolBar::OnEnterWindow, this);
     Bind(wxEVT_LEAVE_WINDOW, &clToolBar::OnLeaveWindow, this);
+    Bind(wxEVT_SIZE, &clToolBar::OnSize, this);
 }
 
 clToolBar::~clToolBar()
@@ -35,8 +44,11 @@ clToolBar::~clToolBar()
     Unbind(wxEVT_ENTER_WINDOW, &clToolBar::OnEnterWindow, this);
     Unbind(wxEVT_LEAVE_WINDOW, &clToolBar::OnLeaveWindow, this);
     Unbind(wxEVT_LEFT_DOWN, &clToolBar::OnLeftDown, this);
+    Unbind(wxEVT_SIZE, &clToolBar::OnSize, this);
 
-    for(size_t i = 0; i < m_buttons.size(); ++i) { delete m_buttons[i]; }
+    for(size_t i = 0; i < m_buttons.size(); ++i) {
+        delete m_buttons[i];
+    }
     m_buttons.clear();
 }
 #define CL_TOOL_BAR_CHEVRON_SIZE 16
@@ -44,29 +56,46 @@ clToolBar::~clToolBar()
 void clToolBar::OnPaint(wxPaintEvent& event)
 {
     wxBufferedPaintDC dc(this);
+    PrepareDC(dc);
+
+#ifdef __WXGTK3__
+    wxDC& gcdc = dc;
+#else
+    wxGCDC gcdc(dc);
+#endif
+
     m_overflowButtons.clear();
     m_visibleButtons.clear();
     m_chevronRect = wxRect();
 
     wxRect clientRect = GetClientRect();
-    clToolBarButtonBase::FillMenuBarBgColour(dc, clientRect);
+    DrawingUtils::FillMenuBarBgColour(gcdc, clientRect, HasFlag(kThemedColour));
     clientRect.SetWidth(clientRect.GetWidth() - CL_TOOL_BAR_CHEVRON_SIZE);
-    clToolBarButtonBase::FillMenuBarBgColour(dc, clientRect);
+    DrawingUtils::FillMenuBarBgColour(gcdc, clientRect, HasFlag(kThemedColour));
     int xx = 0;
+    bool last_was_separator = false;
     std::for_each(m_buttons.begin(), m_buttons.end(), [&](clToolBarButtonBase* button) {
-        wxSize buttonSize = button->CalculateSize(dc);
-        if((xx + buttonSize.GetWidth()) >= clientRect.GetRight()) {
-            if(button->IsControl()) {
-                clToolBarControl* control = button->Cast<clToolBarControl>();
-                control->GetControl()->Hide();
+        if(button->IsShown()) {
+            if(button->IsSeparator() && last_was_separator) {
+                button->Show(false);
+            } else {
+                wxSize buttonSize = button->CalculateSize(gcdc);
+                if((xx + buttonSize.GetWidth()) >= clientRect.GetRight()) {
+                    if(button->IsControl()) {
+                        clToolBarControl* control = button->Cast<clToolBarControl>();
+                        control->GetControl()->Hide();
+                    }
+                    m_overflowButtons.push_back(button);
+                } else {
+                    wxRect r(xx, 0, buttonSize.GetWidth(), clientRect.GetHeight());
+                    button->Render(gcdc, r);
+                    m_visibleButtons.push_back(button);
+                }
+                xx += buttonSize.GetWidth();
             }
-            m_overflowButtons.push_back(button);
-        } else {
-            wxRect r(xx, 0, buttonSize.GetWidth(), clientRect.GetHeight());
-            button->Render(dc, r);
-            m_visibleButtons.push_back(button);
+            // Dont draw two separators one after the other
+            last_was_separator = button->IsSeparator();
         }
-        xx += buttonSize.GetWidth();
     });
 
     wxRect chevronRect = GetClientRect();
@@ -74,8 +103,11 @@ void clToolBar::OnPaint(wxPaintEvent& event)
     chevronRect.SetWidth(CL_TOOL_BAR_CHEVRON_SIZE);
 
     // If we have overflow buttons, draw an arrow to the right
-    if(!m_overflowButtons.empty()) {
-        wxRendererNative::Get().DrawDropArrow(this, dc, chevronRect, wxCONTROL_CURRENT);
+    if(!m_overflowButtons.empty() || IsCustomisationEnabled()) {
+        DrawingUtils::DrawDropDownArrow(this, gcdc, chevronRect, wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
+        wxColour c = wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT);
+        gcdc.SetPen(c.ChangeLightness(150));
+        gcdc.DrawLine(chevronRect.GetTopLeft(), chevronRect.GetBottomLeft());
         m_chevronRect = chevronRect;
     }
 }
@@ -90,6 +122,8 @@ wxRect clToolBar::CalculateRect(wxDC& dc) const
         rect.width += buttonSize.GetWidth();
         rect.height = wxMax(rect.GetHeight(), buttonSize.GetHeight());
     });
+    // Always assume that we need the extra space for the chevron button
+    rect.width += CL_TOOL_BAR_CHEVRON_SIZE + 2;
     return rect;
 }
 
@@ -97,15 +131,16 @@ void clToolBar::Realize()
 {
     wxBitmap bmp(1, 1);
     wxMemoryDC dc(bmp);
-    dc.SetFont(wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT));
-    SetSizeHints(CalculateRect(dc).GetSize());
+    wxGCDC gcdc(dc);
+    gcdc.SetFont(wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT));
+    SetSizeHints(CalculateRect(gcdc).GetSize());
     Refresh();
 }
 
 void clToolBar::OnLeftUp(wxMouseEvent& event)
 {
     wxPoint pos = event.GetPosition();
-    if(!m_overflowButtons.empty() && m_chevronRect.Contains(pos)) {
+    if(m_chevronRect.Contains(pos)) {
         DoShowOverflowMenu();
     } else {
         for(size_t i = 0; i < m_visibleButtons.size(); ++i) {
@@ -124,7 +159,7 @@ void clToolBar::OnLeftUp(wxMouseEvent& event)
                     clicked.SetInt(btn->IsChecked() ? 1 : 0);
                     GetEventHandler()->AddPendingEvent(clicked);
                 } else if(btn->InsideMenuButton(pos)) {
-                    wxMenu* menu = FindMenuById(btn->GetId());
+                    wxMenu* menu = btn->GetMenu();
                     if(menu) {
                         // We got the menu, show it
                         ShowMenuForButton(btn->GetId(), menu);
@@ -182,7 +217,9 @@ void clToolBar::OnEnterWindow(wxMouseEvent& event) { OnMotion(event); }
 void clToolBar::OnLeaveWindow(wxMouseEvent& event)
 {
     if(!m_popupShown) {
-        for(size_t i = 0; i < m_buttons.size(); ++i) { m_buttons[i]->ClearRenderFlags(); }
+        for(size_t i = 0; i < m_buttons.size(); ++i) {
+            m_buttons[i]->ClearRenderFlags();
+        }
         Refresh();
     }
 }
@@ -207,8 +244,8 @@ clToolBarButtonBase* clToolBar::AddToggleButton(wxWindowID id, const wxBitmap& b
 
 clToolBarButtonBase* clToolBar::InsertBefore(wxWindowID where, clToolBarButtonBase* button)
 {
-    std::vector<clToolBarButtonBase*>::iterator iter = std::find_if(
-        m_buttons.begin(), m_buttons.end(), [&](clToolBarButtonBase* b) { return (b->GetId() == where); });
+    std::vector<clToolBarButtonBase*>::iterator iter =
+        std::find_if(m_buttons.begin(), m_buttons.end(), [&](clToolBarButtonBase* b) { return (b->GetId() == where); });
     if(iter == m_buttons.end()) { return NULL; }
     m_buttons.insert(iter, button);
     return button;
@@ -216,8 +253,8 @@ clToolBarButtonBase* clToolBar::InsertBefore(wxWindowID where, clToolBarButtonBa
 
 clToolBarButtonBase* clToolBar::InsertAfter(wxWindowID where, clToolBarButtonBase* button)
 {
-    std::vector<clToolBarButtonBase*>::iterator iter = std::find_if(
-        m_buttons.begin(), m_buttons.end(), [&](clToolBarButtonBase* b) { return (b->GetId() == where); });
+    std::vector<clToolBarButtonBase*>::iterator iter =
+        std::find_if(m_buttons.begin(), m_buttons.end(), [&](clToolBarButtonBase* b) { return (b->GetId() == where); });
     if(iter == m_buttons.end()) { return NULL; }
     ++iter; // can be end()
     m_buttons.insert(iter, button);
@@ -255,16 +292,16 @@ void clToolBar::ShowMenuForButton(wxWindowID buttonID, wxMenu* menu)
 
 clToolBarButtonBase* clToolBar::FindById(wxWindowID id) const
 {
-    std::vector<clToolBarButtonBase*>::const_iterator iter
-        = std::find_if(m_buttons.begin(), m_buttons.end(), [&](clToolBarButtonBase* b) { return (b->GetId() == id); });
+    std::vector<clToolBarButtonBase*>::const_iterator iter =
+        std::find_if(m_buttons.begin(), m_buttons.end(), [&](clToolBarButtonBase* b) { return (b->GetId() == id); });
     if(iter == m_buttons.end()) { return NULL; }
     return (*iter);
 }
 
 bool clToolBar::DeleteById(wxWindowID id)
 {
-    std::vector<clToolBarButtonBase*>::iterator iter
-        = std::find_if(m_buttons.begin(), m_buttons.end(), [&](clToolBarButtonBase* b) { return (b->GetId() == id); });
+    std::vector<clToolBarButtonBase*>::iterator iter =
+        std::find_if(m_buttons.begin(), m_buttons.end(), [&](clToolBarButtonBase* b) { return (b->GetId() == id); });
     if(iter == m_buttons.end()) { return false; }
     clToolBarButtonBase* button = (*iter);
     delete button;
@@ -276,17 +313,16 @@ clToolBarButtonBase* clToolBar::AddSeparator() { return Add(new clToolBarSeparat
 
 void clToolBar::SetDropdownMenu(wxWindowID buttonID, wxMenu* menu)
 {
-    if(m_menus.count(buttonID)) {
-        // we already have a menu here, delete it
-        delete m_menus[buttonID];
-    }
-    m_menus[buttonID] = menu;
+    clToolBarButtonBase* button = FindById(buttonID);
+    CHECK_PTR_RET(button);
+    button->SetMenu(menu);
 }
 
 wxMenu* clToolBar::FindMenuById(wxWindowID buttonID) const
 {
-    std::unordered_map<int, wxMenu*>::const_iterator iter = m_menus.find(buttonID);
-    return (iter == m_menus.end() ? NULL : (iter->second));
+    clToolBarButtonBase* button = FindById(buttonID);
+    CHECK_PTR_RET_NULL(button);
+    return button->GetMenu();
 }
 
 void clToolBar::ToggleTool(wxWindowID buttonID, bool toggle)
@@ -306,11 +342,13 @@ void clToolBar::UpdateWindowUI(long flags)
 void clToolBar::DoIdleUpdate()
 {
     for(size_t i = 0; i < m_visibleButtons.size(); ++i) {
-        wxUpdateUIEvent event(m_visibleButtons[i]->GetId());
+        clToolBarButtonBase* button = m_visibleButtons[i];
+        wxUpdateUIEvent event(button->GetId());
         event.Enable(true);
+        if(button->IsToggle()) { event.Check(button->IsChecked()); }
         if(GetEventHandler()->ProcessEvent(event)) {
-            m_visibleButtons[i]->Check(event.GetChecked());
-            m_visibleButtons[i]->Enable(event.GetEnabled());
+            if(button->IsToggle()) { button->Check(event.GetChecked()); }
+            button->Enable(event.GetEnabled());
         }
     }
     Refresh();
@@ -328,21 +366,33 @@ void clToolBar::DoShowOverflowMenu()
         } else if(!button->IsControl()) {
             // Show all non-control buttons
             wxMenuItem* menuItem = new wxMenuItem(&menu, button->GetId(), button->GetLabel(), button->GetLabel(),
-                button->IsToggle() ? wxITEM_CHECK : wxITEM_NORMAL);
-            if(button->GetBmp().IsOk()) { menuItem->SetBitmap(button->GetBmp()); }
+                                                  button->IsToggle() ? wxITEM_CHECK : wxITEM_NORMAL);
+            if(button->GetBmp().IsOk() && !button->IsToggle()) { menuItem->SetBitmap(button->GetBmp()); }
             if(button->IsToggle() && button->IsChecked()) { checkedItems.push_back(button->GetId()); }
             menuItem->Enable(button->IsEnabled());
             menu.Append(menuItem);
         }
     }
-
+    if(IsCustomisationEnabled()) {
+        if(menu.GetMenuItemCount()) { menu.AppendSeparator(); }
+        menu.Append(XRCID("customise_toolbar"), _("Customise..."));
+        menu.Bind(wxEVT_MENU,
+                  [&](wxCommandEvent& event) {
+                      wxCommandEvent evtCustomise(wxEVT_TOOLBAR_CUSTOMISE);
+                      evtCustomise.SetEventObject(this);
+                      GetEventHandler()->AddPendingEvent(evtCustomise);
+                  },
+                  XRCID("customise_toolbar"));
+    }
     // Show the menu
     m_popupShown = true;
     wxPoint menuPos = m_chevronRect.GetBottomLeft();
 #ifdef __WXOSX__
     menuPos.y += 5;
 #endif
-    for(size_t i = 0; i < checkedItems.size(); ++i) { menu.Check(checkedItems[i], true); }
+    for(size_t i = 0; i < checkedItems.size(); ++i) {
+        menu.Check(checkedItems[i], true);
+    }
     menu.Bind(wxEVT_MENU, &clToolBar::OnOverflowItem, this, wxID_ANY);
     PopupMenu(&menu, menuPos);
     menu.Unbind(wxEVT_MENU, &clToolBar::OnOverflowItem, this, wxID_ANY);
@@ -368,8 +418,8 @@ void clToolBar::OnOverflowItem(wxCommandEvent& event)
 
 void clToolBar::OnSize(wxSizeEvent& event)
 {
-    event.Skip();
     Refresh();
+    event.Skip();
 }
 
 clToolBarButtonBase* clToolBar::AddControl(wxWindow* control) { return Add(new clToolBarControl(this, control)); }

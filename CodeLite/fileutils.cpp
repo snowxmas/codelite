@@ -78,32 +78,32 @@ static wxString GTKGetTerminal(const wxString& command, TerminalCookie& cookie)
     if(Terminals.empty()) {
         // Try to locate gnome-terminal
         if(wxFileName::FileExists("/usr/bin/lxterminal")) {
-            wxString cmd = "lxterminal";
-            wxString titlePattern = "-e \"$COMMAND\"";
+            wxString cmd = "/usr/bin/lxterminal";
+            wxString titlePattern = " -l -e '$COMMAND'";
             Terminals.push_back({ cmd, titlePattern });
         }
 
         if(wxFileName::FileExists("/usr/bin/konsole")) {
-            wxString cmd = "konsole -p font=\"Monospace,12\"";
+            wxString cmd = "/usr/bin/konsole -p font=\"Monospace,12\"";
             wxString titlePattern = "-e $COMMAND";
             Terminals.push_back({ cmd, titlePattern });
         }
 
         if(wxFileName::FileExists("/usr/bin/gnome-terminal")) {
             wxString cmd = "/usr/bin/gnome-terminal";
-            wxString titlePattern = "-e \"$COMMAND\"";
+            wxString titlePattern = "-e '$COMMAND'";
             Terminals.push_back({ cmd, titlePattern });
         }
 
         if(wxFileName::FileExists("/usr/bin/xterm")) {
-            wxString cmd = "xterm";
-            wxString titlePattern = "-e \"$COMMAND\"";
+            wxString cmd = "/usr/bin/xterm";
+            wxString titlePattern = "-e '$COMMAND'";
             Terminals.push_back({ cmd, titlePattern });
         }
 
         if(wxFileName::FileExists("/usr/bin/uxterm")) {
-            wxString cmd = "uxterm";
-            wxString titlePattern = "-e \"$COMMAND\"";
+            wxString cmd = "/usr/bin/uxterm";
+            wxString titlePattern = "-e '$COMMAND'";
             Terminals.push_back({ cmd, titlePattern });
         }
     }
@@ -148,7 +148,7 @@ static void GTKOpenTerminal(const wxString& command, const wxString& path)
 
 #endif
 
-void FileUtils::OpenTerminal(const wxString& path)
+void FileUtils::OpenTerminal(const wxString& path, const wxString& user_command)
 {
     wxString strPath = path;
     if(strPath.Contains(" ")) { strPath.Prepend("\"").Append("\""); }
@@ -158,17 +158,29 @@ void FileUtils::OpenTerminal(const wxString& path)
     cmd << "cmd";
     DirSaver ds;
     ::wxSetWorkingDirectory(path);
-
+    if(!user_command.IsEmpty()) {
+        cmd << " /C ";
+        if(user_command.StartsWith("\"") && !user_command.EndsWith("\"")) {
+            cmd << "\"" << user_command << "\"";
+        } else {
+            cmd << user_command;
+        }
+    }
+    
 #elif defined(__WXGTK__)
-    GTKOpenTerminal("", path);
+    GTKOpenTerminal(user_command, path);
     return;
 
 #elif defined(__WXMAC__)
     strPath = path;
     if(strPath.Contains(" ")) { strPath.Prepend("\\\"").Append("\\\""); }
     // osascript -e 'tell app "Terminal" to do script "echo hello"'
-    cmd << "osascript -e 'tell app \"Terminal\" to do script \"cd " << strPath << "\"'";
-    CL_DEBUG(cmd);
+    cmd << "osascript -e 'tell app \"Terminal\" to do script \"cd " << strPath;
+    if(!user_command.IsEmpty()) {
+        cmd << " && " << user_command;
+    }
+    cmd << "\"'";
+    clDEBUG() << cmd;
     ::system(cmd.mb_str(wxConvUTF8).data());
     return;
 #endif
@@ -188,12 +200,45 @@ bool FileUtils::WriteFileContent(const wxFileName& fn, const wxString& content, 
 bool FileUtils::ReadFileContent(const wxFileName& fn, wxString& data, const wxMBConv& conv)
 {
     wxString filename = fn.GetFullPath();
-    wxFFile file(filename, wxT("rb"));
-    if(file.IsOpened() == false) {
+    data.clear();
+    const char* cfile = filename.mb_str(wxConvUTF8).data();
+    FILE *fp = fopen(cfile, "rb");
+    if(!fp) {
         // Nothing to be done
+        clERROR() << "Failed to open file:" << fn << "." << strerror(errno);
         return false;
     }
-    return file.ReadAll(&data, conv);
+    
+    // Get the file size
+    fseek(fp, 0, SEEK_END);
+    long fsize = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    
+    // Allocate buffer for the read
+    char *buffer = (char*)malloc(fsize + 1);
+    size_t bytes_read = fread(buffer, 1, fsize, fp);
+    if(bytes_read != fsize) {
+        // failed to read
+        clERROR() << "Failed to read file content:" << fn << "." << strerror(errno);
+        fclose(fp);
+        free(buffer);
+        return false;
+    }
+    buffer[fsize] = 0;
+    
+    // Close the handle
+    fclose(fp);
+    
+    // Convert it into wxString
+    data = wxString(buffer, conv, fsize);
+    if(data.IsEmpty() && fsize != 0) {
+        // Conversion failed
+        data = wxString::From8BitData(buffer, fsize);
+    }
+    
+    // Release the C-buffer allocated earlier
+    free(buffer);
+    return true;
 }
 
 void FileUtils::OpenFileExplorerAndSelect(const wxFileName& filename)
@@ -609,4 +654,43 @@ unsigned int FileUtils::UTF8Length(const wchar_t* uptr, unsigned int tlen)
 #undef SURROGATE_TRAIL_FIRST
 #undef SURROGATE_TRAIL_LAST
     return len;
+}
+
+// This is readlink on steroids: it also makes-absolute, and dereferences any symlinked dirs in the path
+wxString FileUtils::RealPath(const wxString& filepath) 
+{
+#if defined(__WXGTK__)
+    if(!filepath.empty()) {
+        char* buf = realpath(filepath.mb_str(wxConvUTF8), NULL);
+        if(buf != NULL) {
+            wxString result(buf, wxConvUTF8);
+            free(buf);
+            return result;
+        }
+    }
+#endif
+
+    return filepath;
+}
+
+void FileUtils::OpenBuiltInTerminal(const wxString& wd, const wxString& user_command, bool pause_when_exit)
+{
+    wxString title(user_command);
+    
+    wxFileName fnCodeliteTerminal(clStandardPaths::Get().GetExecutablePath());
+    fnCodeliteTerminal.SetFullName("codelite-terminal");
+    
+    wxString newCommand;
+    newCommand << fnCodeliteTerminal.GetFullPath() << " --exit ";
+    if(pause_when_exit) { newCommand << " --wait "; }
+    if(wxDirExists(wd)) {
+        wxString workingDirectory = wd;
+        workingDirectory.Trim().Trim(false);
+        if(workingDirectory.Contains(" ") && !workingDirectory.StartsWith("\"")) {
+            workingDirectory.Prepend("\"").Append("\"");
+        }
+        newCommand << " --working-directory=" << wd;
+    }
+    newCommand << " --cmd " << title;
+    ::wxExecute(newCommand, wxEXEC_ASYNC);
 }

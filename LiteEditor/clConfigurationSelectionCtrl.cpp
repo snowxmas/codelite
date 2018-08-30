@@ -9,25 +9,28 @@
 #include <wx/dcbuffer.h>
 #include <wx/dcgraph.h>
 #include <wx/menu.h>
+#include <wx/renderer.h>
 
 clConfigurationSelectionCtrl::clConfigurationSelectionCtrl(wxWindow* parent, wxWindowID winid, const wxPoint& pos,
                                                            const wxSize& size, long style)
     : wxPanel(parent, winid, pos, size, style)
     , m_state(eButtonState::kNormal)
 {
-    Bind(wxEVT_ENTER_WINDOW, &clConfigurationSelectionCtrl::OnEnterWindow, this);
-    Bind(wxEVT_LEAVE_WINDOW, &clConfigurationSelectionCtrl::OnLeaveWindow, this);
+    SetBackgroundStyle(wxBG_STYLE_PAINT);
+    
     Bind(wxEVT_PAINT, &clConfigurationSelectionCtrl::OnPaint, this);
     Bind(wxEVT_ERASE_BACKGROUND, &clConfigurationSelectionCtrl::OnEraseBG, this);
     Bind(wxEVT_LEFT_DOWN, &clConfigurationSelectionCtrl::OnLeftDown, this);
-    SetBackgroundStyle(wxBG_STYLE_PAINT);
+    Bind(wxEVT_SIZE, [&](wxSizeEvent& event) {
+        event.Skip();
+        Refresh();
+    });
+    //SetBackgroundStyle(wxBG_STYLE_PAINT);
     SetSizeHints(DrawingUtils::GetBestSize("ABCDEFGHIJKLp"));
 }
 
 clConfigurationSelectionCtrl::~clConfigurationSelectionCtrl()
 {
-    Unbind(wxEVT_ENTER_WINDOW, &clConfigurationSelectionCtrl::OnEnterWindow, this);
-    Unbind(wxEVT_LEAVE_WINDOW, &clConfigurationSelectionCtrl::OnLeaveWindow, this);
     Unbind(wxEVT_PAINT, &clConfigurationSelectionCtrl::OnPaint, this);
     Unbind(wxEVT_ERASE_BACKGROUND, &clConfigurationSelectionCtrl::OnEraseBG, this);
     Unbind(wxEVT_LEFT_DOWN, &clConfigurationSelectionCtrl::OnLeftDown, this);
@@ -35,26 +38,24 @@ clConfigurationSelectionCtrl::~clConfigurationSelectionCtrl()
 
 void clConfigurationSelectionCtrl::OnPaint(wxPaintEvent& e)
 {
-    wxAutoBufferedPaintDC dc(this);
-    PrepareDC(dc);
-
-#ifdef __WXGTK__
-    wxDC &gcdc = dc;
+    wxAutoBufferedPaintDC bdc(this);
+    PrepareDC(bdc);
+#ifdef __WXGTK3__
+    wxDC& gcdc = bdc;
 #else
-    wxGCDC gcdc(dc);
-    PrepareDC(gcdc);
+    wxGCDC gcdc(bdc);
 #endif
-    
+    PrepareDC(gcdc);
+
     wxRect rect = GetClientRect();
-    dc.SetPen(DrawingUtils::GetPanelBgColour());
-    dc.SetBrush(DrawingUtils::GetPanelBgColour());
-    dc.DrawRectangle(rect);
-    
+    gcdc.SetPen(DrawingUtils::GetPanelBgColour());
+    gcdc.SetBrush(DrawingUtils::GetPanelBgColour());
+    gcdc.DrawRectangle(rect);
+
     // Build the text to draw
     wxString label;
     label << m_activeProject << " :: " << m_activeConfiguration;
-    DrawingUtils::DrawButton(gcdc, this, GetClientRect(), label, wxNullBitmap, eButtonKind::kDropDown,
-                             eButtonState::kNormal);
+    DrawingUtils::DrawNativeChoice(this, gcdc, GetClientRect(), label);
 }
 
 void clConfigurationSelectionCtrl::OnEraseBG(wxEraseEvent& e) {}
@@ -96,20 +97,6 @@ void clConfigurationSelectionCtrl::OnLeftDown(wxMouseEvent& e)
     EventNotifier::Get()->AddPendingEvent(changeEvent);
 
     if(newConfig != OPEN_CONFIG_MGR_STR) { m_activeConfiguration = newConfig; }
-    m_state = eButtonState::kNormal;
-    Refresh();
-}
-
-void clConfigurationSelectionCtrl::OnEnterWindow(wxMouseEvent& e)
-{
-    wxUnusedVar(e);
-    m_state = eButtonState::kHover;
-    Refresh();
-}
-
-void clConfigurationSelectionCtrl::OnLeaveWindow(wxMouseEvent& e)
-{
-    wxUnusedVar(e);
     m_state = eButtonState::kNormal;
     Refresh();
 }

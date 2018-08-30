@@ -73,8 +73,13 @@ public:
     /**
      * @brief launch the OS default terminal at a given path
      */
-    static void OpenTerminal(const wxString& path);
-
+    static void OpenTerminal(const wxString& path, const wxString& user_command = "");
+    
+    /**
+     * @brief open the built-in terminal
+     */
+    static void OpenBuiltInTerminal(const wxString& wd, const wxString& user_command, bool pause_when_exit = false);
+    
     /**
      * @brief open ssh terminal
      * @param sshClient ssh client to use (putty, ssh etc)
@@ -208,5 +213,10 @@ public:
     static bool RemoveFile(const wxString& filename, const wxString& context = "");
     
     static unsigned int UTF8Length(const wchar_t* uptr, unsigned int tlen);
+    
+    /**
+     * @brief (on Linux) makes-absolute filepath, and dereferences it and any symlinked dirs in the path
+     */
+    static wxString RealPath(const wxString& filepath);
 };
 #endif // FILEUTILS_H

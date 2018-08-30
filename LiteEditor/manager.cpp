@@ -1280,7 +1280,7 @@ bool Manager::RenameFile(const wxString& origName, const wxString& newName, cons
 
                 replaceWith.Replace(strippedOldInc.GetFullName(), newFile.GetFullName());
 
-                LEditor* editor = clMainFrame::Get()->GetMainBook()->OpenFile(editorFileName, wxEmptyString, 0);
+                clEditor* editor = clMainFrame::Get()->GetMainBook()->OpenFile(editorFileName, wxEmptyString, 0);
                 if(editor && (editor->GetFileName().GetFullPath().CmpNoCase(editorFileName) == 0)) {
                     editor->ReplaceAllExactMatch(findWhat, replaceWith);
                 }
@@ -1585,7 +1585,7 @@ bool Manager::ShowOutputPane(wxString focusWin, bool commit)
 
     if(index != wxNOT_FOUND && index != pane->GetNotebook()->GetSelection()) {
         wxWindow* focus = wxWindow::FindFocus();
-        LEditor* editor = dynamic_cast<LEditor*>(focus);
+        clEditor* editor = dynamic_cast<clEditor*>(focus);
         pane->GetNotebook()->SetSelection((size_t)index);
         if(editor) { editor->SetFocus(); }
     }
@@ -1777,7 +1777,10 @@ void Manager::OnProcessEnd(clProcessEvent& event)
 
 //--------------------------- Debugger Support -----------------------------
 
-static void DebugMessage(wxString msg) { clMainFrame::Get()->GetDebuggerPane()->GetDebugWindow()->AppendLine(msg); }
+static void DebugMessage(const wxString& msg)
+{
+    clMainFrame::Get()->GetDebuggerPane()->GetDebugWindow()->AppendLine(msg);
+}
 
 void Manager::UpdateDebuggerPane()
 {
@@ -2153,7 +2156,7 @@ void Manager::DbgStart(long attachPid)
     clMainFrame::Get()->GetDebuggerPane()->GetLocalsTable()->Initialize();
 
     // let the active editor get the focus
-    LEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor();
+    clEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor();
     if(editor) { editor->SetActive(); }
 
     // mark that we are waiting for the first GotControl()
@@ -2270,7 +2273,7 @@ void Manager::DbgMarkDebuggerLine(const wxString& fileName, int lineno)
 
     // try to open the file
     wxFileName fn(fileName);
-    LEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor(true);
+    clEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor(true);
     if(editor && editor->GetFileName().GetFullPath().CmpNoCase(fn.GetFullPath()) == 0 && lineno > 0) {
         editor->HighlightLine(lineno);
         editor->SetEnsureCaretIsVisible(editor->PositionFromLine(lineno - 1), false);
@@ -2638,10 +2641,18 @@ void Manager::UpdateRemoteTargetConnected(const wxString& line)
 
 //--------------------------- Build Management -----------------------------
 
-bool Manager::IsBuildInProgress() const { return m_shellProcess && m_shellProcess->IsBusy(); }
+bool Manager::IsBuildInProgress() const
+{
+    clBuildEvent buildEvent(wxEVT_GET_IS_BUILD_IN_PROGRESS);
+    EventNotifier::Get()->ProcessEvent(buildEvent);
+    return buildEvent.IsRunning() || (m_shellProcess && m_shellProcess->IsBusy());
+}
 
 void Manager::StopBuild()
 {
+    clBuildEvent stopEvent(wxEVT_STOP_BUILD);
+    if(EventNotifier::Get()->ProcessEvent(stopEvent)) { return; }
+    
     // Mark this build as 'interrupted'
     clMainFrame::Get()->GetOutputPane()->GetBuildTab()->SetBuildInterrupted(true);
 
@@ -2815,7 +2826,7 @@ void Manager::DoCustomBuild(const QueueCommand& buildInfo)
         DbgStop();
     }
 
-    if(m_shellProcess) { delete m_shellProcess; }
+    wxDELETE(m_shellProcess);
     m_shellProcess = new CustomBuildRequest(buildInfo, wxEmptyString);
     m_shellProcess->Process(PluginManager::Get());
 }
@@ -2885,10 +2896,9 @@ void Manager::DebuggerUpdate(const DebuggerEventData& event)
     case DBG_UR_FILE_LINE:
         // in some cases we don't physically reposition the file+line position, such as during updates made by user
         // actions (like add watch)
-        // but since this app uses a debugger refresh to update newly added watch values, it automatically repositions
-        // the editor always.
-        // this isn't always desirable behavior, so we pass a parameter indicating for certain operations if an override
-        // was used
+        // but since this app uses a debugger refresh to update newly added watch values, it automatically
+        // repositions the editor always. this isn't always desirable behavior, so we pass a parameter indicating
+        // for certain operations if an override was used
         UpdateFileLine(event.m_file, event.m_line, true);
         // raise the flag for the next call, as this "override" is only used once per consumption
         ManagerST::Get()->SetRepositionEditor(true);
@@ -3403,7 +3413,7 @@ void Manager::GetActiveProjectAndConf(wxString& project, wxString& conf)
     matrix->GetProjectSelectedConf(workspaceConf, project);
 }
 
-void Manager::UpdatePreprocessorFile(LEditor* editor) { wxUnusedVar(editor); }
+void Manager::UpdatePreprocessorFile(clEditor* editor) { wxUnusedVar(editor); }
 
 BuildConfigPtr Manager::GetCurrentBuildConf()
 {
@@ -3564,7 +3574,7 @@ void Manager::OnParserThreadSuggestColourTokens(clCommandEvent& event)
 
     wxString originatingFile = event.GetFileName();
 
-    LEditor* editor = clMainFrame::Get()->GetMainBook()->FindEditor(originatingFile);
+    clEditor* editor = clMainFrame::Get()->GetMainBook()->FindEditor(originatingFile);
     if(editor) { editor->GetContext()->ColourContextTokens(classes, locals); }
 }
 

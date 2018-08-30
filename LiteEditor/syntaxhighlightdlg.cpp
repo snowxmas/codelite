@@ -82,7 +82,7 @@ SyntaxHighlightDlg::SyntaxHighlightDlg(wxWindow* parent)
 {
     // Get list of available lexers
     wxString lexerName;
-    LEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor(true);
+    clEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor(true);
     wxArrayString lexers = ColoursAndFontsManager::Get().GetAllLexersNames();
     if(editor) { lexerName = editor->GetContext()->GetName().Lower(); }
 
@@ -588,9 +588,19 @@ void SyntaxHighlightDlg::OnExportSelective(wxCommandEvent& event)
     DoExport(lexersToExport);
 }
 
-void SyntaxHighlightDlg::OnExportAll(wxCommandEvent& event) { DoExport(); }
+void SyntaxHighlightDlg::OnExportAll(wxCommandEvent& event)
+{
+    // EclipseThemeImporterManager importer;
+    // importer.ImportCxxToAll();
+    DoExport();
+}
 
-void SyntaxHighlightDlg::OnToolExportAll(wxAuiToolBarEvent& event) { DoExport(); }
+void SyntaxHighlightDlg::OnToolExportAll(wxAuiToolBarEvent& event)
+{
+    // EclipseThemeImporterManager importer;
+    // importer.ImportCxxToAll();
+    DoExport();
+}
 
 void SyntaxHighlightDlg::OnRestoreDefaults(wxCommandEvent& event)
 {

@@ -72,6 +72,7 @@ public:
         TypeFolderExpanded, // For UI purposes only
         TypeProjectActive,  // For UI purposes only
         TypeWorkspacePHP,
+        TypeWorkspaceDocker,
         TypeWorkspaceNodeJS,
         TypeWorkspacePHPTags,
         TypeWorkspaceDatabase,
@@ -79,6 +80,9 @@ public:
         TypeJava,
         TypeQMake,
         TypeCMake,
+        TypeDockerfile,
+        TypeYAML,
+        TypeDatabase,
         TypeOther = wxNOT_FOUND
     };
 

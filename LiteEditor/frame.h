@@ -146,7 +146,7 @@ protected:
 public:
     static clMainFrame* Get();
     static void Initialize(bool loadLastSession);
-    
+
     /**
      * @brief goto anything..
      */
@@ -229,7 +229,7 @@ public:
      * @brief
      * @param editor
      */
-    void SetFrameTitle(LEditor* editor);
+    void SetFrameTitle(clEditor* editor);
 
     MainBook* GetMainBook() const { return m_mainBook; }
 
@@ -290,11 +290,6 @@ public:
      * @param projectName
      */
     void RebuildProject(const wxString& projectName);
-
-    /**
-     * @brief display the welcome page
-     */
-    void ShowWelcomePage();
 
     /**
      * @brief handle custom build targets events
@@ -375,7 +370,8 @@ private:
      * @brief see if the wizard changed developer profile
      * @return true if the 'Save Perspective' dialog should not be shown
      */
-    bool GetAndResetNoSavePerspectivePrompt() {
+    bool GetAndResetNoSavePerspectivePrompt()
+    {
         bool ans = m_noSavePerspectivePrompt;
         m_noSavePerspectivePrompt = false;
         return ans;
@@ -383,9 +379,7 @@ private:
     /**
      * @brief mark not to show the 'Save Perspective' dialog on next close
      */
-    void SetNoSavePerspectivePrompt(bool devProfileChanged) {
-        m_noSavePerspectivePrompt = devProfileChanged;
-    }
+    void SetNoSavePerspectivePrompt(bool devProfileChanged) { m_noSavePerspectivePrompt = devProfileChanged; }
 
     void DoShowCaptions(bool show);
 
@@ -406,7 +400,7 @@ protected:
     void OnBuildEnded(clCommandEvent& event);
     void OnQuit(wxCommandEvent& WXUNUSED(event));
     void OnClose(wxCloseEvent& event);
-
+    void OnCustomiseToolbar(wxCommandEvent& event);
     void OnSave(wxCommandEvent& event);
     void OnDuplicateTab(wxCommandEvent& event);
     void OnFileSaveUI(wxUpdateUIEvent& event);
@@ -442,9 +436,6 @@ protected:
     void OnPrint(wxCommandEvent& event);
     void OnPageSetup(wxCommandEvent& event);
     void OnRecentWorkspaceUI(wxUpdateUIEvent& e);
-    void OnMoveEditorToLeftGroup(wxCommandEvent& e);
-    void OnMoveEditorToRightGroup(wxCommandEvent& e);
-    void OnMoveEditorToGroupUI(wxUpdateUIEvent& e);
     void OnViewOptions(wxCommandEvent& event);
     void OnToggleMainTBars(wxCommandEvent& event);
     void OnTogglePluginTBars(wxCommandEvent& event);
@@ -564,10 +555,6 @@ protected:
     void OnDebuggerSettings(wxCommandEvent& e);
     void OnLinkClicked(wxHtmlLinkEvent& e);
     void OnLoadSession(wxCommandEvent& e);
-    void OnShowWelcomePage(wxCommandEvent& event);
-    void OnShowWelcomePageUI(wxUpdateUIEvent& event);
-    void OnLoadWelcomePage(wxCommandEvent& event);
-    void OnLoadWelcomePageUI(wxUpdateUIEvent& event);
     void OnAppActivated(wxActivateEvent& event);
     void OnReloadExternallModified(wxCommandEvent& e);
     void OnReloadExternallModifiedNoPrompt(wxCommandEvent& e);
@@ -605,6 +592,7 @@ protected:
     void OnViewPaneUI(wxUpdateUIEvent& event);
     void OnDetachWorkspaceViewTab(wxCommandEvent& e);
     void OnHideWorkspaceViewTab(wxCommandEvent& e);
+    void OnHideOutputViewTab(wxCommandEvent& e);
     void OnDetachDebuggerViewTab(wxCommandEvent& e);
     void OnNewDetachedPane(wxCommandEvent& e);
     void OnDestroyDetachedPane(wxCommandEvent& e);
@@ -649,6 +637,11 @@ protected:
     void OnEditMenuOpened(wxMenuEvent& e);
     void OnProjectRenamed(clCommandEvent& event);
 
+    // Search handlers
+    void OnFindSelection(wxCommandEvent& event);
+    void OnFindSelectionPrev(wxCommandEvent& event);
+    void OnFindWordAtCaret(wxCommandEvent& event);
+    void OnFindWordAtCaretPrev(wxCommandEvent& event);
     DECLARE_EVENT_TABLE()
 };
 

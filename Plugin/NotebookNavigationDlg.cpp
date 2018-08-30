@@ -24,7 +24,7 @@ struct TabData {
     }
 };
 
-NotebookNavigationDlg::NotebookNavigationDlg(wxWindow* parent, clMultiBook* book)
+NotebookNavigationDlg::NotebookNavigationDlg(wxWindow* parent, Notebook* book)
     : NotebookNavigationDlgBase(parent)
     , m_book(book)
     , m_selection(wxNOT_FOUND)
@@ -117,7 +117,7 @@ NotebookNavigationDlg::NotebookNavigationDlg(wxWindow* parent, clMultiBook* book
     }
 
     m_dvListCtrl->CallAfter(&wxDataViewCtrl::SetFocus);
-    m_dvListCtrl->GetColumn(1)->SetWidth(wxCOL_WIDTH_AUTOSIZE);
+    clFitColumnWidth(m_dvListCtrl);
     
     SetMinClientSize(wxSize(500, 300));
 #ifdef __WXOSX__

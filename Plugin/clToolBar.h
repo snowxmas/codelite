@@ -13,7 +13,6 @@ class WXDLLIMPEXP_SDK clToolBar : public wxPanel
     std::vector<clToolBarButtonBase*> m_buttons;
     std::vector<clToolBarButtonBase*> m_overflowButtons;
     std::vector<clToolBarButtonBase*> m_visibleButtons;
-    std::unordered_map<int, wxMenu*> m_menus;
     bool m_popupShown;
     size_t m_flags;
     wxRect m_chevronRect;
@@ -21,6 +20,8 @@ class WXDLLIMPEXP_SDK clToolBar : public wxPanel
 public:
     enum eFlags {
         kShowLabels = (1 << 0),
+        kThemedColour = (1 << 1),
+        kShowCustomiseMenu = (1 << 2),
     };
 
 protected:
@@ -36,6 +37,14 @@ protected:
     virtual void UpdateWindowUI(long flags = wxUPDATE_UI_NONE) override;
     void DoIdleUpdate();
     wxRect CalculateRect(wxDC& dc) const;
+    void DoShowOverflowMenu();
+
+public:
+    clToolBar(wxWindow* parent, wxWindowID winid = wxID_ANY, const wxPoint& pos = wxDefaultPosition,
+              const wxSize& size = wxDefaultSize, long style = wxTAB_TRAVERSAL | wxNO_BORDER,
+              const wxString& name = "clToolBar");
+    virtual ~clToolBar();
+
     void EnableFlag(eFlags f, bool b)
     {
         if(b) {
@@ -44,13 +53,7 @@ protected:
             m_flags &= ~f;
         }
     }
-    void DoShowOverflowMenu();
-
-public:
-    clToolBar(wxWindow* parent, wxWindowID winid = wxID_ANY, const wxPoint& pos = wxDefaultPosition,
-              const wxSize& size = wxDefaultSize, long style = wxTAB_TRAVERSAL | wxNO_BORDER,
-              const wxString& name = "clToolBar");
-    virtual ~clToolBar();
+    bool HasFlag(eFlags flag) const { return m_flags & flag; }
 
     /**
      * @brief set a drop down menu for a button
@@ -73,7 +76,9 @@ public:
      */
     void ShowLabels(bool show) { EnableFlag(kShowLabels, show); }
     bool IsShowLabels() const { return m_flags & kShowLabels; }
-
+    void EnableCustomisation(bool b) { EnableFlag(kShowCustomiseMenu, b); }
+    bool IsCustomisationEnabled() const { return HasFlag(kShowCustomiseMenu); }
+    
     /**
      * @brief add toolbar button
      */
@@ -129,7 +134,7 @@ public:
     }
 
     void SetToolBitmapSize(const wxSize& size) { wxUnusedVar(size); }
-    
+
     void ToggleTool(wxWindowID buttonID, bool toggle);
 
     /**
@@ -161,5 +166,5 @@ public:
     // Compatibility API
     bool DeleteTool(wxWindowID id) { return DeleteById(id); }
 };
-
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_SDK, wxEVT_TOOLBAR_CUSTOMISE, wxCommandEvent);
 #endif // CLTOOLBAR_H

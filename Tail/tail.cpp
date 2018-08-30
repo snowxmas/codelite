@@ -68,6 +68,9 @@ void Tail::UnPlug()
         DoDetachWindow();
         m_view->Destroy();
         m_view = NULL;
+    } else if(m_view && m_view->GetFrame()) {
+        m_view->GetFrame()->Destroy();
+        m_view->SetFrame(NULL);
     }
 }
 
@@ -77,7 +80,8 @@ void Tail::DetachTailWindow(const TailData& d)
     TailFrame* frame = new TailFrame(EventNotifier::Get()->TopFrame(), this);
     InitTailWindow(frame, false, d, false);
     m_view->SetIsDetached(true); // set the window as detached
-    frame->GetSizer()->Add(m_view, 1, wxEXPAND | wxALL);
+    m_view->SetFrame(frame);
+    frame->GetSizer()->Add(m_view, 1, wxEXPAND);
     frame->GetSizer()->Fit(frame);
     m_view->SetFrameTitle();
     frame->Show();

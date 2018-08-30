@@ -123,7 +123,15 @@ void WorkspaceTab::CreateGUIControls()
                             "of the seleced item in the tree"),
                           bmps->LoadBitmap("cog"));
     m_toolbar580->AddSeparator();
-    m_toolbar580->AddTool(XRCID("ID_TOOL_LINK_EDITOR"), _("Link Editor"), bmps->LoadBitmap("link_editor"));
+    m_toolbar580->AddTool(XRCID("build_active_project"), _("Build Active Project"), bmps->LoadBitmap("build"),
+                          _("Build Active Project"), wxITEM_DROPDOWN);
+    m_toolbar580->AddTool(XRCID("stop_active_project_build"), _("Stop Current Build"), bmps->LoadBitmap("stop"),
+                          _("Stop Current Build"));
+    m_toolbar580->AddTool(XRCID("clean_active_project"), _("Clean Active Project"), bmps->LoadBitmap("clean"),
+                          _("Clean Active Project"));
+    m_toolbar580->AddSeparator();
+    m_toolbar580->AddTool(XRCID("ID_TOOL_LINK_EDITOR"), _("Link Editor"), bmps->LoadBitmap("link_editor"), "",
+                          wxITEM_CHECK);
     m_toolbar580->Realize();
 }
 
@@ -186,7 +194,7 @@ void WorkspaceTab::ConnectEvents()
 
 void WorkspaceTab::OnLinkEditor(wxCommandEvent& e)
 {
-    m_isLinkedToEditor = !m_isLinkedToEditor;
+    m_isLinkedToEditor = e.IsChecked();
     EditorConfigST::Get()->SetInteger(wxT("LinkWorkspaceViewToEditor"), m_isLinkedToEditor ? 1 : 0);
     if(m_isLinkedToEditor) { OnActiveEditorChanged(e); }
 }
@@ -246,7 +254,7 @@ void WorkspaceTab::OnProjectSettingsUI(wxUpdateUIEvent& e)
 
 void WorkspaceTab::OnShowFile(wxCommandEvent& e)
 {
-    LEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor();
+    clEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor();
     if(editor && !editor->GetProject().IsEmpty()) {
         m_fileView->ExpandToPath(editor->GetProject(), editor->GetFileName());
         ManagerST::Get()->ShowWorkspacePane(m_caption);
@@ -256,7 +264,7 @@ void WorkspaceTab::OnShowFile(wxCommandEvent& e)
 
 void WorkspaceTab::OnShowFileUI(wxUpdateUIEvent& e)
 {
-    LEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor();
+    clEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor();
     e.Enable(editor && !editor->GetProject().IsEmpty());
 }
 
@@ -265,7 +273,7 @@ void WorkspaceTab::OnActiveEditorChanged(wxCommandEvent& e)
     e.Skip();
     if(m_isLinkedToEditor) {
         MainBook* mainbook = clMainFrame::Get()->GetMainBook();
-        LEditor* editor = mainbook->GetActiveEditor();
+        clEditor* editor = mainbook->GetActiveEditor();
         if(editor && !editor->GetProject().IsEmpty()) {
             m_fileView->ExpandToPath(editor->GetProject(), editor->GetFileName());
         }
@@ -457,7 +465,7 @@ void WorkspaceTab::DoConfigChanged(const wxString& newConfigName)
     ManagerST::Get()->SetWorkspaceBuildMatrix(matrix);
 
     // Set the focus to the active editor if any
-    LEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor();
+    clEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor();
     if(editor) { editor->SetActive(); }
 
     ManagerST::Get()->UpdateParserPaths(true);

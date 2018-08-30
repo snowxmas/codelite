@@ -147,9 +147,39 @@ GitConsole::GitConsole(wxWindow* parent, GitPlugin* git)
     , m_git(git)
 {
     // set the font to fit the C++ lexer default font
-    LexerConf::Ptr_t lexCpp = EditorConfigST::Get()->GetLexer("text");
-    if(lexCpp) { lexCpp->Apply(m_stcLog); }
+    m_styler.reset(new clGenericSTCStyler(m_stcLog));
     m_bitmapLoader = clGetManager()->GetStdIcons();
+
+    // Build the styles for git output
+
+    // Error messages will be coloured with red
+    {
+        wxArrayString words;
+        words.Add("fatal:");
+        words.Add("error:");
+        words.Add("tell me who you are");
+        words.Add("hook failure");
+        words.Add("not a git repository");
+        words.Add("No commit message given, aborting");
+        m_styler->AddStyle(words, clGenericSTCStyler::kError);
+    }
+
+    {
+        // Informative messages, will be coloured with green
+        wxArrayString words;
+        words.Add("up to date");
+        words.Add("up-to-date");
+        m_styler->AddStyle(words, clGenericSTCStyler::kInfo);
+    }
+    {
+        // warning messages
+        wxArrayString words;
+        words.Add("the authenticity of host");
+        words.Add("can't be established");
+        words.Add("key fingerprint");
+        m_styler->AddStyle(words, clGenericSTCStyler::kWarning);
+    }
+    m_styler->ApplyStyles();
 
     GitImages m_images;
     m_images.SetBitmapResolution(clBitmap::ShouldLoadHiResImages() ? "@2x" : "");
@@ -349,7 +379,11 @@ void GitConsole::UpdateTreeView(const wxString& output)
             m_dvListCtrlUnversioned->AppendItem(cols, (wxUIntPtr) new GitClientData(filenameFullpath, kind));
         }
     }
-    m_dvListCtrl->GetColumn(1)->SetWidth(wxCOL_WIDTH_AUTOSIZE); // adjust the width to the text
+
+    m_dvListCtrl->GetColumn(0)->SetWidth(wxCOL_WIDTH_AUTOSIZE);
+    m_dvListCtrl->GetColumn(1)->SetWidth(wxCOL_WIDTH_AUTOSIZE);
+    m_dvListCtrlUnversioned->GetColumn(0)->SetWidth(wxCOL_WIDTH_AUTOSIZE);
+    m_dvListCtrlUnversioned->GetColumn(1)->SetWidth(wxCOL_WIDTH_AUTOSIZE);
     m_notebook672->SetPageText(1, wxString()
                                       << _("Unversioned files (") << m_dvListCtrlUnversioned->GetItemCount() << ")");
 }
@@ -366,9 +400,9 @@ void GitConsole::OnContextMenu(wxDataViewEvent& event)
     }
     menu.Append(XRCID("git_console_close_view"), _("Close View"));
 
-    if(hasSelection) { 
-        menu.Bind(wxEVT_MENU, &GitConsole::OnOpenFile, this, XRCID("git_console_open_file")); 
-        menu.Bind(wxEVT_MENU, &GitConsole::OnResetFile, this, XRCID("git_console_reset_file")); 
+    if(hasSelection) {
+        menu.Bind(wxEVT_MENU, &GitConsole::OnOpenFile, this, XRCID("git_console_open_file"));
+        menu.Bind(wxEVT_MENU, &GitConsole::OnResetFile, this, XRCID("git_console_reset_file"));
     }
     menu.Bind(wxEVT_MENU, &GitConsole::OnCloseView, this, XRCID("git_console_close_view"));
     m_dvListCtrl->PopupMenu(&menu);

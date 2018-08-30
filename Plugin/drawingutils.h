@@ -68,7 +68,7 @@ public:
     static wxColour GetMenuTextColour();
     static wxColour GetMenuBarBgColour();
     static wxColour GetMenuBarTextColour();
-    static void FillMenuBarBgColour(wxDC& dc, const wxRect& rect);
+    static void FillMenuBarBgColour(wxDC& dc, const wxRect& rect, bool themed = true);
     static void TruncateText(const wxString& text, int maxWidth, wxDC& dc, wxString& fixedText);
     static void PaintStraightGradientBox(wxDC& dc, const wxRect& rect, const wxColour& startColor,
                                          const wxColour& endColor, bool vertical);
@@ -84,7 +84,6 @@ public:
     static wxFont GetDefaultFixedFont();
     static wxFont GetDefaultGuiFont();
     static wxBitmap CreateDisabledBitmap(const wxBitmap& bmp);
-    static wxBitmap CreateGrayBitmap(const wxBitmap& bmp);
     static wxSize GetBestSize(const wxString& label, int xspacer = 5, int yspacer = 5);
 
     /**
@@ -101,14 +100,17 @@ public:
     /**
      * @brief draw a close button
      */
-    static void DrawButtonX(wxDC& dc, wxWindow* win, const wxRect& rect, const wxColour& penColour,
-                            eButtonState state);
-    
+    static void DrawButtonX(wxDC& dc, wxWindow* win, const wxRect& rect, const wxColour& penColour, eButtonState state);
+
     /**
      * @brief draw a drop down arrow
      */
     static void DrawDropDownArrow(wxWindow* win, wxDC& dc, const wxRect& rect, const wxColour& colour);
-    
+
+    static void DrawNativeChoice(wxWindow* win, wxDC& dc, const wxRect& rect, const wxString& label,
+                                 const wxBitmap& bmp = wxNullBitmap,
+                                 int align = wxALIGN_CENTER_VERTICAL | wxALIGN_LEFT);
+
     /// -------------------------------------------------------------
     /// New theme related API
     /// -------------------------------------------------------------
@@ -157,7 +159,7 @@ public:
      * @brief get the caption colour
      */
     static wxColour GetCaptionColour();
-    
+
     /**
      * @brief return the colour suitable for drawing on the caption
      */
