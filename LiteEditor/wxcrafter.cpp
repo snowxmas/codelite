@@ -58,7 +58,7 @@ NavBarControlBaseClass::NavBarControlBaseClass(wxWindow* parent, wxWindowID id, 
     boxSizer43->Add(m_func, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
     SetName(wxT("NavBarControlBaseClass"));
-    SetSize(-1, -1);
+    SetSize(wxDLG_UNIT(this, wxSize(-1, -1)));
     if(GetSizer()) { GetSizer()->Fit(this); }
     // Connect events
     m_scope->Connect(wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler(NavBarControlBaseClass::OnScope), NULL, this);
@@ -85,331 +85,6 @@ NewProjImgList::NewProjImgList()
         wxC3F25InitBitmapResources();
         bBitmapLoaded = true;
     }
-
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("gear16"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("gear16"), bmp));
-        }
-    }
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("gear16@2x"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("gear16@2x"), bmp));
-        }
-    }
-
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("qt16"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("qt16"), bmp));
-        }
-    }
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("qt16@2x"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("qt16@2x"), bmp));
-        }
-    }
-
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("wx16"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("wx16"), bmp));
-        }
-    }
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("wx16@2x"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("wx16@2x"), bmp));
-        }
-    }
-
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("gtk16"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("gtk16"), bmp));
-        }
-    }
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("gtk16@2x"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("gtk16@2x"), bmp));
-        }
-    }
-
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("console16"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("console16"), bmp));
-        }
-    }
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("console16@2x"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("console16@2x"), bmp));
-        }
-    }
-
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("archive16"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("archive16"), bmp));
-        }
-    }
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("archive16@2x"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("archive16@2x"), bmp));
-        }
-    }
-
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("dll16"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("dll16"), bmp));
-        }
-    }
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("dll16@2x"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("dll16@2x"), bmp));
-        }
-    }
-
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("makefile16"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("makefile16"), bmp));
-        }
-    }
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("makefile16@2x"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("makefile16@2x"), bmp));
-        }
-    }
-
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("wxc"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("wxc"), bmp));
-        }
-    }
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("wxc@2x"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("wxc@2x"), bmp));
-        }
-    }
-
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("cmake"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("cmake"), bmp));
-        }
-    }
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("cmake@2x"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("cmake@2x"), bmp));
-        }
-    }
-
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("tabClose"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("tabClose"), bmp));
-        }
-    }
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("tabClose@2x"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("tabClose@2x"), bmp));
-        }
-    }
-
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("clang16"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("clang16"), bmp));
-        }
-    }
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("clang16@2x"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("clang16@2x"), bmp));
-        }
-    }
-
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("m_bmpFindInFiles"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("m_bmpFindInFiles"), bmp));
-        }
-    }
-    {
-        wxBitmap bmp;
-        wxIcon icn;
-        bmp = wxXmlResource::Get()->LoadBitmap(wxT("m_bmpFindInFiles@2x"));
-        if(bmp.IsOk()) {
-            if((m_imagesWidth == bmp.GetWidth()) && (m_imagesHeight == bmp.GetHeight())) {
-                icn.CopyFromBitmap(bmp);
-                this->Add(icn);
-            }
-            m_bitmaps.insert(std::make_pair(wxT("m_bmpFindInFiles@2x"), bmp));
-        }
-    }
 }
 
 NewProjImgList::~NewProjImgList() {}
@@ -428,39 +103,17 @@ AddFunctionsImplBaseDlg::AddFunctionsImplBaseDlg(wxWindow* parent, wxWindowID id
     wxBoxSizer* boxSizer117 = new wxBoxSizer(wxVERTICAL);
     this->SetSizer(boxSizer117);
 
-    m_banner125 =
-        new wxBannerWindow(this, wxID_ANY, wxTOP, wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), wxBORDER_THEME);
-    m_banner125->SetBitmap(wxNullBitmap);
-    m_banner125->SetText(_("Implement functions"), _("Select the functions you want to implement"));
-    m_banner125->SetGradient(wxSystemSettings::GetColour(wxSYS_COLOUR_ACTIVECAPTION),
-                             wxSystemSettings::GetColour(wxSYS_COLOUR_ACTIVECAPTION));
-    m_banner125->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_CAPTIONTEXT));
-
-    boxSizer117->Add(m_banner125, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
-
-    m_filePicker = new wxFilePickerCtrl(this, wxID_ANY, wxEmptyString, _("Select a file"), wxT("*"), wxDefaultPosition,
-                                        wxDLG_UNIT(this, wxSize(-1, -1)), wxFLP_DEFAULT_STYLE);
-    m_filePicker->SetToolTip(_("The functions will be placed into this file"));
-
-    boxSizer117->Add(m_filePicker, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
-
     wxBoxSizer* boxSizer129 = new wxBoxSizer(wxHORIZONTAL);
 
     boxSizer117->Add(boxSizer129, 1, wxEXPAND, WXC_FROM_DIP(5));
 
-    m_dataview = new wxDataViewCtrl(this, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)),
-                                    wxDV_ROW_LINES | wxDV_SINGLE);
+    m_dvListCtrl = new clThemedListCtrl(this, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)),
+                                        wxDV_ROW_LINES | wxDV_SINGLE);
 
-    m_dataviewModel = new AddFunctionsModel;
-    m_dataviewModel->SetColCount(2);
-    m_dataview->AssociateModel(m_dataviewModel.get());
+    boxSizer129->Add(m_dvListCtrl, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
-    boxSizer129->Add(m_dataview, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
-
-    m_dataview->AppendToggleColumn(_("?"), m_dataview->GetColumnCount(), wxDATAVIEW_CELL_ACTIVATABLE, WXC_FROM_DIP(50),
-                                   wxALIGN_CENTER, wxDATAVIEW_COL_RESIZABLE);
-    m_dataview->AppendTextColumn(_("Function"), m_dataview->GetColumnCount(), wxDATAVIEW_CELL_INERT, WXC_FROM_DIP(300),
-                                 wxALIGN_LEFT, wxDATAVIEW_COL_RESIZABLE);
+    m_dvListCtrl->AppendTextColumn(_("Function"), wxDATAVIEW_CELL_INERT, WXC_FROM_DIP(-2), wxALIGN_LEFT,
+                                   wxDATAVIEW_COL_RESIZABLE);
     wxBoxSizer* boxSizer131 = new wxBoxSizer(wxVERTICAL);
 
     boxSizer129->Add(boxSizer131, 0, wxEXPAND, WXC_FROM_DIP(5));
@@ -473,6 +126,12 @@ AddFunctionsImplBaseDlg::AddFunctionsImplBaseDlg(wxWindow* parent, wxWindowID id
         new wxButton(this, wxID_ANY, _("Uncheck all"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
 
     boxSizer131->Add(m_button135, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+
+    m_filePicker = new wxFilePickerCtrl(this, wxID_ANY, wxEmptyString, _("Select a file"), wxT("*"), wxDefaultPosition,
+                                        wxDLG_UNIT(this, wxSize(-1, -1)), wxFLP_DEFAULT_STYLE);
+    m_filePicker->SetToolTip(_("The functions will be placed into this file"));
+
+    boxSizer117->Add(m_filePicker, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
     wxBoxSizer* boxSizer119 = new wxBoxSizer(wxHORIZONTAL);
 
@@ -489,7 +148,7 @@ AddFunctionsImplBaseDlg::AddFunctionsImplBaseDlg(wxWindow* parent, wxWindowID id
 
     SetName(wxT("AddFunctionsImplBaseDlg"));
     SetMinClientSize(wxSize(500, 300));
-    SetSize(-1, -1);
+    SetSize(wxDLG_UNIT(this, wxSize(-1, -1)));
     if(GetSizer()) { GetSizer()->Fit(this); }
     if(GetParent()) {
         CentreOnParent(wxBOTH);
@@ -544,20 +203,22 @@ WelcomePageBase::WelcomePageBase(wxWindow* parent, wxWindowID id, const wxPoint&
     wxBoxSizer* boxSizer195 = new wxBoxSizer(wxVERTICAL);
     m_panel191->SetSizer(boxSizer195);
 
-    m_staticBitmap =
-        new wxStaticBitmap(m_panel191, wxID_ANY, wxXmlResource::Get()->LoadBitmap(wxT("256-codelite-logo")),
-                           wxDefaultPosition, wxDLG_UNIT(m_panel191, wxSize(-1, -1)), 0);
+    wxBoxSizer* boxSizer585 = new wxBoxSizer(wxVERTICAL);
 
-    boxSizer195->Add(m_staticBitmap, 0, wxALL | wxALIGN_CENTER_HORIZONTAL, WXC_FROM_DIP(5));
+    boxSizer195->Add(boxSizer585, 0, wxALL | wxALIGN_CENTER_HORIZONTAL, WXC_FROM_DIP(5));
+
+    m_staticBitmap = new wxStaticBitmap(m_panel191, wxID_ANY, wxNullBitmap, wxDefaultPosition,
+                                        wxDLG_UNIT(m_panel191, wxSize(-1, -1)), 0);
+
+    boxSizer585->Add(m_staticBitmap, 0, wxALL | wxALIGN_CENTER_HORIZONTAL, WXC_FROM_DIP(5));
 
     wxGridSizer* gridSizer574 = new wxGridSizer(0, 2, 0, 0);
 
-    boxSizer195->Add(gridSizer574, 0, wxALL | wxALIGN_CENTER_HORIZONTAL, WXC_FROM_DIP(5));
+    boxSizer585->Add(gridSizer574, 0, wxALL | wxALIGN_CENTER_HORIZONTAL, WXC_FROM_DIP(5));
 
     m_cmdLnkBtnNewWorkspace =
         new wxCommandLinkButton(m_panel191, wxID_ANY, _("New Workspace"), _("Create a new workspace"),
                                 wxDefaultPosition, wxDLG_UNIT(m_panel191, wxSize(-1, -1)), wxBU_LEFT);
-    m_cmdLnkBtnNewWorkspace->SetBitmap(wxXmlResource::Get()->LoadBitmap(wxT("24-show_current_line")), wxLEFT);
     m_cmdLnkBtnNewWorkspace->SetToolTip(_("Create a new workspace"));
 
     gridSizer574->Add(m_cmdLnkBtnNewWorkspace, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
@@ -566,7 +227,6 @@ WelcomePageBase::WelcomePageBase(wxWindow* parent, wxWindowID id, const wxPoint&
     m_cmdLnkBtnNewProject =
         new wxCommandLinkButton(m_panel191, wxID_ANY, _("Open Workspace"), _("Open an existing workspace"),
                                 wxDefaultPosition, wxDLG_UNIT(m_panel191, wxSize(-1, -1)), wxBU_LEFT);
-    m_cmdLnkBtnNewProject->SetBitmap(wxXmlResource::Get()->LoadBitmap(wxT("24-show_current_line")), wxLEFT);
     m_cmdLnkBtnNewProject->SetToolTip(_("Click to create a new project.\nIf NO workspace is open, it will auto create "
                                         "a workspace before creating the project"));
 
@@ -575,7 +235,6 @@ WelcomePageBase::WelcomePageBase(wxWindow* parent, wxWindowID id, const wxPoint&
     m_cmdLnkBtnWorkspaces =
         new wxCommandLinkButton(m_panel191, wxID_ANY, _("Recent workspaces"), _("Open a recently used workspace"),
                                 wxDefaultPosition, wxDLG_UNIT(m_panel191, wxSize(-1, -1)), wxBU_LEFT);
-    m_cmdLnkBtnWorkspaces->SetBitmap(wxXmlResource::Get()->LoadBitmap(wxT("24-show_current_line")), wxLEFT);
     m_cmdLnkBtnWorkspaces->SetToolTip(_("Open a workspace from a list of recently opened workspaces"));
 
     gridSizer574->Add(m_cmdLnkBtnWorkspaces, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
@@ -583,21 +242,18 @@ WelcomePageBase::WelcomePageBase(wxWindow* parent, wxWindowID id, const wxPoint&
     m_cmdLnkBtnFilesMenu =
         new wxCommandLinkButton(m_panel191, wxID_ANY, _("Recent files"), _("Open a recently used file"),
                                 wxDefaultPosition, wxDLG_UNIT(m_panel191, wxSize(-1, -1)), wxBU_LEFT);
-    m_cmdLnkBtnFilesMenu->SetBitmap(wxXmlResource::Get()->LoadBitmap(wxT("24-show_current_line")), wxLEFT);
     m_cmdLnkBtnFilesMenu->SetToolTip(_("Open a file from the revcently opened files"));
 
     gridSizer574->Add(m_cmdLnkBtnFilesMenu, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
     m_cmdLnkBtnForum = new wxCommandLinkButton(m_panel191, wxID_ANY, _("Forums"), _("Visit codelite's forums"),
                                                wxDefaultPosition, wxDLG_UNIT(m_panel191, wxSize(-1, -1)), wxBU_LEFT);
-    m_cmdLnkBtnForum->SetBitmap(wxXmlResource::Get()->LoadBitmap(wxT("24-show_current_line")), wxLEFT);
     m_cmdLnkBtnForum->SetToolTip(_("Click to open a web browser in CodeLite's forums"));
 
     gridSizer574->Add(m_cmdLnkBtnForum, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
     m_cmdLnkBtnWiki = new wxCommandLinkButton(m_panel191, wxID_ANY, _("Wiki"), _("Search codelite's wiki pages"),
                                               wxDefaultPosition, wxDLG_UNIT(m_panel191, wxSize(-1, -1)), wxBU_LEFT);
-    m_cmdLnkBtnWiki->SetBitmap(wxXmlResource::Get()->LoadBitmap(wxT("24-show_current_line")), wxLEFT);
     m_cmdLnkBtnWiki->SetToolTip(_("Click to open a web browser in CodeLite's wiki main documentation page"));
 
     gridSizer574->Add(m_cmdLnkBtnWiki, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
@@ -605,7 +261,7 @@ WelcomePageBase::WelcomePageBase(wxWindow* parent, wxWindowID id, const wxPoint&
     boxSizer195->Add(0, 0, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
     SetName(wxT("WelcomePageBase"));
-    SetSize(-1, -1);
+    SetSize(wxDLG_UNIT(this, wxSize(-1, -1)));
     if(GetSizer()) { GetSizer()->Fit(this); }
     // Connect events
     this->Connect(wxEVT_SIZE, wxSizeEventHandler(WelcomePageBase::OnSize), NULL, this);
@@ -668,7 +324,7 @@ FileExplorerBase::FileExplorerBase(wxWindow* parent, wxWindowID id, const wxPoin
     boxSizer262->Add(m_genericDirCtrl, 1, wxALL | wxEXPAND, WXC_FROM_DIP(2));
 
     SetName(wxT("FileExplorerBase"));
-    SetSize(-1, -1);
+    SetSize(wxDLG_UNIT(this, wxSize(-1, -1)));
     if(GetSizer()) { GetSizer()->Fit(this); }
     // Connect events
     m_genericDirCtrl->Connect(wxEVT_COMMAND_TREE_ITEM_ACTIVATED, wxTreeEventHandler(FileExplorerBase::OnItemActivated),
@@ -727,12 +383,12 @@ WorkspaceTabBase::WorkspaceTabBase(wxWindow* parent, wxWindowID id, const wxPoin
     boxSizer505->Add(m_configChangeCtrl, 0, wxTOP | wxBOTTOM | wxEXPAND, WXC_FROM_DIP(2));
 
     m_fileView = new FileViewTree(m_panelCxx, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panelCxx, wxSize(-1, -1)),
-                                  wxTR_MULTIPLE | wxTR_FULL_ROW_HIGHLIGHT | wxTR_NO_LINES | wxTR_HAS_BUTTONS);
+                                  wxTR_MULTIPLE | wxTR_NO_LINES | wxTR_HAS_BUTTONS);
 
     boxSizer505->Add(m_fileView, 1, wxEXPAND, WXC_FROM_DIP(2));
 
     SetName(wxT("WorkspaceTabBase"));
-    SetSize(-1, -1);
+    SetSize(wxDLG_UNIT(this, wxSize(-1, -1)));
     if(GetSizer()) { GetSizer()->Fit(this); }
 }
 
@@ -759,35 +415,44 @@ EditorFrameBase::EditorFrameBase(wxWindow* parent, wxWindowID id, const wxString
     wxBoxSizer* boxSizer324 = new wxBoxSizer(wxVERTICAL);
     m_mainPanel->SetSizer(boxSizer324);
 
-    m_toolbar = this->CreateToolBar(wxTB_NOALIGN | wxTB_FLAT, wxID_ANY);
+    m_toolbar = new clToolBar(m_mainPanel, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_mainPanel, wxSize(-1, -1)),
+                              wxTB_NOALIGN | wxTB_FLAT);
     m_toolbar->SetToolBitmapSize(wxSize(24, 24));
 
-    m_toolbar->AddTool(XRCID("save_file"), _("Save"), wxXmlResource::Get()->LoadBitmap(wxT("24-file_save")),
-                       wxNullBitmap, wxITEM_NORMAL, _("Save"), _("Save"), NULL);
+    boxSizer324->Add(m_toolbar, 0, wxEXPAND, WXC_FROM_DIP(5));
 
-    m_toolbar->AddTool(wxID_CLOSE, _("Close"), wxXmlResource::Get()->LoadBitmap(wxT("24-file_close")), wxNullBitmap,
-                       wxITEM_NORMAL, _("Close"), _("Close"), NULL);
+    m_menuBar587 = new wxMenuBar(0);
+    this->SetMenuBar(m_menuBar587);
 
-    m_toolbar->AddTool(XRCID("refresh_file"), _("Reload File"), wxXmlResource::Get()->LoadBitmap(wxT("24-file_reload")),
-                       wxNullBitmap, wxITEM_NORMAL, _("Reload File"), _("Reload File"), NULL);
+    FILE = new wxMenu();
+    m_menuBar587->Append(FILE, _("File"));
 
-    m_toolbar->AddTool(wxID_FIND, _("Find"), wxXmlResource::Get()->LoadBitmap(wxT("24-find")), wxNullBitmap,
-                       wxITEM_NORMAL, _("Find"), _("Find"), NULL);
+    m_menuItemSave = new wxMenuItem(FILE, XRCID("file-save"), _("Save\tCtrl-S"), wxT(""), wxITEM_NORMAL);
+    FILE->Append(m_menuItemSave);
 
-    m_toolbar->AddTool(wxID_UNDO, _("Undo"), wxXmlResource::Get()->LoadBitmap(wxT("24-undo")), wxNullBitmap,
-                       wxITEM_NORMAL, _("Undo"), wxT(""), NULL);
+    m_menuItemReload = new wxMenuItem(FILE, XRCID("reload_file"), _("Reload File\tCtrl-R"), wxT(""), wxITEM_NORMAL);
+    FILE->Append(m_menuItemReload);
 
-    m_toolbar->AddTool(wxID_REDO, _("Redo"), wxXmlResource::Get()->LoadBitmap(wxT("24-redo")), wxNullBitmap,
-                       wxITEM_NORMAL, _("Redo"), wxT(""), NULL);
+    FILE->AppendSeparator();
 
-    m_toolbar->AddTool(XRCID("toggle_bookmark"), _("Toggle Bookmark"),
-                       wxXmlResource::Get()->LoadBitmap(wxT("24-bookmark")), wxNullBitmap, wxITEM_DROPDOWN,
-                       _("Toggle Bookmark"), _("Toggle Bookmark"), NULL);
-    m_toolbar->Realize();
+    m_menuItemClose = new wxMenuItem(FILE, XRCID("file-close"), _("Close\tCtrl-W"), wxT(""), wxITEM_NORMAL);
+    FILE->Append(m_menuItemClose);
+
+    EDIT = new wxMenu();
+    m_menuBar587->Append(EDIT, _("Edit"));
+
+    m_menuItemFind = new wxMenuItem(EDIT, XRCID("show-find-bar"), _("Find\tCtrl-F"), wxT(""), wxITEM_NORMAL);
+    EDIT->Append(m_menuItemFind);
+
+    m_menuItemUndo = new wxMenuItem(EDIT, wxID_UNDO, _("Undo"), wxT(""), wxITEM_NORMAL);
+    EDIT->Append(m_menuItemUndo);
+
+    m_menuItemRedo = new wxMenuItem(EDIT, wxID_REDO, _("Redo"), wxT(""), wxITEM_NORMAL);
+    EDIT->Append(m_menuItemRedo);
 
     SetName(wxT("EditorFrameBase"));
     SetMinClientSize(wxSize(800, 600));
-    SetSize(800, 600);
+    SetSize(wxDLG_UNIT(this, wxSize(800, 600)));
     if(GetSizer()) { GetSizer()->Fit(this); }
     if(GetParent()) {
         CentreOnParent(wxBOTH);
@@ -803,20 +468,55 @@ EditorFrameBase::EditorFrameBase(wxWindow* parent, wxWindowID id, const wxString
 #endif
     // Connect events
     this->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(EditorFrameBase::OnCloseWindow), NULL, this);
-    this->Connect(wxID_CLOSE, wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(EditorFrameBase::OnClose), NULL, this);
-    this->Connect(wxID_CLOSE, wxEVT_UPDATE_UI, wxUpdateUIEventHandler(EditorFrameBase::OnCloseUI), NULL, this);
-    this->Connect(wxID_FIND, wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(EditorFrameBase::OnFind), NULL, this);
-    this->Connect(wxID_FIND, wxEVT_UPDATE_UI, wxUpdateUIEventHandler(EditorFrameBase::OnFindUI), NULL, this);
+    this->Connect(m_menuItemSave->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(EditorFrameBase::OnSave),
+                  NULL, this);
+    this->Connect(m_menuItemSave->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(EditorFrameBase::OnSaveUI), NULL,
+                  this);
+    this->Connect(m_menuItemReload->GetId(), wxEVT_COMMAND_MENU_SELECTED,
+                  wxCommandEventHandler(EditorFrameBase::OnReload), NULL, this);
+    this->Connect(m_menuItemClose->GetId(), wxEVT_COMMAND_MENU_SELECTED,
+                  wxCommandEventHandler(EditorFrameBase::OnClose), NULL, this);
+    this->Connect(m_menuItemClose->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(EditorFrameBase::OnCloseUI), NULL,
+                  this);
+    this->Connect(m_menuItemFind->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(EditorFrameBase::OnFind),
+                  NULL, this);
+    this->Connect(m_menuItemFind->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(EditorFrameBase::OnFindUI), NULL,
+                  this);
+    this->Connect(m_menuItemUndo->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(EditorFrameBase::OnUndo),
+                  NULL, this);
+    this->Connect(m_menuItemUndo->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(EditorFrameBase::OnUndoUI), NULL,
+                  this);
+    this->Connect(m_menuItemRedo->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(EditorFrameBase::OnRedo),
+                  NULL, this);
+    this->Connect(m_menuItemRedo->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(EditorFrameBase::OnRedoUI), NULL,
+                  this);
 }
 
 EditorFrameBase::~EditorFrameBase()
 {
     this->Disconnect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(EditorFrameBase::OnCloseWindow), NULL, this);
-    this->Disconnect(wxID_CLOSE, wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(EditorFrameBase::OnClose), NULL,
+    this->Disconnect(m_menuItemSave->GetId(), wxEVT_COMMAND_MENU_SELECTED,
+                     wxCommandEventHandler(EditorFrameBase::OnSave), NULL, this);
+    this->Disconnect(m_menuItemSave->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(EditorFrameBase::OnSaveUI), NULL,
                      this);
-    this->Disconnect(wxID_CLOSE, wxEVT_UPDATE_UI, wxUpdateUIEventHandler(EditorFrameBase::OnCloseUI), NULL, this);
-    this->Disconnect(wxID_FIND, wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(EditorFrameBase::OnFind), NULL, this);
-    this->Disconnect(wxID_FIND, wxEVT_UPDATE_UI, wxUpdateUIEventHandler(EditorFrameBase::OnFindUI), NULL, this);
+    this->Disconnect(m_menuItemReload->GetId(), wxEVT_COMMAND_MENU_SELECTED,
+                     wxCommandEventHandler(EditorFrameBase::OnReload), NULL, this);
+    this->Disconnect(m_menuItemClose->GetId(), wxEVT_COMMAND_MENU_SELECTED,
+                     wxCommandEventHandler(EditorFrameBase::OnClose), NULL, this);
+    this->Disconnect(m_menuItemClose->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(EditorFrameBase::OnCloseUI),
+                     NULL, this);
+    this->Disconnect(m_menuItemFind->GetId(), wxEVT_COMMAND_MENU_SELECTED,
+                     wxCommandEventHandler(EditorFrameBase::OnFind), NULL, this);
+    this->Disconnect(m_menuItemFind->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(EditorFrameBase::OnFindUI), NULL,
+                     this);
+    this->Disconnect(m_menuItemUndo->GetId(), wxEVT_COMMAND_MENU_SELECTED,
+                     wxCommandEventHandler(EditorFrameBase::OnUndo), NULL, this);
+    this->Disconnect(m_menuItemUndo->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(EditorFrameBase::OnUndoUI), NULL,
+                     this);
+    this->Disconnect(m_menuItemRedo->GetId(), wxEVT_COMMAND_MENU_SELECTED,
+                     wxCommandEventHandler(EditorFrameBase::OnRedo), NULL, this);
+    this->Disconnect(m_menuItemRedo->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(EditorFrameBase::OnRedoUI), NULL,
+                     this);
 }
 
 NewProjectWizardBase::NewProjectWizardBase(wxWindow* parent, wxWindowID id, const wxString& title, const wxBitmap& bmp,
@@ -1006,7 +706,7 @@ NewProjectWizardBase::NewProjectWizardBase(wxWindow* parent, wxWindowID id, cons
 
     SetName(wxT("NewProjectWizardBase"));
     SetMinClientSize(wxSize(500, 400));
-    SetSize(-1, -1);
+    SetSize(wxDLG_UNIT(this, wxSize(-1, -1)));
     if(GetSizer()) { GetSizer()->Fit(this); }
     if(GetParent()) {
         CentreOnParent(wxBOTH);
@@ -1138,7 +838,7 @@ ClangOutputTabBase::ClangOutputTabBase(wxWindow* parent, wxWindowID id, const wx
     boxSizer424->Add(m_stc, 1, wxEXPAND, WXC_FROM_DIP(2));
 
     SetName(wxT("ClangOutputTabBase"));
-    SetSize(-1, -1);
+    SetSize(wxDLG_UNIT(this, wxSize(-1, -1)));
     if(GetSizer()) { GetSizer()->Fit(this); }
     // Connect events
     m_checkBoxEnableClang->Connect(wxEVT_COMMAND_CHECKBOX_CLICKED,
@@ -1228,7 +928,7 @@ OpenFolderDlgBase::OpenFolderDlgBase(wxWindow* parent, wxWindowID id, const wxSt
 
     SetName(wxT("OpenFolderDlgBase"));
     SetMinClientSize(wxSize(-1, 100));
-    SetSize(-1, -1);
+    SetSize(wxDLG_UNIT(this, wxSize(-1, -1)));
     if(GetSizer()) { GetSizer()->Fit(this); }
     if(GetParent()) {
         CentreOnParent(wxBOTH);
@@ -1256,7 +956,6 @@ DefaultWorkspacePageBase::DefaultWorkspacePageBase(wxWindow* parent, wxWindowID 
         wxC3F25InitBitmapResources();
         bBitmapLoaded = true;
     }
-    this->SetBackgroundColour(wxColour(wxT("rgb(220,220,220)")));
 
     wxBoxSizer* boxSizer515 = new wxBoxSizer(wxVERTICAL);
     this->SetSizer(boxSizer515);
@@ -1265,7 +964,6 @@ DefaultWorkspacePageBase::DefaultWorkspacePageBase(wxWindow* parent, wxWindowID 
 
     m_staticText523 = new wxStaticText(this, wxID_ANY, _("DRAG AND DROP\nA FOLDER HERE"), wxDefaultPosition,
                                        wxDLG_UNIT(this, wxSize(-1, -1)), wxALIGN_CENTRE);
-    m_staticText523->SetForegroundColour(wxColour(wxT("rgb(128,128,128)")));
     wxFont m_staticText523Font = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
     m_staticText523Font.SetWeight(wxFONTWEIGHT_BOLD);
     m_staticText523->SetFont(m_staticText523Font);
@@ -1280,9 +978,9 @@ DefaultWorkspacePageBase::DefaultWorkspacePageBase(wxWindow* parent, wxWindowID 
 
     boxSizer515->Add(0, 0, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
-    SetBackgroundColour(wxColour(wxT("rgb(220,220,220)")));
     SetName(wxT("DefaultWorkspacePageBase"));
-    SetSize(500, 300);
+    SetMinClientSize(wxSize(400, 300));
+    SetSize(wxDLG_UNIT(this, wxSize(400, 300)));
     if(GetSizer()) { GetSizer()->Fit(this); }
 }
 
@@ -1332,7 +1030,7 @@ SelectDropTargetBaseDlg::SelectDropTargetBaseDlg(wxWindow* parent, wxWindowID id
 
     SetName(wxT("SelectDropTargetBaseDlg"));
     SetMinClientSize(wxSize(400, 400));
-    SetSize(400, 400);
+    SetSize(wxDLG_UNIT(this, wxSize(400, 400)));
     if(GetSizer()) { GetSizer()->Fit(this); }
     if(GetParent()) {
         CentreOnParent(wxBOTH);

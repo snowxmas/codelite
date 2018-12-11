@@ -405,6 +405,16 @@ WXDLLIMPEXP_SDK wxString DbgPrependCharPtrCastIfNeeded(const wxString& expr, con
 WXDLLIMPEXP_SDK wxVariant MakeIconText(const wxString& text, const wxBitmap& bmp);
 
 /**
+ * @brief create wxVariant from wxString + int
+ */
+WXDLLIMPEXP_SDK wxVariant MakeBitmapIndexText(const wxString& text, int imgIndex);
+
+/**
+ * @brief create wxVariant from label+checkbox+imgindex
+ */
+WXDLLIMPEXP_SDK wxVariant MakeCheckboxVariant(const wxString& label, bool checked, int imgIndex);
+
+/**
  * @brief queue a call to a function to be executed on the next event loop
  */
 WXDLLIMPEXP_SDK void PostCall(wxObject* instance, clEventFunc_t func, wxClientData* arg);
@@ -415,17 +425,6 @@ WXDLLIMPEXP_SDK void PostCall(wxObject* instance, clEventFunc_t func);
  * @param trim trim the lines with set to true
  */
 WXDLLIMPEXP_SDK wxArrayString SplitString(const wxString& inString, bool trim = true);
-
-/**
- * @brief make an execution command for running cmd under a shell and optionally prompt the user with the 'press any to
- * key to continue...' message
- */
-WXDLLIMPEXP_SDK wxString MakeExecInShellCommand(const wxString& cmd, const wxString& wd, bool waitForAnyKey);
-
-/**
- * @brief launch codelite terminal and return its TTY
- */
-WXDLLIMPEXP_SDK IProcess* LaunchTerminal(const wxString& title, bool forDebugger, IProcessCallback* processCB);
 
 /**
  * @brief launch terminal for debugging purposes and return its TTY. This function does nothing under Windows
@@ -610,5 +609,10 @@ WXDLLIMPEXP_SDK wxString clJoinLinesWithEOL(const wxArrayString& lines, int eol)
  * @brief fit the dataview columns width to match their content
  */
 WXDLLIMPEXP_SDK void clFitColumnWidth(wxDataViewCtrl* ctrl);
+
+/**
+ * @brief return the screen size, taking dual or more screens into account
+ */
+WXDLLIMPEXP_SDK wxSize clGetDisplaySize();
 
 #endif // GLOBALS_H

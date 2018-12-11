@@ -13,13 +13,17 @@ clCustomiseToolBarDlg::clCustomiseToolBarDlg(wxWindow* parent, clToolBar* tb)
 {
     OptionsConfigPtr options = EditorConfigST::Get()->GetOptions();
     const wxBitmap& bmp = clGetManager()->GetStdIcons()->LoadBitmap("cog", options->GetIconsSize());
-    m_dvListCtrlItems->SetRowHeight(bmp.GetScaledHeight());
+    m_dvListCtrlItems->SetRowHeight(bmp.GetScaledHeight() + 8);
 
     for(size_t i = 0; i < m_buttons.size(); ++i) {
         clToolBarButtonBase* button = m_buttons[i];
         wxVector<wxVariant> cols;
         cols.push_back(wxVariant(!button->IsHidden()));
-        cols.push_back(::MakeIconText(button->IsSeparator() ? _("Separator") : button->GetLabel(), button->GetBmp()));
+        if (button->IsSpacer()) {
+            cols.push_back(::MakeIconText(_("Spacer"), button->GetBmp()));
+        } else {
+            cols.push_back(::MakeIconText(button->IsSeparator() ? _("Separator") : button->GetLabel(), button->GetBmp()));
+        }
         m_dvListCtrlItems->AppendItem(cols, (wxUIntPtr)button);
     }
     ::clFitColumnWidth(m_dvListCtrlItems);

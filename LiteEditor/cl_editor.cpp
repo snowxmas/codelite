@@ -31,6 +31,7 @@
 #include "cc_box_tip_window.h"
 #include "clEditorStateLocker.h"
 #include "clPrintout.h"
+#include "clResizableTooltip.h"
 #include "clSTCLineKeeper.h"
 #include "cl_command_event.h"
 #include "cl_editor.h"
@@ -84,6 +85,10 @@
 #if wxUSE_PRINTING_ARCHITECTURE
 #include "wx/paper.h"
 #endif // wxUSE_PRINTING_ARCHITECTURE
+
+#if defined(USE_UCHARDET)
+#include "uchardet/uchardet.h"
+#endif
 
 #define NUMBER_MARGIN_ID 0
 #define EDIT_TRACKER_MARGIN_ID 1
@@ -272,12 +277,7 @@ static bool MSWRemoveROFileAttribute(const wxFileName& fileName)
 
 //=====================================================================
 clEditor::clEditor(wxWindow* parent)
-#ifdef __WXGTK3__
-    : wxStyledTextCtrl(parent, wxID_ANY, wxDefaultPosition, wxSize(1, 1), wxBORDER_DEFAULT)
-#else
-    : wxStyledTextCtrl(parent, wxID_ANY, wxDefaultPosition, wxSize(1, 1), wxNO_BORDER)
-#endif
-    , m_popupIsOn(false)
+    : m_popupIsOn(false)
     , m_isDragging(false)
     , m_modifyTime(0)
     , m_modificationCount(0)
@@ -302,6 +302,13 @@ clEditor::clEditor(wxWindow* parent)
     , m_hasCCAnnotation(false)
     , m_richTooltip(NULL)
 {
+    Hide();
+#ifdef __WXGTK3__
+    wxStyledTextCtrl::Create(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_DEFAULT);
+#else
+    wxStyledTextCtrl::Create(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxNO_BORDER);
+#endif
+
     Bind(wxEVT_STC_CHARADDED, &clEditor::OnCharAdded, this);
     Bind(wxEVT_STC_MARGINCLICK, &clEditor::OnMarginClick, this);
     Bind(wxEVT_STC_CALLTIP_CLICK, &clEditor::OnCallTipClick, this);
@@ -597,15 +604,16 @@ void clEditor::SetProperties()
     SetMarginType(SYMBOLS_MARGIN_SEP_ID, wxSTC_MARGIN_FORE);
     SetMarginMask(SYMBOLS_MARGIN_SEP_ID, 0);
 
+    // Show the separator margin only if the fold margin is hidden
+    // (otherwise the fold margin is the separator)
+    SetMarginWidth(SYMBOLS_MARGIN_SEP_ID,
+                   (GetLexer() == wxSTC_LEX_CPP && FileExtManager::IsCxxFile(GetFileName())) ? 1 : 0);
+
     // Fold margin - allow only folder symbols to display
     SetMarginMask(FOLD_MARGIN_ID, wxSTC_MASK_FOLDERS);
 
     // Set margins' width
     SetMarginWidth(SYMBOLS_MARGIN_ID, options->GetDisplayBookmarkMargin() ? 16 : 0); // Symbol margin
-
-    // Show the separator margin only if the fold margin is hidden
-    // (otherwise the fold margin is the separator)
-    SetMarginWidth(SYMBOLS_MARGIN_SEP_ID, GetLexer() == wxSTC_LEX_CPP ? 1 : 0);
 
     // allow everything except for the folding symbols
     SetMarginMask(SYMBOLS_MARGIN_ID, ~(wxSTC_MASK_FOLDERS));
@@ -748,13 +756,12 @@ void clEditor::SetProperties()
     SetLayoutCache(wxSTC_CACHE_DOCUMENT);
 
 #elif defined(__WXGTK__)
-    SetLayoutCache(wxSTC_CACHE_PAGE);
+    // SetLayoutCache(wxSTC_CACHE_PAGE);
 
 #else // MSW
     SetTwoPhaseDraw(true);
     SetBufferedDraw(true);
     SetLayoutCache(wxSTC_CACHE_PAGE);
-
 #endif
 
     // indentation settings
@@ -2850,6 +2857,67 @@ void clEditor::GetBookmarkTooltip(int lineno, wxString& tip, wxString& title)
     }
 }
 
+
+wxFontEncoding clEditor::DetectEncoding(const wxString& filename)
+{
+    wxFontEncoding encoding = GetOptions()->GetFileFontEncoding();
+#if defined(USE_UCHARDET)
+    wxFile file(filename);
+    if (!file.IsOpened())
+        return encoding;
+    
+    size_t size = file.Length();
+    if (size == 0) {
+        file.Close();
+        return encoding;
+    }
+
+    wxByte* buffer = (wxByte*) malloc(sizeof(wxByte) * (size + 4));
+    if (!buffer) {
+        file.Close();
+        return encoding;
+    }
+    buffer[size + 0] = 0;
+    buffer[size + 1] = 0;
+    buffer[size + 2] = 0;
+    buffer[size + 3] = 0;
+
+    size_t readBytes = file.Read((void*)buffer, size);
+    bool result = false;
+    if (readBytes > 0) {
+        uchardet_t ud = uchardet_new();
+        if (0 == uchardet_handle_data(ud, (const char *)buffer, readBytes)) {
+            uchardet_data_end(ud);
+            wxString charset(uchardet_get_charset(ud));
+            charset.MakeUpper();
+            if (charset.find("UTF-8") != wxString::npos) {
+                encoding = wxFONTENCODING_UTF8;
+            } else if (charset.find("GB18030") != wxString::npos) {
+                encoding = wxFONTENCODING_GB2312;
+            } else if (charset.find("BIG5") != wxString::npos) {
+                encoding = wxFONTENCODING_BIG5;
+            } else if (charset.find("EUC-JP") != wxString::npos) {
+                encoding = wxFONTENCODING_EUC_JP;
+            } else if (charset.find("EUC-KR") != wxString::npos) {
+                encoding = wxFONTENCODING_EUC_KR;
+            } else if (charset.find("WINDOWS-1252") != wxString::npos) {
+                encoding = wxFONTENCODING_CP1252;
+            } else if (charset.find("WINDOWS-1255") != wxString::npos) {
+                encoding = wxFONTENCODING_CP1255;
+            } else if (charset.find("ISO-8859-8") != wxString::npos) {
+                encoding = wxFONTENCODING_ISO8859_8;
+            } else if (charset.find("SHIFT_JIS") != wxString::npos) {
+                encoding = wxFONTENCODING_SHIFT_JIS;
+            }
+        }
+        uchardet_delete(ud);
+    }
+    file.Close();
+    free(buffer);
+#endif
+    return encoding;
+}
+
 void clEditor::OpenFile()
 {
     wxWindowUpdateLocker locker(this);
@@ -2875,7 +2943,7 @@ void clEditor::OpenFile()
     // Read the file we currently support:
     // BOM, Auto-Detect encoding & User defined encoding
     m_fileBom.Clear();
-    ReadFileWithConversion(m_fileName.GetFullPath(), text, GetOptions()->GetFileFontEncoding(), &m_fileBom);
+    ReadFileWithConversion(m_fileName.GetFullPath(), text, DetectEncoding(m_fileName.GetFullPath()), &m_fileBom);
 
     SetText(text);
 
@@ -3249,6 +3317,10 @@ void clEditor::OnLeftDown(wxMouseEvent& event)
         SetCaretAt(PositionFromPointClose(event.GetX(), event.GetY()));
     }
     SetActive();
+
+    // Destroy any floating tooltips out there
+    clCommandEvent destroyEvent(wxEVT_TOOLTIP_DESTROY);
+    EventNotifier::Get()->AddPendingEvent(destroyEvent);
 
     // Clear any messages from the status bar
     clGetManager()->GetStatusBar()->SetMessage("");
@@ -4729,7 +4801,7 @@ void clEditor::DoUpdateTLWTitle(bool raise)
 {
     // ensure that the top level window parent of this editor is 'Raised'
     wxWindow* tlw = ::wxGetTopLevelParent(this);
-    //if(tlw && raise) { tlw->Raise(); }
+    // if(tlw && raise) { tlw->Raise(); }
 
     if(!IsDetached()) {
         clMainFrame::Get()->SetFrameTitle(this);
@@ -5172,7 +5244,7 @@ void clEditor::QuickAddNext()
     wxString findWhat = GetTextRange(start, end);
     int where = this->FindText(end, GetLength(), findWhat, wxSTC_FIND_MATCHCASE);
     if(where != wxNOT_FOUND) {
-        AddSelection(where, where + findWhat.length());
+        AddSelection(where + findWhat.length(), where);
         CenterLineIfNeeded(LineFromPos(where));
     }
 
@@ -5204,7 +5276,7 @@ void clEditor::QuickFindAll()
             CenterLineIfNeeded(LineFromPos(where));
 
         } else {
-            AddSelection(where, where + findWhat.length());
+            AddSelection(where + findWhat.length(), where);
         }
         ++matches;
         where = this->FindText(where + findWhat.length(), GetLength(), findWhat, wxSTC_FIND_MATCHCASE);

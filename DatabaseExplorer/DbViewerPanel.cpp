@@ -170,16 +170,15 @@ void DbViewerPanel::RefreshDbView()
     // clear items from tree
     m_treeDatabases->DeleteAllItems();
     // create imageList for icons
-    wxImageList* pImageList = new wxImageList(clGetScaledSize(16), clGetScaledSize(16), true);
-    pImageList->Add(m_mgr->GetStdIcons()->LoadBitmap(wxT("folder-yellow"))); // 0, folder icon
-    pImageList->Add(m_mgr->GetStdIcons()->LoadBitmap(wxT("db-table")));      // 1, table icon
-    pImageList->Add(m_mgr->GetStdIcons()->LoadBitmap(wxT("cscope")));        // 2, view icon
-    pImageList->Add(m_mgr->GetStdIcons()->LoadBitmap(wxT("database")));      // 3, database
-    pImageList->Add(m_mgr->GetStdIcons()->LoadBitmap(wxT("db-column")));     // 4, column
+    BitmapLoader* loader = clGetManager()->GetStdIcons();
+    m_treeDatabases->SetBitmaps(loader->GetStandardMimeBitmapListPtr());
 
-    m_treeDatabases->AssignImageList(pImageList);
-
-    wxTreeItemId totalRootID = m_treeDatabases->AddRoot(wxString::Format(wxT("Databases")), -1);
+    int img_folder = loader->GetImageIndex(FileExtManager::TypeFolder);
+    int img_table = loader->GetImageIndex(BitmapLoader::kTable);
+    int img_find = loader->GetImageIndex(BitmapLoader::kFind);
+    int img_database = loader->GetImageIndex(BitmapLoader::kDatabase);
+    int img_column = loader->GetImageIndex(BitmapLoader::kColumn);
+    wxTreeItemId totalRootID = m_treeDatabases->AddRoot(wxString::Format(wxT("Databases")), wxNOT_FOUND);
 
     // ---------------- load connections ----------------------------
     SerializableList::compatibility_iterator connectionNode = m_pConnections->GetFirstChildNode();
@@ -187,29 +186,28 @@ void DbViewerPanel::RefreshDbView()
         DbConnection* pDbCon = (DbConnection*)wxDynamicCast(connectionNode->GetData(), DbConnection);
         if(pDbCon) {
             wxTreeItemId rootID = m_treeDatabases->AppendItem(
-                totalRootID, wxString::Format(wxT("Databases (%s)"), pDbCon->GetServerName().c_str()), 3, 3,
-                new DbItem(pDbCon));
+                totalRootID, wxString::Format(wxT("Databases (%s)"), pDbCon->GetServerName().c_str()), img_database,
+                img_database, new DbItem(pDbCon));
 
             // ----------------------- load databases -------------------------------
             SerializableList::compatibility_iterator dbNode = pDbCon->GetFirstChildNode();
             while(dbNode) {
                 Database* pDatabase = wxDynamicCast(dbNode->GetData(), Database);
                 if(pDatabase) {
-                    wxTreeItemId dbID =
-                        m_treeDatabases->AppendItem(rootID, pDatabase->GetName(), 3, 3, new DbItem(pDatabase));
+                    wxTreeItemId dbID = m_treeDatabases->AppendItem(rootID, pDatabase->GetName(), img_database,
+                                                                    img_database, new DbItem(pDatabase));
                     m_treeDatabases->Expand(rootID);
-                    wxTreeItemId idFolder = m_treeDatabases->AppendItem(dbID, wxT("Tables"), 0, 0, NULL);
-                    // m_treeDatabases->Expand(dbID);
+                    wxTreeItemId idFolder =
+                        m_treeDatabases->AppendItem(dbID, wxT("Tables"), img_folder, img_folder, NULL);
 
                     // ----------------------------- load tables ----------------------------------
                     SerializableList::compatibility_iterator tabNode = pDatabase->GetFirstChildNode();
                     while(tabNode) {
                         Table* pTable = wxDynamicCast(tabNode->GetData(), Table);
                         if(pTable) {
-                            // wxTreeItemId tabID = m_treeDatabases->AppendItem(idFolder,pTable->getName(),1,-1,new
-                            // DbItem(NULL,pTable)); //NULL);
-                            wxTreeItemId tabID = m_treeDatabases->AppendItem(idFolder, pTable->GetName(), 1, 1,
-                                                                             new DbItem(pTable)); // NULL);
+                            wxTreeItemId tabID =
+                                m_treeDatabases->AppendItem(idFolder, pTable->GetName(), img_table, img_table,
+                                                            new DbItem(pTable)); // NULL);
 
                             ///////////////////////////////////////////////////////////
                             // Add the columns
@@ -218,8 +216,8 @@ void DbViewerPanel::RefreshDbView()
                             while(columnNode) {
                                 Column* col = wxDynamicCast(columnNode->GetData(), Column);
                                 if(col) {
-                                    m_treeDatabases->AppendItem(tabID, col->FormatName().c_str(), 4, 4,
-                                                                new DbItem(col));
+                                    m_treeDatabases->AppendItem(tabID, col->FormatName().c_str(), img_column,
+                                                                img_column, new DbItem(col));
                                 }
                                 columnNode = columnNode->GetNext();
                             }
@@ -228,17 +226,15 @@ void DbViewerPanel::RefreshDbView()
                     }
                     // ----------------------------------------------------------------------------
 
-                    idFolder = m_treeDatabases->AppendItem(dbID, wxT("Views"), 0, 0, NULL);
-                    // m_treeDatabases->Expand(dbID);
+                    idFolder = m_treeDatabases->AppendItem(dbID, wxT("Views"), img_folder, img_folder, NULL);
 
                     // ----------------------------- load views ----------------------------------
                     tabNode = pDatabase->GetFirstChildNode();
                     while(tabNode) {
                         View* pView = wxDynamicCast(tabNode->GetData(), View);
                         if(pView) {
-                            // wxTreeItemId tabID = m_treeDatabases->AppendItem(idFolder,pTable->getName(),1,-1,new
-                            // DbItem(NULL,pTable)); //NULL);
-                            m_treeDatabases->AppendItem(idFolder, pView->GetName(), 2, 2, new DbItem(pView)); // NULL);
+                            m_treeDatabases->AppendItem(idFolder, pView->GetName(), img_find, img_find,
+                                                        new DbItem(pView)); // NULL);
                         }
                         tabNode = tabNode->GetNext();
                     }
@@ -259,9 +255,7 @@ void DbViewerPanel::OnDnDStart(wxTreeEvent& event) { event.Skip(); }
 void DbViewerPanel::OnItemRightClick(wxTreeEvent& event)
 {
     event.Skip();
-    if(event.GetItem().IsOk()) {
-        m_treeDatabases->SelectItem(event.GetItem());
-    }
+    if(event.GetItem().IsOk()) { m_treeDatabases->SelectItem(event.GetItem()); }
 }
 
 void DbViewerPanel::OnToolCloseClick(wxCommandEvent& event)
@@ -486,9 +480,7 @@ void DbViewerPanel::OnPopupClick(wxCommandEvent& evt)
                     // TODO:LANG:
                     wxFileDialog dlg(this, _("Import database from SQL file ..."), wxGetCwd(), wxT(""),
                                      wxT("SQL Files (*.sql)|*.sql"), wxFD_OPEN | wxFD_FILE_MUST_EXIST);
-                    if(dlg.ShowModal() == wxID_OK) {
-                        ImportDb(dlg.GetPath(), pDb);
-                    }
+                    if(dlg.ShowModal() == wxID_OK) { ImportDb(dlg.GetPath(), pDb); }
                 }
             }
             RefreshDbView();
@@ -520,27 +512,21 @@ void DbViewerPanel::OnPopupClick(wxCommandEvent& evt)
                         SerializableList::compatibility_iterator tabNode = pDb->GetFirstChildNode();
                         while(tabNode) {
                             Table* tab = wxDynamicCast(tabNode->GetData(), Table);
-                            if(tab) {
-                                retStr.append(pDb->GetDbAdapter()->GetCreateTableSql(tab, true));
-                            }
+                            if(tab) { retStr.append(pDb->GetDbAdapter()->GetCreateTableSql(tab, true)); }
                             tabNode = tabNode->GetNext();
                         }
 
                         tabNode = pDb->GetFirstChildNode();
                         while(tabNode) {
                             View* view = wxDynamicCast(tabNode->GetData(), View);
-                            if(view) {
-                                retStr.append(pDb->GetDbAdapter()->GetCreateViewSql(view, true));
-                            }
+                            if(view) { retStr.append(pDb->GetDbAdapter()->GetCreateViewSql(view, true)); }
                             tabNode = tabNode->GetNext();
                         }
 
                         tabNode = pDb->GetFirstChildNode();
                         while(tabNode) {
                             Table* tab = wxDynamicCast(tabNode->GetData(), Table);
-                            if(tab) {
-                                retStr.append(pDb->GetDbAdapter()->GetAlterTableConstraintSql(tab));
-                            }
+                            if(tab) { retStr.append(pDb->GetDbAdapter()->GetAlterTableConstraintSql(tab)); }
                             tabNode = tabNode->GetNext();
                         }
 
@@ -654,9 +640,7 @@ wxString DbViewerPanel::CreatePanelName(View* v)
 void DbViewerPanel::InitStyledTextCtrl(wxStyledTextCtrl* sci)
 {
     LexerConf::Ptr_t lexer = EditorConfigST::Get()->GetLexer("SQL");
-    if(lexer) {
-        lexer->Apply(sci, true);
-    }
+    if(lexer) { lexer->Apply(sci, true); }
 }
 
 void DbViewerPanel::OnShowThumbnail(wxCommandEvent& e) { wxUnusedVar(e); }
@@ -768,9 +752,7 @@ void DbViewerPanel::OnContextMenu(wxTreeEvent& event)
 
 void DbViewerPanel::RemoveFrame(DbExplorerFrame* frame)
 {
-    if(m_frames.count(frame)) {
-        m_frames.erase(frame);
-    }
+    if(m_frames.count(frame)) { m_frames.erase(frame); }
 }
 
 void DbViewerPanel::OpenSQLiteFile(const wxFileName& fileName, bool openDefaultSQLPanel)

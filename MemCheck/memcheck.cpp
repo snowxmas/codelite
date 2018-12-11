@@ -24,6 +24,9 @@
 #include "memcheckui.h"
 #include "processreaderthread.h"
 #include "valgrindprocessor.h"
+#include "build_config.h"
+#include "macromanager.h"
+#include "globals.h"
 
 static MemCheckPlugin* thePlugin = NULL;
 
@@ -311,7 +314,7 @@ void MemCheckPlugin::CheckProject(const wxString& projectName)
     wxString path = project->GetFileName().GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR);
 
     wxString wd;
-    wxString command = m_mgr->GetProjectExecutionCommand(projectName, wd);
+    wxString command = PrepareCommand(projectName, wd);
 
     DirSaver ds;
     EnvSetter envGuard(m_mgr->GetEnv());
@@ -320,12 +323,12 @@ void MemCheckPlugin::CheckProject(const wxString& projectName)
     m_mgr->AppendOutputTabText(kOutputTab_Output, _("Launching MemCheck...\n"));
     m_mgr->AppendOutputTabText(kOutputTab_Output, wxString()
                                                       << _("Working directory is set to: ") << ::wxGetCwd() << "\n");
-    m_mgr->AppendOutputTabText(kOutputTab_Output,
-                               wxString() << "MemCheck command: " << m_memcheckProcessor->GetExecutionCommand(command)
-                                          << "\n");
-
-    wxString cmd = m_memcheckProcessor->GetExecutionCommand(command);
-    m_terminal.ExecuteConsole(cmd, "", true, wxString::Format("MemCheck: %s", projectName));
+    wxString cmd;
+    wxString cmdArgs;
+    m_memcheckProcessor->GetExecutionCommand(command, cmd, cmdArgs);
+    m_mgr->AppendOutputTabText(kOutputTab_Output, wxString()
+                                                      << "MemCheck command: " << command << " " << cmdArgs << "\n");
+    m_terminal.ExecuteConsole(cmd, true, cmdArgs, "", wxString::Format("MemCheck: %s", projectName));
 }
 
 void MemCheckPlugin::OnImportLog(wxCommandEvent& event)
@@ -389,3 +392,59 @@ void MemCheckPlugin::OnStopProcess(wxCommandEvent& event)
 }
 
 void MemCheckPlugin::OnStopProcessUI(wxUpdateUIEvent& event) { event.Enable(IsRunning()); }
+
+wxString MemCheckPlugin::PrepareCommand(const wxString& projectName, wxString& wd)
+{
+    wd.clear();
+    if(!clCxxWorkspaceST::Get()->IsOpen()) { return ""; }
+
+    ProjectPtr proj = clCxxWorkspaceST::Get()->GetProject(projectName);
+    if(!proj) {
+        clWARNING() << "MemCheckPlugin::PrepareCommand(): could not find project:" << projectName;
+        return wxEmptyString;
+    }
+
+    BuildConfigPtr bldConf = clCxxWorkspaceST::Get()->GetProjBuildConf(projectName, wxEmptyString);
+    if(!bldConf) {
+        clWARNING() << "MemCheckPlugin::PrepareCommand(): failed to find project configuration for project:"
+                    << projectName;
+        return wxEmptyString;
+    }
+
+    wxString projectPath = proj->GetFileName().GetPath();
+
+    // expand variables
+    wxString cmd = bldConf->GetCommand();
+    cmd = MacroManager::Instance()->Expand(cmd, NULL, projectName);
+
+    wxString cmdArgs = bldConf->GetCommandArguments();
+    cmdArgs = MacroManager::Instance()->Expand(cmdArgs, NULL, projectName);
+
+    // Execute command & cmdArgs
+    wd = bldConf->GetWorkingDirectory();
+    wd = MacroManager::Instance()->Expand(wd, NULL, projectName);
+
+    wxFileName workingDir(wd, "");
+    if(workingDir.IsRelative()) { workingDir.MakeAbsolute(projectPath); }
+
+    wxFileName fileExe(cmd);
+    if(fileExe.IsRelative()) { fileExe.MakeAbsolute(workingDir.GetPath()); }
+    fileExe.Normalize();
+
+#ifdef __WXMSW__
+    if(!fileExe.Exists() && fileExe.GetExt().IsEmpty()) {
+        // Try with .exe
+        wxFileName withExe(fileExe);
+        withExe.SetExt("exe");
+        if(withExe.Exists()) { fileExe = withExe; }
+    }
+#endif
+    wd = workingDir.GetPath();
+    cmd = fileExe.GetFullPath();
+
+    cmd = ::WrapWithQuotes(cmd);
+    cmd << " " << cmdArgs;
+    clDEBUG() << "Command to execute:" << cmd;
+    clDEBUG() << "Working directory:" << wd;
+    return cmd;
+}

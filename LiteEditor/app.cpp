@@ -33,7 +33,6 @@
 #include "clKeyboardManager.h"
 #include "cl_config.h"
 #include "cl_registry.h"
-#include "clsplashscreen.h"
 #include "conffilelocator.h"
 #include "dirsaver.h"
 #include "editor_config.h"
@@ -58,6 +57,8 @@
 #include <wx/imagjpeg.h>
 #include <wx/persist.h>
 #include <wx/regex.h>
+#include "fileexplorer.h"
+#include "workspace_pane.h"
 
 //#define __PERFORMANCE
 #include "performance.h"
@@ -544,26 +545,6 @@ bool CodeLiteApp::OnInit()
         return false;
     }
 
-#if !defined(__WXMAC__) && !CL_DEBUG_BUILD
-    // Now all image handlers have been added, show splash screen; but only when using Release builds of codelite
-    // Also, if started as debugger interface, disable the splash screen
-    if(!IsStartedInDebuggerMode()) {
-        GeneralInfo inf;
-        cfg->ReadObject(wxT("GeneralInfo"), &inf);
-        if(inf.GetFlags() & CL_SHOW_SPLASH) {
-            wxBitmap bitmap;
-            wxString splashName(clStandardPaths::Get().GetDataDir() + wxT("/images/splashscreen.png"));
-            if(bitmap.LoadFile(splashName, wxBITMAP_TYPE_PNG)) {
-                wxString mainTitle = CODELITE_VERSION_STRING;
-                clSplashScreen::g_splashScreen =
-                    new clSplashScreen(clSplashScreen::CreateSplashScreenBitmap(bitmap),
-                                       wxSPLASH_CENTRE_ON_SCREEN | wxSPLASH_NO_TIMEOUT, -1, NULL, wxID_ANY);
-                wxYield();
-            }
-        }
-    }
-#endif
-
 #ifdef __WXGTK__
     bool redirect = clConfig::Get().Read(kConfigRedirectLogOutput, true);
     if(redirect) {
@@ -685,17 +666,7 @@ bool CodeLiteApp::OnInit()
 
     if(!IsStartedInDebuggerMode()) {
         for(size_t i = 0; i < parser.GetParamCount(); i++) {
-            wxString argument = parser.GetParam(i);
-
-            // convert to full path and open it
-            wxFileName fn(argument);
-            fn.MakeAbsolute(ManagerST::Get()->GetOriginalCwd());
-
-            if(fn.GetExt() == wxT("workspace")) {
-                ManagerST::Get()->OpenWorkspace(fn.GetFullPath());
-            } else {
-                clMainFrame::Get()->GetMainBook()->OpenFile(fn.GetFullPath(), wxEmptyString, lineNumber);
-            }
+            OpenItem(parser.GetParam(i), lineNumber);
         }
     }
 
@@ -711,8 +682,7 @@ bool CodeLiteApp::OnInit()
 
     // Especially with the OutputView open, CodeLite was consuming 50% of a cpu, mostly in updateui
     // The next line limits the frequency of UpdateUI events to every 100ms
-    wxUpdateUIEvent::SetUpdateInterval(100);
-
+    wxUpdateUIEvent::SetUpdateInterval(200);
     return TRUE;
 }
 
@@ -1038,4 +1008,43 @@ void CodeLiteApp::PrintUsage(const wxCmdLineParser& parser)
     wxString usageString = parser.GetUsageString();
     std::cout << usageString.mb_str(wxConvUTF8).data() << std::endl;
 #endif
+}
+
+void CodeLiteApp::OpenFolder(const wxString& path)
+{
+    wxArrayString files;
+    if(wxDir::GetAllFiles(path, &files, "*.workspace", wxDIR_FILES) == 1) {
+        ManagerST::Get()->OpenWorkspace(files.Item(0));
+    } else {
+        clMainFrame::Get()->GetFileExplorer()->OpenFolder(path);
+        clMainFrame::Get()->GetWorkspacePane()->SelectTab(_("Explorer"));
+    }
+}
+
+void CodeLiteApp::OpenFile(const wxString& path, long lineNumber)
+{
+    wxFileName fn(path);
+    if(fn.GetExt() == wxT("workspace")) {
+        ManagerST::Get()->OpenWorkspace(fn.GetFullPath());
+    } else {
+        clMainFrame::Get()->GetMainBook()->OpenFile(fn.GetFullPath(), wxEmptyString, lineNumber);
+    }
+}
+
+void CodeLiteApp::OpenItem(const wxString& path, long lineNumber)
+{
+    // convert to full path and open it
+    if(path == ".") {
+        // Open the current folder
+        OpenFolder(ManagerST::Get()->GetOriginalCwd());
+    } else {
+        wxFileName fn(path);
+        fn.MakeAbsolute(ManagerST::Get()->GetOriginalCwd());
+        if(wxFileName::DirExists(fn.GetFullPath())) {
+            OpenFolder(fn.GetFullPath());
+
+        } else {
+            OpenFile(fn.GetFullPath(), lineNumber);
+        }
+    }
 }

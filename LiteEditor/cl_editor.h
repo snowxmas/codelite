@@ -56,7 +56,7 @@
 #define MARKER_FIND_BAR_WORD_HIGHLIGHT 5
 #define MARKER_CONTEXT_WORD_HIGHLIGHT 6
 
-#if(wxVERSION_NUMBER < 3101) || defined(__WXOSX__)
+#if(wxVERSION_NUMBER < 3101)
 // Some wxSTC keycodes names were altered in 311, & the old versions deprecated
 // So, to avoid deprecation-warning spam, #define for older versions
 #define wxSTC_KEYMOD_NORM wxSTC_SCMOD_NORM
@@ -990,6 +990,9 @@ private:
     void DoRestoreMarkers();
 
     wxMenu* DoCreateDebuggerWatchMenu(const wxString& word);
+    
+    
+    wxFontEncoding DetectEncoding(const wxString& filename);
 
     // Event handlers
     void OpenURL(wxCommandEvent& event);
