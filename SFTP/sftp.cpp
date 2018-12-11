@@ -151,12 +151,7 @@ SFTP::SFTP(IManager* manager)
 
 SFTP::~SFTP() {}
 
-clToolBar* SFTP::CreateToolBar(wxWindow* parent)
-{
-    // Create the toolbar to be used by the plugin
-    clToolBar* tb(NULL);
-    return tb;
-}
+void SFTP::CreateToolBar(clToolBar* toolbar) { wxUnusedVar(toolbar); }
 
 void SFTP::CreatePluginMenu(wxMenu* pluginsMenu)
 {
@@ -199,12 +194,6 @@ bool SFTP::IsPaneDetached(const wxString& name) const
     m_mgr->GetConfigTool()->ReadObject(wxT("DetachedPanesList"), &dpi);
     const wxArrayString& detachedPanes = dpi.GetPanes();
     return detachedPanes.Index(name) != wxNOT_FOUND;
-}
-
-void SFTP::UnHookPopupMenu(wxMenu* menu, MenuType type)
-{
-    wxUnusedVar(menu);
-    wxUnusedVar(type);
 }
 
 void SFTP::UnPlug()

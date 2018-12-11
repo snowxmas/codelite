@@ -7,38 +7,38 @@
 #ifndef _CODELITE_SUBVERSION2_SUBVERSION2_BASE_CLASSES_H
 #define _CODELITE_SUBVERSION2_SUBVERSION2_BASE_CLASSES_H
 
-#include <wx/settings.h>
-#include <wx/xrc/xmlres.h>
-#include <wx/xrc/xh_bmp.h>
-#include <wx/panel.h>
+#include "Notebook.h"
+#include "clThemedListCtrl.h"
+#include "svnblameeditor.h"
+#include <wx/arrstr.h>
 #include <wx/artprov.h>
-#include <wx/sizer.h>
-#include <wx/splitter.h>
-#include <wx/dataview.h>
-#include <wx/stc/stc.h>
-#include <wx/dialog.h>
-#include <wx/iconbndl.h>
-#include <wx/stattext.h>
-#include <wx/textctrl.h>
 #include <wx/button.h>
-#include <wx/treebook.h>
-#include <wx/imaglist.h>
-#include <wx/statbox.h>
 #include <wx/checkbox.h>
 #include <wx/combobox.h>
-#include <wx/arrstr.h>
+#include <wx/dataview.h>
+#include <wx/dialog.h>
 #include <wx/filepicker.h>
-#include <wx/radiobox.h>
-#include <wx/listbox.h>
 #include <wx/frame.h>
-#include "svnblameeditor.h"
-#include <wx/bitmap.h>
-#include <map>
-#include <wx/icon.h>
+#include <wx/iconbndl.h>
+#include <wx/imaglist.h>
+#include <wx/listbox.h>
+#include <wx/notebook.h>
+#include <wx/panel.h>
+#include <wx/radiobox.h>
+#include <wx/settings.h>
+#include <wx/sizer.h>
+#include <wx/splitter.h>
+#include <wx/statbox.h>
+#include <wx/stattext.h>
+#include <wx/stc/stc.h>
+#include <wx/textctrl.h>
+#include <wx/treebook.h>
+#include <wx/xrc/xh_bmp.h>
+#include <wx/xrc/xmlres.h>
 #if wxVERSION_NUMBER >= 2900
 #include <wx/persist.h>
-#include <wx/persist/toplevel.h>
 #include <wx/persist/bookctrl.h>
+#include <wx/persist/toplevel.h>
 #include <wx/persist/treebook.h>
 #endif
 
@@ -51,35 +51,48 @@
 #define WXC_FROM_DIP(x) x
 #endif
 
-
 class SubversionPageBase : public wxPanel
 {
 protected:
     wxSplitterWindow* m_splitter17;
     wxPanel* m_splitterPageLeft;
-    wxDataViewListCtrl* m_dvListCtrl;
+    Notebook* m_notebook80;
+    wxPanel* m_panel82;
+    clThemedListCtrl* m_dvListCtrl;
+    wxPanel* m_panelUnversioned;
+    clThemedListCtrl* m_dvListCtrlUnversioned;
     wxPanel* m_splitterPageRight;
+    Notebook* m_notebook92;
+    wxPanel* m_panel94;
     wxStyledTextCtrl* m_sci;
 
 protected:
     virtual void OnItemActivated(wxDataViewEvent& event) { event.Skip(); }
     virtual void OnContextMenu(wxDataViewEvent& event) { event.Skip(); }
     virtual void OnViewUpdateUI(wxUpdateUIEvent& event) { event.Skip(); }
+    virtual void OnUnversionedItemActivated(wxDataViewEvent& event) { event.Skip(); }
+    virtual void OnUnversionedItemsContextMenu(wxDataViewEvent& event) { event.Skip(); }
     virtual void OnUpdateUI(wxStyledTextEvent& event) { event.Skip(); }
     virtual void OnCharAdded(wxStyledTextEvent& event) { event.Skip(); }
     virtual void OnKeyDown(wxKeyEvent& event) { event.Skip(); }
     virtual void OnSciStcChange(wxStyledTextEvent& event) { event.Skip(); }
 
 public:
-    wxDataViewListCtrl* GetDvListCtrl() { return m_dvListCtrl; }
+    clThemedListCtrl* GetDvListCtrl() { return m_dvListCtrl; }
+    wxPanel* GetPanel82() { return m_panel82; }
+    clThemedListCtrl* GetDvListCtrlUnversioned() { return m_dvListCtrlUnversioned; }
+    wxPanel* GetPanelUnversioned() { return m_panelUnversioned; }
+    Notebook* GetNotebook80() { return m_notebook80; }
     wxPanel* GetSplitterPageLeft() { return m_splitterPageLeft; }
     wxStyledTextCtrl* GetSci() { return m_sci; }
+    wxPanel* GetPanel94() { return m_panel94; }
+    Notebook* GetNotebook92() { return m_notebook92; }
     wxPanel* GetSplitterPageRight() { return m_splitterPageRight; }
     wxSplitterWindow* GetSplitter17() { return m_splitter17; }
-    SubversionPageBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1,-1), long style = wxTAB_TRAVERSAL);
+    SubversionPageBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition,
+                       const wxSize& size = wxSize(-1, -1), long style = wxTAB_TRAVERSAL);
     virtual ~SubversionPageBase();
 };
-
 
 class SvnCopyDialogBase : public wxDialog
 {
@@ -94,7 +107,6 @@ protected:
     wxButton* m_button5;
 
 protected:
-
 public:
     wxStaticText* GetStaticText3() { return m_staticText3; }
     wxTextCtrl* GetTextCtrlSourceURL() { return m_textCtrlSourceURL; }
@@ -104,10 +116,11 @@ public:
     wxTextCtrl* GetTextCtrlComment() { return m_textCtrlComment; }
     wxButton* GetButton4() { return m_button4; }
     wxButton* GetButton5() { return m_button5; }
-    SvnCopyDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Create Svn Tag"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1,-1), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
+    SvnCopyDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Create Svn Tag"),
+                      const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1),
+                      long style = wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
     virtual ~SvnCopyDialogBase();
 };
-
 
 class SvnLoginDialogBase : public wxDialog
 {
@@ -120,7 +133,6 @@ protected:
     wxButton* m_button7;
 
 protected:
-
 public:
     wxStaticText* GetStaticText6() { return m_staticText6; }
     wxTextCtrl* GetTextCtrlUsername() { return m_textCtrlUsername; }
@@ -128,10 +140,11 @@ public:
     wxTextCtrl* GetTextCtrlPassword() { return m_textCtrlPassword; }
     wxButton* GetButton6() { return m_button6; }
     wxButton* GetButton7() { return m_button7; }
-    SvnLoginDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Login"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1,-1), long style = wxDEFAULT_DIALOG_STYLE);
+    SvnLoginDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Login"),
+                       const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1),
+                       long style = wxDEFAULT_DIALOG_STYLE);
     virtual ~SvnLoginDialogBase();
 };
-
 
 class SvnPreferencesDialogBase : public wxDialog
 {
@@ -204,10 +217,12 @@ public:
     wxTreebook* GetTreebook1() { return m_treebook1; }
     wxButton* GetButton8() { return m_button8; }
     wxButton* GetButton9() { return m_button9; }
-    SvnPreferencesDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Subversion Preferences"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
+    SvnPreferencesDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY,
+                             const wxString& title = _("Subversion Preferences"),
+                             const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1),
+                             long style = wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
     virtual ~SvnPreferencesDialogBase();
 };
-
 
 class SvnInfoDialogBase : public wxDialog
 {
@@ -226,7 +241,6 @@ protected:
     wxButton* m_button56;
 
 protected:
-
 public:
     wxStaticText* GetStaticText19() { return m_staticText19; }
     wxTextCtrl* GetTextCtrlRootURL() { return m_textCtrlRootURL; }
@@ -238,10 +252,11 @@ public:
     wxTextCtrl* GetTextCtrlAuthor() { return m_textCtrlAuthor; }
     wxStaticText* GetStaticText27() { return m_staticText27; }
     wxTextCtrl* GetTextCtrlDate() { return m_textCtrlDate; }
-    SvnInfoDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Svn Info"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1,-1), long style = wxDEFAULT_DIALOG_STYLE);
+    SvnInfoDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Svn Info"),
+                      const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1),
+                      long style = wxDEFAULT_DIALOG_STYLE);
     virtual ~SvnInfoDialogBase();
 };
-
 
 class SvnCheckoutDialogBase : public wxDialog
 {
@@ -268,10 +283,11 @@ public:
     wxButton* GetButtonBrowseDir() { return m_buttonBrowseDir; }
     wxButton* GetButton14() { return m_button14; }
     wxButton* GetButton15() { return m_button15; }
-    SvnCheckoutDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Svn Checkout"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
+    SvnCheckoutDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Svn Checkout"),
+                          const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1),
+                          long style = wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
     virtual ~SvnCheckoutDialogBase();
 };
-
 
 class SvnLogDialogBase : public wxDialog
 {
@@ -285,7 +301,6 @@ protected:
     wxButton* m_button18;
 
 protected:
-
 public:
     wxStaticText* GetStaticText28() { return m_staticText28; }
     wxTextCtrl* GetFrom() { return m_from; }
@@ -294,10 +309,11 @@ public:
     wxCheckBox* GetCompact() { return m_compact; }
     wxButton* GetButton17() { return m_button17; }
     wxButton* GetButton18() { return m_button18; }
-    SvnLogDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Svn Log"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1,-1), long style = wxDEFAULT_DIALOG_STYLE);
+    SvnLogDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Svn Log"),
+                     const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1),
+                     long style = wxDEFAULT_DIALOG_STYLE);
     virtual ~SvnLogDialogBase();
 };
-
 
 class DiffDialogBase : public wxDialog
 {
@@ -311,7 +327,6 @@ protected:
     wxButton* m_button19;
 
 protected:
-
 public:
     wxStaticText* GetStaticText25() { return m_staticText25; }
     wxTextCtrl* GetTextCtrlFromRev() { return m_textCtrlFromRev; }
@@ -320,10 +335,11 @@ public:
     wxCheckBox* GetCheckBoxIgnoreWhitespace() { return m_checkBoxIgnoreWhitespace; }
     wxButton* GetButton20() { return m_button20; }
     wxButton* GetButton19() { return m_button19; }
-    DiffDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Svn Diff..."), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
+    DiffDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Svn Diff..."),
+                   const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1),
+                   long style = wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
     virtual ~DiffDialogBase();
 };
-
 
 class ChangeLogPageBase : public wxPanel
 {
@@ -335,10 +351,10 @@ protected:
 
 public:
     wxTextCtrl* GetTextCtrl() { return m_textCtrl; }
-    ChangeLogPageBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(500,300), long style = wxTAB_TRAVERSAL);
+    ChangeLogPageBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition,
+                      const wxSize& size = wxSize(500, 300), long style = wxTAB_TRAVERSAL);
     virtual ~ChangeLogPageBase();
 };
-
 
 class SvnPropsBaseDlg : public wxDialog
 {
@@ -357,7 +373,6 @@ protected:
     wxButton* m_button51;
 
 protected:
-
 public:
     wxStaticText* GetStaticTextURL() { return m_staticTextURL; }
     wxStaticText* GetStaticText27() { return m_staticText27; }
@@ -368,10 +383,11 @@ public:
     wxTextCtrl* GetTextCtrlFrURL() { return m_textCtrlFrURL; }
     wxStaticText* GetStaticText34() { return m_staticText34; }
     wxTextCtrl* GetTextCtrlFrMsg() { return m_textCtrlFrMsg; }
-    SvnPropsBaseDlg(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Svn Properties..."), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1,-1), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
+    SvnPropsBaseDlg(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Svn Properties..."),
+                    const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1),
+                    long style = wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
     virtual ~SvnPropsBaseDlg();
 };
-
 
 class PatchDlgBase : public wxDialog
 {
@@ -383,14 +399,14 @@ protected:
     wxButton* m_button37;
 
 protected:
-
 public:
     wxFilePickerCtrl* GetFilePicker() { return m_filePicker; }
     wxRadioBox* GetRadioBoxEOLPolicy() { return m_radioBoxEOLPolicy; }
-    PatchDlgBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Select patch file:"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
+    PatchDlgBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Select patch file:"),
+                 const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1),
+                 long style = wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
     virtual ~PatchDlgBase();
 };
-
 
 class SvnSelectLocalRepoBase : public wxDialog
 {
@@ -413,10 +429,12 @@ public:
     wxDirPickerCtrl* GetDirPicker1() { return m_dirPicker1; }
     wxStaticText* GetStaticText36() { return m_staticText36; }
     wxListBox* GetListBoxPaths() { return m_listBoxPaths; }
-    SvnSelectLocalRepoBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Select Local Repository:"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
+    SvnSelectLocalRepoBase(wxWindow* parent, wxWindowID id = wxID_ANY,
+                           const wxString& title = _("Select Local Repository:"),
+                           const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1),
+                           long style = wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
     virtual ~SvnSelectLocalRepoBase();
 };
-
 
 class SvnBlameFrameBase : public wxFrame
 {
@@ -425,43 +443,14 @@ protected:
     SvnBlameEditor* m_stc;
 
 protected:
-
 public:
     SvnBlameEditor* GetStc() { return m_stc; }
     wxPanel* GetPanel11() { return m_panel11; }
-    SvnBlameFrameBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Blame"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1,-1), long style = wxDEFAULT_FRAME_STYLE|wxFRAME_NO_TASKBAR|wxFRAME_FLOAT_ON_PARENT);
+    SvnBlameFrameBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Blame"),
+                      const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1),
+                      long style = wxDEFAULT_FRAME_STYLE | wxFRAME_NO_TASKBAR | wxFRAME_FLOAT_ON_PARENT);
     virtual ~SvnBlameFrameBase();
 };
-
-
-class SubversionImages : public wxImageList
-{
-protected:
-    // Maintain a map of all bitmaps representd by their name
-    std::map<wxString, wxBitmap> m_bitmaps;
-    // The requested image resolution (can be one of @2x, @1.5x, @1.25x or an empty string (the default)
-    wxString m_resolution;
-    int m_imagesWidth;
-    int m_imagesHeight;
-
-
-protected:
-
-public:
-    SubversionImages();
-    const wxBitmap& Bitmap(const wxString &name) const {
-        if ( !m_bitmaps.count(name + m_resolution) )
-            return wxNullBitmap;
-        return m_bitmaps.find(name + m_resolution)->second;
-    }
-
-    void SetBitmapResolution(const wxString &res = wxEmptyString) {
-        m_resolution = res;
-    }
-
-    virtual ~SubversionImages();
-};
-
 
 class SvnShowRecentChangesBaseDlg : public wxDialog
 {
@@ -481,7 +470,10 @@ public:
     wxStaticText* GetStaticTextDesc() { return m_staticTextDesc; }
     wxStyledTextCtrl* GetStcDiff() { return m_stcDiff; }
     wxStyledTextCtrl* GetStcComment() { return m_stcComment; }
-    SvnShowRecentChangesBaseDlg(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Subversion: Show Recent Changes"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1,-1), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
+    SvnShowRecentChangesBaseDlg(wxWindow* parent, wxWindowID id = wxID_ANY,
+                                const wxString& title = _("Subversion: Show Recent Changes"),
+                                const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1),
+                                long style = wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
     virtual ~SvnShowRecentChangesBaseDlg();
 };
 

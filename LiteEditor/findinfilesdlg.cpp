@@ -22,51 +22,43 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
-#include "search_thread.h"
-#include <wx/tokenzr.h>
-#include <wx/fontmap.h>
-#include "event_notifier.h"
+#include "FindInFilesLocationsDlg.h"
+#include "clWorkspaceManager.h"
 #include "dirpicker.h"
-#include "manager.h"
-#include "frame.h"
-#include "macros.h"
+#include "event_notifier.h"
 #include "findinfilesdlg.h"
 #include "findresultstab.h"
+#include "frame.h"
+#include "macros.h"
+#include "manager.h"
 #include "replaceinfilespanel.h"
+#include "search_thread.h"
 #include "windowattrmanager.h"
 #include <algorithm>
-#include "clWorkspaceManager.h"
-#include "FindInFilesLocationsDlg.h"
+#include <wx/fontmap.h>
+#include <wx/tokenzr.h>
+#include "sessionmanager.h"
+#include "workspace.h"
+#include <project.h>
 
-FindInFilesDialog::FindInFilesDialog(wxWindow* parent,
-                                     const wxString& dataName,
+FindInFilesDialog::FindInFilesDialog(wxWindow* parent, const wxString& dataName,
                                      const wxArrayString& additionalSearchPaths)
     : FindInFilesDialogBase(parent, wxID_ANY)
 {
     m_data.SetName(dataName);
-    m_nonPersistentSearchPaths.insert(additionalSearchPaths.begin(), additionalSearchPaths.end());
+    m_customPaths.insert(additionalSearchPaths.begin(), additionalSearchPaths.end());
 
     // Store the find-in-files data
     clConfig::Get().ReadItem(&m_data);
-    wxArrayString paths = m_data.GetSearchPaths();
+    wxString filemask = SessionManager::Get().GetFindInFilesMaskForCurrentWorkspace();
+    if(!filemask.IsEmpty()) { m_data.SetSelectedMask(filemask); }
+    wxArrayString paths;
+    if(m_customPaths.empty()) {
+        paths = m_data.GetSearchPaths();
+    } else {
+        std::for_each(m_customPaths.begin(), m_customPaths.end(), [&](const wxString& path) { paths.Add(path); });
+    }
 
-    wxStringSet_t persistentSearchPaths, d;
-    persistentSearchPaths.insert(m_data.GetSearchPaths().begin(), m_data.GetSearchPaths().end());
-
-    // Create a new set 'd' which contains the elements that appear in 'm_nonPersistentSearchPaths' but not in
-    // 'persistentSearchPaths' set
-    std::set_difference(m_nonPersistentSearchPaths.begin(),
-                        m_nonPersistentSearchPaths.end(),
-                        persistentSearchPaths.begin(),
-                        persistentSearchPaths.end(),
-                        std::inserter(d, d.end()));
-    m_nonPersistentSearchPaths.swap(d);
-
-    // At this point, m_nonPersistentSearchPaths contains list of paths that we should not persist
-    // Append them to the list of paths to search
-    std::for_each(m_nonPersistentSearchPaths.begin(), m_nonPersistentSearchPaths.end(), [&](const wxString& path) {
-        paths.Add(path);
-    });
     DoAddSearchPaths(paths);
 
     // Search for
@@ -96,15 +88,11 @@ FindInFilesDialog::FindInFilesDialog(wxWindow* parent,
         wxString encodingName = wxFontMapper::GetEncodingName(fontEnc);
         size_t pos = astrEncodings.Add(encodingName);
 
-        if(m_data.GetEncoding() == encodingName) {
-            selection = static_cast<int>(pos);
-        }
+        if(m_data.GetEncoding() == encodingName) { selection = static_cast<int>(pos); }
     }
 
     m_choiceEncoding->Append(astrEncodings);
-    if(m_choiceEncoding->IsEmpty() == false) {
-        m_choiceEncoding->SetSelection(selection);
-    }
+    if(m_choiceEncoding->IsEmpty() == false) { m_choiceEncoding->SetSelection(selection); }
 
     // Set the file mask
     DoSetFileMask();
@@ -121,7 +109,6 @@ FindInFilesDialog::FindInFilesDialog(wxWindow* parent,
 
 FindInFilesDialog::~FindInFilesDialog()
 {
-    // Update the data
     m_data.SetFlags(GetSearchFlags());
     m_data.SetFindString(m_findString->GetValue());
     m_data.SetReplaceString(m_replaceString->GetValue());
@@ -130,29 +117,20 @@ FindInFilesDialog::~FindInFilesDialog()
     value.Trim().Trim(false);
 
     wxArrayString masks = m_fileTypes->GetStrings();
-    if(masks.Index(value) == wxNOT_FOUND) {
-        masks.Insert(value, 0);
-    }
+    if(masks.Index(value) == wxNOT_FOUND) { masks.Insert(value, 0); }
 
     m_data.SetSelectedMask(value);
     m_data.SetFileMask(masks);
 
-    // Before we write the search paths, remove all 'non-persistent' entries from it
-    wxStringSet_t searchPaths, d;
-    wxArrayString searchPathsArr = m_listPaths->GetStrings();
-    searchPaths.insert(searchPathsArr.begin(), searchPathsArr.end());
-    std::set_difference(searchPaths.begin(),
-                        searchPaths.end(),
-                        m_nonPersistentSearchPaths.begin(),
-                        m_nonPersistentSearchPaths.end(),
-                        std::inserter(d, d.end()));
-
-    // Copy the entries from the set back to the wxArrayString
-    searchPathsArr.clear();
-    std::for_each(d.begin(), d.end(), [&](const wxString& s) { searchPathsArr.Add(s); });
-    m_data.SetSearchPaths(searchPathsArr);
+    // If the search paths were provided by the user, dont store them
+    wxArrayString searchPathsArr;
+    if(m_customPaths.empty()) {
+        wxArrayString searchPathsArr = m_listPaths->GetStrings();
+        m_data.SetSearchPaths(searchPathsArr);
+    }
 
     clConfig::Get().WriteItem(&m_data);
+    SessionManager::Get().UpdateFindInFilesMaskForCurrentWorkspace(m_data.GetSelectedMask());
 
     // Notify about the dialog dismissal
     clCommandEvent event(wxEVT_CMD_FIND_IN_FILES_DISMISSED, GetId());
@@ -171,8 +149,8 @@ void FindInFilesDialog::DoSetFileMask()
     fileTypes.Sort();
     pluginsMask.Sort();
     wxArrayString mergedArr;
-    std::merge(
-        fileTypes.begin(), fileTypes.end(), pluginsMask.begin(), pluginsMask.end(), std::back_inserter(mergedArr));
+    std::merge(fileTypes.begin(), fileTypes.end(), pluginsMask.begin(), pluginsMask.end(),
+               std::back_inserter(mergedArr));
     wxArrayString::iterator iter = std::unique(mergedArr.begin(), mergedArr.end());
 
     // remove the non unique parts
@@ -185,9 +163,7 @@ void FindInFilesDialog::DoSetFileMask()
     wxArrayString tempMaskArr;
     std::for_each(mergedArr.begin(), mergedArr.end(), [&](wxString& item) {
         item.Trim().Trim(false);
-        if(!item.IsEmpty()) {
-            tempMaskArr.Add(item);
-        }
+        if(!item.IsEmpty()) { tempMaskArr.Add(item); }
     });
     mergedArr.swap(tempMaskArr);
 
@@ -235,9 +211,7 @@ SearchData FindInFilesDialog::DoGetSearchData()
 {
     SearchData data;
     wxString findStr(m_data.GetFindString());
-    if(!m_findString->GetValue().IsEmpty()) {
-        findStr = m_findString->GetValue();
-    }
+    if(!m_findString->GetValue().IsEmpty()) { findStr = m_findString->GetValue(); }
 
     data.SetFindString(findStr);
     data.SetReplaceWith(m_replaceString->GetValue());
@@ -247,9 +221,7 @@ SearchData FindInFilesDialog::DoGetSearchData()
 
     // If the 'Skip comments' is ON, remove the
     // 'colour comments' flag
-    if(flags & wxFRD_SKIP_COMMENTS) {
-        flags &= ~wxFRD_COLOUR_COMMENTS;
-    }
+    if(flags & wxFRD_SKIP_COMMENTS) { flags &= ~wxFRD_COLOUR_COMMENTS; }
 
     data.SetMatchCase((flags & wxFRD_MATCHCASE) != 0);
     data.SetMatchWholeWord((flags & wxFRD_MATCHWHOLEWORD) != 0);
@@ -266,9 +238,42 @@ SearchData FindInFilesDialog::DoGetSearchData()
 
     for(size_t i = 0; i < searchWhere.GetCount(); ++i) {
         const wxString& rootDir = searchWhere.Item(i);
-        // Check both translations and otherwise: the history may contain either
-        if((rootDir == wxGetTranslation(SEARCH_IN_WORKSPACE)) || (rootDir == SEARCH_IN_WORKSPACE)) {
-            if(!clWorkspaceManager::Get().IsWorkspaceOpened()) continue;
+        if(rootDir.StartsWith("F: ")) {
+            // a file
+            files.Add(rootDir.Mid(3));
+        } else if(rootDir.StartsWith("W: ")) {
+            // Add all project files
+            wxArrayString projects;
+            clCxxWorkspaceST::Get()->GetProjectList(projects);
+            for(size_t n = 0; n < projects.size(); ++n) {
+                DoAddProjectFiles(projects.Item(n), files);
+            }
+        } else if(rootDir.StartsWith("V: ")) {
+            // a virtual folder
+            if(clCxxWorkspaceST::Get()->IsOpen()) {
+                wxString vd = rootDir.Mid(3);
+                vd.Replace("/", ":"); // Virtual directory is expecting colons as the separator
+                wxString projectName = vd.BeforeFirst(':');
+                vd = vd.AfterFirst(':');
+                ProjectPtr p = clCxxWorkspaceST::Get()->GetProject(projectName);
+                if(p) {
+                    wxArrayString vdFiles;
+                    p->GetFilesByVirtualDir(vd, vdFiles, true);
+                    files.insert(files.end(), vdFiles.begin(), vdFiles.end());
+                }
+            }
+        } else if(rootDir.StartsWith("P: ")) {
+            // Project
+            wxString projectName = rootDir.Mid(3);
+            DoAddProjectFiles(projectName, files);
+
+        } else if((rootDir == wxGetTranslation(SEARCH_IN_WORKSPACE_FOLDER)) &&
+                  clWorkspaceManager::Get().IsWorkspaceOpened()) {
+            // Add the workspace folder
+            rootDirs.Add(clWorkspaceManager::Get().GetWorkspace()->GetFileName().GetPath());
+
+        } else if((rootDir == wxGetTranslation(SEARCH_IN_WORKSPACE)) || (rootDir == SEARCH_IN_WORKSPACE)) {
+            if(!clWorkspaceManager::Get().IsWorkspaceOpened()) { continue; }
             clWorkspaceManager::Get().GetWorkspace()->GetWorkspaceFiles(files);
 
         } else if((rootDir == wxGetTranslation(SEARCH_IN_PROJECT)) || (rootDir == SEARCH_IN_PROJECT)) {
@@ -298,19 +303,15 @@ SearchData FindInFilesDialog::DoGetSearchData()
             }
 
         } else if((rootDir == wxGetTranslation(SEARCH_IN_CURRENT_FILE)) || (rootDir == SEARCH_IN_CURRENT_FILE)) {
-            LEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor();
-            if(editor) {
-                files.Add(editor->GetFileName().GetFullPath());
-            }
+            clEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor();
+            if(editor) { files.Add(editor->GetFileName().GetFullPath()); }
         } else if((rootDir == wxGetTranslation(SEARCH_IN_OPEN_FILES)) || (rootDir == SEARCH_IN_OPEN_FILES)) {
-            std::vector<LEditor*> editors;
+            std::vector<clEditor*> editors;
             clMainFrame::Get()->GetMainBook()->GetAllEditors(editors, MainBook::kGetAll_IncludeDetached);
 
             for(size_t n = 0; n < editors.size(); ++n) {
-                LEditor* editor = dynamic_cast<LEditor*>(*(editors.begin() + n));
-                if(editor) {
-                    files.Add(editor->GetFileName().GetFullPath());
-                }
+                clEditor* editor = dynamic_cast<clEditor*>(*(editors.begin() + n));
+                if(editor) { files.Add(editor->GetFileName().GetFullPath()); }
             }
         } else if(wxFileName::DirExists(searchWhere.Item(i))) {
             rootDirs.Add(searchWhere.Item(i));
@@ -320,6 +321,8 @@ SearchData FindInFilesDialog::DoGetSearchData()
     // Remove duplicates
     wxStringSet_t filesSet;
     wxArrayString uniqueFiles;
+    // Unique files may contain up to files.size() elements
+    uniqueFiles.Alloc(files.size());
     std::for_each(files.begin(), files.end(), [&](const wxString& file) {
         if(filesSet.count(file) == 0) {
             filesSet.insert(file);
@@ -327,6 +330,8 @@ SearchData FindInFilesDialog::DoGetSearchData()
         }
     });
 
+    // Release unused memory
+    uniqueFiles.Shrink();
     files.swap(uniqueFiles);
 
     data.SetFiles(files);       // list of files
@@ -352,20 +357,22 @@ void FindInFilesDialog::OnAddPath(wxCommandEvent& event)
     // Show a popup menu
     wxMenu menu;
     int firstItem = 8994;
-    menu.Append(firstItem + 5, "Add Folder...");
+    menu.Append(firstItem + 6, "Add Folder...");
     menu.AppendSeparator();
-    menu.Append(firstItem + 0, SEARCH_IN_WORKSPACE);
-    menu.Append(firstItem + 1, SEARCH_IN_PROJECT);
-    menu.Append(firstItem + 2, SEARCH_IN_CURR_FILE_PROJECT);
-    menu.Append(firstItem + 3, SEARCH_IN_CURRENT_FILE);
-    menu.Append(firstItem + 4, SEARCH_IN_OPEN_FILES);
+    menu.Append(firstItem + 0, SEARCH_IN_WORKSPACE_FOLDER);
+    menu.Append(firstItem + 1, SEARCH_IN_WORKSPACE);
+    menu.Append(firstItem + 2, SEARCH_IN_PROJECT);
+    menu.Append(firstItem + 3, SEARCH_IN_CURR_FILE_PROJECT);
+    menu.Append(firstItem + 4, SEARCH_IN_CURRENT_FILE);
+    menu.Append(firstItem + 5, SEARCH_IN_OPEN_FILES);
 
     std::map<int, wxString> options;
-    options.insert(std::make_pair(firstItem, SEARCH_IN_WORKSPACE));
-    options.insert(std::make_pair(firstItem + 1, SEARCH_IN_PROJECT));
-    options.insert(std::make_pair(firstItem + 2, SEARCH_IN_CURR_FILE_PROJECT));
-    options.insert(std::make_pair(firstItem + 3, SEARCH_IN_CURRENT_FILE));
-    options.insert(std::make_pair(firstItem + 4, SEARCH_IN_OPEN_FILES));
+    options.insert(std::make_pair(firstItem + 0, SEARCH_IN_WORKSPACE_FOLDER));
+    options.insert(std::make_pair(firstItem + 1, SEARCH_IN_WORKSPACE));
+    options.insert(std::make_pair(firstItem + 2, SEARCH_IN_PROJECT));
+    options.insert(std::make_pair(firstItem + 3, SEARCH_IN_CURR_FILE_PROJECT));
+    options.insert(std::make_pair(firstItem + 4, SEARCH_IN_CURRENT_FILE));
+    options.insert(std::make_pair(firstItem + 5, SEARCH_IN_OPEN_FILES));
 
     // Menu will be shown in client coordinates
     wxRect size = m_btnAddPath->GetSize();
@@ -373,7 +380,7 @@ void FindInFilesDialog::OnAddPath(wxCommandEvent& event)
     int selection = m_btnAddPath->GetPopupMenuSelectionFromUser(menu, menuPos);
 
     if(selection == wxID_NONE) return;
-    if(selection == (firstItem + 5)) {
+    if(selection == (firstItem + 6)) {
         wxString folder = ::wxDirSelector();
         if(folder.IsEmpty()) return;
         DoAddSearchPath(folder);
@@ -392,13 +399,11 @@ int FindInFilesDialog::ShowDialog()
     DoSetFileMask();
     m_findString->SetValue(m_data.GetFindString());
 
-    LEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor();
+    clEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor();
     if(editor) {
         // if we have an open editor, and a selected text, make this text the search string
         wxString selText = editor->GetSelectedText();
-        if(!selText.IsEmpty()) {
-            m_findString->SetValue(selText);
-        }
+        if(!selText.IsEmpty()) { m_findString->SetValue(selText); }
     }
 
     m_findString->SetSelection(-1, -1); // select all
@@ -414,9 +419,7 @@ void FindInFilesDialog::DoSaveSearchPaths()
 
 void FindInFilesDialog::DoSaveOpenFiles()
 {
-    if(m_checkBoxSaveFilesBeforeSearching->IsChecked()) {
-        clMainFrame::Get()->GetMainBook()->SaveAll(false, false);
-    }
+    if(m_checkBoxSaveFilesBeforeSearching->IsChecked()) { clMainFrame::Get()->GetMainBook()->SaveAll(false, false); }
 }
 
 void FindInFilesDialog::OnFindWhatUI(wxUpdateUIEvent& event)
@@ -459,7 +462,7 @@ size_t FindInFilesDialog::GetSearchFlags()
 void FindInFilesDialog::SetSearchPaths(const wxArrayString& paths)
 {
     m_listPaths->Clear();
-    m_nonPersistentSearchPaths.clear();
+    m_customPaths.clear();
     DoAddSearchPaths(paths);
 }
 
@@ -479,9 +482,7 @@ void FindInFilesDialog::OnClearSelectedPathUI(wxUpdateUIEvent& event)
 void FindInFilesDialog::DoAddSearchPath(const wxString& path)
 {
     wxArrayString strings = m_listPaths->GetStrings();
-    if(strings.Index(path) == wxNOT_FOUND) {
-        m_listPaths->Append(path);
-    }
+    if(strings.Index(path) == wxNOT_FOUND) { m_listPaths->Append(path); }
 }
 
 void FindInFilesDialog::DoAddSearchPaths(const wxArrayString& paths)
@@ -513,6 +514,22 @@ void FindInFilesDialog::DoDeletedSelectedPaths()
     if(!selections.IsEmpty()) {
         for(int i = (selectionsCount - 1); i >= 0; --i) {
             m_listPaths->Delete(selections.Item(i));
+        }
+    }
+}
+
+void FindInFilesDialog::DoAddProjectFiles(const wxString& projectName, wxArrayString& files)
+{
+    if(!clCxxWorkspaceST::Get()->IsOpen()) { return; }
+    ProjectPtr p = clCxxWorkspaceST::Get()->GetProject(projectName);
+    if(p) {
+        const Project::FilesMap_t& filesMap = p->GetFiles();
+        if(!filesMap.empty()) {
+            wxArrayString tmpArr;
+            tmpArr.Alloc(filesMap.size());
+            std::for_each(filesMap.begin(), filesMap.end(),
+                          [&](const Project::FilesMap_t::value_type& vt) { tmpArr.Add(vt.second->GetFilename()); });
+            files.insert(files.end(), tmpArr.begin(), tmpArr.end());
         }
     }
 }

@@ -70,6 +70,8 @@ public:
 #define kConfigStatusbarShowColumn "StatusbarShowColumn"
 #define kConfigStatusbarShowPosition "StatusbarShowPosition"
 #define kConfigStatusbarShowLength "StatusbarShowLength"
+#define kConfigStatusbarShowSelectedChars "StatusbarShowSelChars"
+#define kConfigToolbarGroupSpacing "ToolbarGroupSpacing"
 #define kConfigAutoDetectCompilerOnStartup "AutoDetectCompilerOnStartup"
 #define kConfigBootstrapCompleted "BootstrapCompleted"
 #define kConfigUpdateParserPaths "updateParserPaths"
@@ -167,6 +169,8 @@ public:
     void AddQuickFindReplaceItem(const wxString& str);
     wxArrayString GetQuickFindSearchItems() const;
     wxArrayString GetQuickFindReplaceItems() const;
+    void SetQuickFindSearchItems(const wxArrayString& items);
+    void SetQuickFindReplaceItems(const wxArrayString& items);
 
     // standard IDs for annoying dialogs
     int GetAnnoyingDlgAnswer(const wxString& name, int defaultValue = wxNOT_FOUND);

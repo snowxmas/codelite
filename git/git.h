@@ -51,6 +51,7 @@
 #include <vector>
 #include "clTabTogglerHelper.h"
 
+class clTreeCtrl;
 class clCommandProcessor;
 class GitBlameDlg;
 
@@ -137,6 +138,7 @@ class GitPlugin : public IPlugin
         gitRevertCommit,
         gitStash,
         gitStashPop,
+        gitConfig,
     };
 
     wxArrayString m_localBranchList;
@@ -178,15 +180,16 @@ private:
     void DoExecuteCommands(const GitCmd::Vec_t& commands, const wxString& workingDir);
     bool DoExecuteCommandSync(const wxString& command, const wxString& workingDir, wxString& commandOutput);
 
-    void DoSetTreeItemImage(wxTreeCtrl* ctrl, const wxTreeItemId& item, OverlayTool::BmpType bmpType) const;
+    void DoSetTreeItemImage(clTreeCtrl* ctrl, const wxTreeItemId& item, OverlayTool::BmpType bmpType) const;
     void InitDefaults();
     void AddDefaultActions();
     void LoadDefaultGitCommands(GitEntry& data, bool overwrite = false);
     void ProcessGitActionQueue();
-    void ColourFileTree(wxTreeCtrl* tree, const wxStringSet_t& files, OverlayTool::BmpType bmpType) const;
+    void ColourFileTree(clTreeCtrl* tree, const wxStringSet_t& files, OverlayTool::BmpType bmpType) const;
     void CreateFilesTreeIDsMap(std::map<wxString, wxTreeItemId>& IDs, bool ifmodified = false) const;
     void DoShowCommitDialog(const wxString& diff, wxString& commitArgs);
-
+    void DoRefreshView(bool ensureVisible);
+    
     /// Workspace management
     bool IsWorkspaceOpened() const;
     wxString GetWorkspaceName() const;
@@ -250,7 +253,8 @@ private:
     void OnOpenMSYSGit(wxCommandEvent& e);
     void OnActiveProjectChanged(clProjectSettingsEvent& event);
     void OnFileGitBlame(wxCommandEvent& event);
-
+    void OnAppActivated(wxCommandEvent& event);
+    
 #if 0
     void OnBisectStart(wxCommandEvent& e);
     void OnBisectGood(wxCommandEvent& e);
@@ -274,7 +278,12 @@ public:
 
     void StoreWorkspaceRepoDetails();
     void WorkspaceClosed();
-
+    
+    /**
+     * @brief is git enabled for the current workspace?
+     */
+    bool IsGitEnabled() const;
+    
     /**
      * @brief fetch the next 100 commits (skip 'skip' first commits)
      * and show them in the commit list dialog
@@ -322,7 +331,7 @@ public:
     //--------------------------------------------
     // Abstract methods
     //--------------------------------------------
-    virtual clToolBar* CreateToolBar(wxWindow* parent);
+    virtual void CreateToolBar(clToolBar* toolbar);
     virtual void CreatePluginMenu(wxMenu* pluginsMenu);
     virtual void HookPopupMenu(wxMenu* menu, MenuType type);
     virtual void UnPlug();

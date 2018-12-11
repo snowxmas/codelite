@@ -1404,7 +1404,7 @@ wxString BuilderGnuMake::GetPOBuildCommand(const wxString& project, const wxStri
 
     // generate the makefile
     Export(project, confToBuild, arguments, true, false, errMsg);
-    cmd = GetProjectMakeCommand(proj, confToBuild, wxT("all"), false, false);
+    cmd = GetProjectMakeCommand(proj, confToBuild, wxT("all"), kIncludePreBuild | kIncludePostBuild);
     return cmd;
 }
 
@@ -1417,7 +1417,7 @@ wxString BuilderGnuMake::GetPOCleanCommand(const wxString& project, const wxStri
 
     // generate the makefile
     Export(project, confToBuild, arguments, true, false, errMsg);
-    cmd = GetProjectMakeCommand(proj, confToBuild, wxT("clean"), false, true);
+    cmd = GetProjectMakeCommand(proj, confToBuild, wxT("clean"), kCleanOnly | kIncludePreBuild);
     return cmd;
 }
 
@@ -1436,6 +1436,17 @@ wxString BuilderGnuMake::GetSingleFileCmd(const wxString& project, const wxStrin
     wxString cmpType;
     wxFileName fn(fileName);
 
+    if(FileExtManager::GetType(fileName) == FileExtManager::TypeHeader) {
+        // Attempting to build a header file, try to see if we got an implementation file instead
+        // We had the current extension to the array so incase we loop over the entire array
+        // we remain with the original file name unmodified
+        std::vector<wxString> implExtensions = { "cpp", "cxx", "cc", "c++", "c", fn.GetExt() };
+        for(const wxString& ext : implExtensions) {
+            fn.SetExt(ext);
+            if(fn.FileExists()) { break; }
+        }
+    }
+
     BuildConfigPtr bldConf = clCxxWorkspaceST::Get()->GetProjBuildConf(project, confToBuild);
     if(!bldConf) { return wxEmptyString; }
 
@@ -1449,7 +1460,7 @@ wxString BuilderGnuMake::GetSingleFileCmd(const wxString& project, const wxStrin
            << cmp->GetObjectSuffix();
 
     target = ExpandAllVariables(target, clCxxWorkspaceST::Get(), proj->GetName(), confToBuild, wxEmptyString);
-    cmd = GetProjectMakeCommand(proj, confToBuild, target, false, false);
+    cmd = GetProjectMakeCommand(proj, confToBuild, target, kIncludePreBuild);
 
     return EnvironmentConfig::Instance()->ExpandVariables(cmd, true);
 }
@@ -1487,7 +1498,7 @@ wxString BuilderGnuMake::GetPreprocessFileCmd(const wxString& project, const wxS
            << cmp->GetPreprocessSuffix();
 
     target = ExpandAllVariables(target, clCxxWorkspaceST::Get(), proj->GetName(), confToBuild, wxEmptyString);
-    cmd = GetProjectMakeCommand(proj, confToBuild, target, false, false);
+    cmd = GetProjectMakeCommand(proj, confToBuild, target, kIncludePreBuild);
     return EnvironmentConfig::Instance()->ExpandVariables(cmd, true);
 }
 
@@ -1589,8 +1600,13 @@ wxString BuilderGnuMake::GetProjectMakeCommand(const wxFileName& wspfile, const 
 }
 
 wxString BuilderGnuMake::GetProjectMakeCommand(ProjectPtr proj, const wxString& confToBuild, const wxString& target,
-                                               bool addCleanTarget, bool cleanOnly)
+                                               size_t flags)
 {
+    bool bCleanOnly = flags & kCleanOnly;
+    bool bIncludePreBuild = flags & kIncludePreBuild;
+    bool bIncludePostBuild = flags & kIncludePostBuild;
+    bool bAddCleanTarget = flags & kAddCleanTarget;
+
     BuildConfigPtr bldConf = clCxxWorkspaceST::Get()->GetProjBuildConf(proj->GetName(), confToBuild);
 
     // iterate over the dependencies projects and generate makefile
@@ -1601,9 +1617,9 @@ wxString BuilderGnuMake::GetProjectMakeCommand(ProjectPtr proj, const wxString& 
     buildTool = EnvironmentConfig::Instance()->ExpandVariables(buildTool, true);
     basicMakeCommand << buildTool << wxT(" \"") << proj->GetName() << wxT(".mk\" ");
 
-    if(addCleanTarget) { makeCommand << basicMakeCommand << wxT(" clean && "); }
+    if(bAddCleanTarget) { makeCommand << basicMakeCommand << wxT(" clean && "); }
 
-    if(bldConf && !cleanOnly) {
+    if(bldConf && !bCleanOnly) {
         wxString preprebuild = bldConf->GetPreBuildCustom();
         wxString precmpheader = bldConf->GetPrecompiledHeader();
         precmpheader.Trim().Trim(false);
@@ -1611,12 +1627,14 @@ wxString BuilderGnuMake::GetProjectMakeCommand(ProjectPtr proj, const wxString& 
 
         makeCommand << basicMakeCommand << " MakeIntermediateDirs && ";
 
-        if(preprebuild.IsEmpty() == false) { makeCommand << basicMakeCommand << wxT(" PrePreBuild && "); }
+        if(!preprebuild.IsEmpty()) { makeCommand << basicMakeCommand << wxT(" PrePreBuild && "); }
 
-        if(HasPrebuildCommands(bldConf)) { makeCommand << basicMakeCommand << wxT(" PreBuild && "); }
+        if(bIncludePreBuild && HasPrebuildCommands(bldConf)) {
+            makeCommand << basicMakeCommand << wxT(" PreBuild && ");
+        }
 
         // Run pre-compiled header compilation if any
-        if(precmpheader.IsEmpty() == false) {
+        if(!precmpheader.IsEmpty()) {
             makeCommand << basicMakeCommand << wxT(" ") << precmpheader << wxT(".gch") << wxT(" && ");
         }
     }
@@ -1624,7 +1642,7 @@ wxString BuilderGnuMake::GetProjectMakeCommand(ProjectPtr proj, const wxString& 
     makeCommand << basicMakeCommand << wxT(" ") << target;
 
     // post
-    if(bldConf && !cleanOnly && HasPostbuildCommands(bldConf)) {
+    if(bldConf && !bCleanOnly && bIncludePostBuild && HasPostbuildCommands(bldConf)) {
         makeCommand << wxT(" && ") << basicMakeCommand << wxT(" PostBuild");
     }
     return makeCommand;
@@ -1660,7 +1678,7 @@ wxString BuilderGnuMake::GetPORebuildCommand(const wxString& project, const wxSt
 
     // generate the makefile
     Export(project, confToBuild, arguments, true, false, errMsg);
-    cmd = GetProjectMakeCommand(proj, confToBuild, wxT("all"), true, false);
+    cmd = GetProjectMakeCommand(proj, confToBuild, wxT("all"), kIncludePreBuild | kIncludePostBuild | kAddCleanTarget);
     return cmd;
 }
 
@@ -1684,11 +1702,17 @@ wxString BuilderGnuMake::GetBuildToolCommand(const wxString& project, const wxSt
         buildTool = wxT("\"$(MAKE)\"");
     }
 
-    if(isCommandlineCommand) {
-        return buildTool + " -e -f ";
+    if(buildTool.Lower().Contains("make")) {
+        if(isCommandlineCommand) {
+            return buildTool + " -e -f ";
+
+        } else {
+            return buildTool + " -f ";
+        }
 
     } else {
-        return buildTool + " -f ";
+        // Just return the build command as appears in the toolchain
+        return buildTool + " ";
     }
 }
 
