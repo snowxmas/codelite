@@ -2029,11 +2029,18 @@ bool clFindExecutable(const wxString& name, wxFileName& exepath, const wxArraySt
             return true;
         }
 #ifdef __WXMSW__
+        wxFileName fullname("", name);
         // on Windows, an executable can have a list of known extensions defined in the
-        // environment variable PATHEXT
-        wxString pathext;
-        ::wxGetEnv("PATHEXT", &pathext);
-        wxArrayString exts = ::wxStringTokenize(pathext, ";", wxTOKEN_STRTOK);
+        // environment variable PATHEXT. Use this environment variable only if the user did not
+        // provide a fullname (name + ext)
+        wxArrayString exts;
+        if(fullname.GetExt().IsEmpty()) {
+            wxString pathext;
+            ::wxGetEnv("PATHEXT", &pathext);
+            exts = ::wxStringTokenize(pathext, ";", wxTOKEN_STRTOK);
+        } else {
+            exts.Add(fullname.GetExt());
+        }
 
         for(size_t j = 0; j < exts.size(); ++j) {
             wxString ext = exts.Item(j).AfterFirst('.'); // remove the . from the extension
@@ -2087,13 +2094,20 @@ wxString clJoinLinesWithEOL(const wxArrayString& lines, int eol)
 
 wxSize clGetDisplaySize()
 {
-    int width = 0;
-    int height = ::wxGetDisplaySize().GetHeight();
-    for(size_t i = 0; i < wxDisplay::GetCount(); ++i) {
-        wxDisplay display(i);
-        width += display.GetClientArea().GetWidth();
+    // Calculate the display size only once. If the user changes the display size, he will need to restart CodeLite
+    static wxSize displaySize;
+    if(displaySize.GetHeight() == 0) {
+
+        int displayWidth = ::wxGetDisplaySize().GetWidth();
+        int displayHeight = ::wxGetDisplaySize().GetHeight();
+        for(size_t i = 0; i < wxDisplay::GetCount(); ++i) {
+            wxDisplay display(i);
+            displayWidth = wxMax(display.GetClientArea().GetWidth(), displayWidth);
+            displayHeight = wxMax(display.GetClientArea().GetHeight(), displayHeight);
+        }
+        displaySize = wxSize(displayWidth, displayHeight);
     }
-    return wxSize(width, height);
+    return displaySize;
 }
 
 void clFitColumnWidth(wxDataViewCtrl* ctrl)
@@ -2119,4 +2133,23 @@ wxVariant MakeCheckboxVariant(const wxString& label, bool checked, int imgIndex)
     wxVariant vr;
     vr << cb;
     return vr;
+}
+
+void clSetTLWindowBestSizeAndPosition(wxWindow* win)
+{
+    if(!win || !win->GetParent()) { return; }
+    wxTopLevelWindow* tlw = dynamic_cast<wxTopLevelWindow*>(win);
+    wxTopLevelWindow* parentTlw = dynamic_cast<wxTopLevelWindow*>(win->GetParent());
+
+    if(!tlw || !parentTlw) { return; }
+
+    wxRect parentRect = parentTlw->GetSize();
+    parentRect.Deflate(20);
+    tlw->SetSize(parentRect.GetSize());
+    tlw->CenterOnParent();
+
+    // If the parent is maximized, maximize this window as well
+    if(parentTlw->IsMaximized()) {
+        if(dynamic_cast<wxFrame*>(win)) { tlw->Maximize(); }
+    }
 }

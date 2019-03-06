@@ -45,10 +45,10 @@
 #include <wx/icon.h>
 #include <wx/tokenzr.h>
 #include <wx/wupdlock.h>
+#include "clThemeUpdater.h"
 
 #define GIT_MESSAGE(...) AddText(wxString::Format(__VA_ARGS__));
-#define GIT_MESSAGE1(...) \
-    if(IsVerbose()) { AddText(wxString::Format(__VA_ARGS__)); }
+#define GIT_MESSAGE1(...)
 
 #define GIT_ITEM_DATA(viewItem) reinterpret_cast<GitClientData*>(m_dvListCtrl->GetItemData(viewItem))
 
@@ -147,7 +147,8 @@ GitConsole::GitConsole(wxWindow* parent, GitPlugin* git)
     // set the font to fit the C++ lexer default font
     m_styler.reset(new clGenericSTCStyler(m_stcLog));
     m_bitmapLoader = clGetManager()->GetStdIcons();
-
+    
+    clThemeUpdater::Get().RegisterWindow(m_splitter733);
     // Build the styles for git output
 
     // Error messages will be coloured with red
@@ -179,8 +180,6 @@ GitConsole::GitConsole(wxWindow* parent, GitPlugin* git)
     }
     m_styler->ApplyStyles();
 
-    GitImages m_images;
-    m_images.SetBitmapResolution(clBitmap::ShouldLoadHiResImages() ? "@2x" : "");
     m_modifiedBmp = m_bitmapLoader->LoadBitmap("modified");
     m_untrackedBmp = m_bitmapLoader->LoadBitmap("info");
     m_folderBmp = m_bitmapLoader->LoadBitmap("folder-yellow");
@@ -252,6 +251,7 @@ GitConsole::GitConsole(wxWindow* parent, GitPlugin* git)
 
 GitConsole::~GitConsole()
 {
+    clThemeUpdater::Get().UnRegisterWindow(m_splitter733);
     EventNotifier::Get()->Disconnect(wxEVT_GIT_CONFIG_CHANGED,
                                      wxCommandEventHandler(GitConsole::OnConfigurationChanged), NULL, this);
     EventNotifier::Get()->Disconnect(wxEVT_WORKSPACE_CLOSED, wxCommandEventHandler(GitConsole::OnWorkspaceClosed), NULL,
@@ -278,20 +278,26 @@ void GitConsole::OnClearGitLogUI(wxUpdateUIEvent& event) { event.Enable(!m_stcLo
 
 void GitConsole::AddText(const wxString& text)
 {
-    wxWindowUpdateLocker locker(m_stcLog);
+    m_stcLog->SetInsertionPoint(m_stcLog->GetLength());
+#ifdef __WXMSW__
     wxString tmp = text;
     tmp.Replace("\r\n", "\n");
-    if(!tmp.EndsWith("\n")) { tmp.Append("\n"); }
-    wxString curtext = m_stcLog->GetText();
-    curtext << tmp;
-    m_stcLog->SetText(curtext);
-    m_stcLog->SetSelectionEnd(m_stcLog->GetLength());
-    m_stcLog->SetSelectionStart(m_stcLog->GetLength());
-    m_stcLog->SetCurrentPos(m_stcLog->GetLength());
-    m_stcLog->EnsureCaretVisible();
+    m_stcLog->AddText(tmp);
+    if(!tmp.EndsWith("\n")) { m_stcLog->AddText("\n"); }
+#else
+    m_stcLog->AddText(text);
+    if(!text.EndsWith("\n")) { m_stcLog->AddText("\n"); }
+#endif
+    m_stcLog->ScrollToEnd();
 }
 
-void GitConsole::AddRawText(const wxString& text) { AddText(text); }
+void GitConsole::AddRawText(const wxString& text)
+{
+    // Add text without manipulate its content
+    m_stcLog->SetInsertionPoint(m_stcLog->GetLength());
+    m_stcLog->AddText(text);
+    m_stcLog->ScrollToEnd();
+}
 
 bool GitConsole::IsVerbose() const { return m_isVerbose; }
 

@@ -35,6 +35,7 @@
 #include "CxxPreProcessorThread.h"
 #include "CxxPreProcessorCache.h"
 #include "CxxUsingNamespaceCollectorThread.h"
+#include <thread>
 
 class CodeCompletionManager : public wxEvtHandler
 {
@@ -44,6 +45,9 @@ protected:
     bool m_buildInProgress;
     CxxPreProcessorThread m_preProcessorThread;
     CxxUsingNamespaceCollectorThread m_usingNamespaceThread;
+    std::thread* m_compileCommandsThread = nullptr;
+    wxFileName m_compileCommands;
+    time_t m_compileCommandsLastModified = 0;
 
 protected:
     /// ctags implementions
@@ -62,6 +66,10 @@ protected:
 
     void DoUpdateOptions();
     void DoUpdateCompilationDatabase();
+    void DoProcessCompileCommands();
+    static void ThreadProcessCompileCommandsEntry(CodeCompletionManager* owner, const wxString& rootFolder);
+    void CompileCommandsFileProcessed(const wxArrayString& includePaths);
+    size_t CreateBlockCommentKeywordsList(wxCodeCompletionBoxEntry::Vec_t& entries) const;
 
 protected:
     // Event handlers
@@ -73,8 +81,10 @@ protected:
     void OnFileLoaded(clCommandEvent& event);
     void OnWorkspaceConfig(wxCommandEvent& event);
     void OnWorkspaceClosed(wxCommandEvent& event);
-    void OnEnvironmentVariablesModified(clCommandEvent &event);
-    
+    void OnEnvironmentVariablesModified(clCommandEvent& event);
+    void OnBlockCommentCodeComplete(clCodeCompletionEvent& event);
+    void OnBlockCommentWordComplete(clCodeCompletionEvent& event);
+
 public:
     CodeCompletionManager();
     virtual ~CodeCompletionManager();

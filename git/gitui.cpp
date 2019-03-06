@@ -1419,21 +1419,6 @@ GitFileDiffDlgBase::~GitFileDiffDlgBase()
                             NULL, this);
 }
 
-GitImages::GitImages()
-    : wxImageList(16, 16, true)
-    , m_imagesWidth(16)
-    , m_imagesHeight(16)
-{
-    if(!bBitmapLoaded) {
-        // We need to initialise the default bitmap handler
-        wxXmlResource::Get()->AddHandler(new wxBitmapXmlHandler);
-        wxCrafterpca4kKInitBitmapResources();
-        bBitmapLoaded = true;
-    }
-}
-
-GitImages::~GitImages() {}
-
 GitApplyPatchDlgBase::GitApplyPatchDlgBase(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos,
                                            const wxSize& size, long style)
     : wxDialog(parent, id, title, pos, size, style)
@@ -1610,8 +1595,8 @@ GitConsoleBase::GitConsoleBase(wxWindow* parent, wxWindowID id, const wxPoint& p
     wxBoxSizer* boxSizer729 = new wxBoxSizer(wxVERTICAL);
     m_panel_log->SetSizer(boxSizer729);
 
-    m_stcLog =
-        new wxStyledTextCtrl(m_panel_log, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panel_log, wxSize(-1, -1)), 0);
+    m_stcLog = new wxStyledTextCtrl(m_panel_log, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panel_log, wxSize(-1, -1)),
+                                    wxBORDER_NONE);
     // Configure the fold margin
     m_stcLog->SetMarginType(4, wxSTC_MARGIN_SYMBOL);
     m_stcLog->SetMarginMask(4, wxSTC_MASK_FOLDERS);

@@ -51,6 +51,11 @@
 #include <wx/msgdlg.h>
 #include <wx/progdlg.h>
 #include <wx/textdlg.h>
+#include <wx/fdrepdlg.h>
+#include <wx/textdlg.h>
+#include "file_logger.h"
+#include "SFTPGrep.h"
+#include "SFTPStatusPage.h"
 
 static const int ID_NEW = ::wxNewId();
 static const int ID_RENAME = ::wxNewId();
@@ -118,6 +123,9 @@ SFTPTreeView::SFTPTreeView(wxWindow* parent, SFTP* plugin)
 
 SFTPTreeView::~SFTPTreeView()
 {
+    if(m_channel && m_channel->IsOpen()) { m_channel->Close(); }
+    m_channel.reset(NULL);
+
     EventNotifier::Get()->Unbind(wxEVT_EDITOR_CLOSING, &SFTPTreeView::OnEditorClosing, this);
     wxTheApp->GetTopWindow()->Unbind(wxEVT_MENU, &SFTPTreeView::OnCopy, this, wxID_COPY);
     wxTheApp->GetTopWindow()->Unbind(wxEVT_MENU, &SFTPTreeView::OnCut, this, wxID_CUT);
@@ -194,6 +202,9 @@ void SFTPTreeView::OnOpenAccountManager(wxCommandEvent& event)
 
 void SFTPTreeView::DoCloseSession()
 {
+    // Clear the 'search' view
+    m_plugin->GetOutputPane()->ClearSearchOutput();
+    
     // Check if we have unmodified files belonged to this session
     // Load the session name
     IEditor::List_t editors;
@@ -332,11 +343,11 @@ void SFTPTreeView::OnContextMenu(wxContextMenuEvent& event)
             menu.AppendSeparator();
             menu.Append(ID_REFRESH_FOLDER, _("Refresh"));
             menu.AppendSeparator();
-            menu.Append(ID_EXECUTE_COMMAND, _("Execute command..."));
+            menu.Append(XRCID("sftp-find"), _("grep this folder..."));
             menu.AppendSeparator();
         }
         menu.Append(ID_DELETE, _("Delete"));
-
+        menu.Bind(wxEVT_MENU, &SFTPTreeView::OnRemoteFind, this, XRCID("sftp-find"));
 #ifdef __WXMAC__
         menu.Enable(ID_DELETE, false);
 #endif
@@ -788,15 +799,7 @@ bool SFTPTreeView::DoOpenFile(const wxTreeItemId& item)
 {
     MyClientData* cd = GetItemData(item);
     if(!cd || cd->IsFolder()) { return false; }
-
-    RemoteFileInfo remoteFile;
-    remoteFile.SetAccount(m_account);
-    remoteFile.SetRemoteFile(cd->GetFullPath());
-
-    SFTPThreadRequet* req = new SFTPThreadRequet(remoteFile);
-    SFTPWorkerThread::Instance()->Add(req);
-
-    m_plugin->AddRemoteFile(remoteFile);
+    m_plugin->OpenFile(cd->GetFullPath());
     return true;
 }
 
@@ -978,3 +981,40 @@ void SFTPTreeView::OnExecuteCommand(wxCommandEvent& event)
         ::wxMessageBox(e.What(), "SFTP", wxICON_ERROR | wxOK | wxCENTER);
     }
 }
+
+void SFTPTreeView::OnRemoteFind(wxCommandEvent& event)
+{
+    if(!m_sftp || !m_sftp->GetSsh()) { return; }
+
+    wxArrayTreeItemIds items;
+    m_treeCtrl->GetSelections(items);
+    if(items.GetCount() != 1) { return; }
+    MyClientData* cd = GetItemData(items.Item(0));
+    if(!cd || !cd->IsFolder()) { return; }
+
+    wxString remoteFolder = cd->GetFullPath();
+
+    SFTPGrep grep(EventNotifier::Get()->TopFrame());
+    if(grep.ShowModal() != wxID_OK) { return; }
+
+    try {
+        if(m_channel && m_channel->IsOpen()) { m_channel->Close(); }
+        m_channel.reset(new clSSHChannel(m_sftp->GetSsh()));
+        m_channel->Open();
+        
+        // Prepare the UI for new search
+        m_plugin->GetOutputPane()->ClearSearchOutput();
+        m_plugin->GetOutputPane()->ShowSearchTab();
+        clGetManager()->ShowOutputPane(_("SFTP Log"));
+        
+        // Run the search
+        GrepData gd = grep.GetData();
+        wxString command = gd.GetGrepCommand(remoteFolder);
+        m_plugin->GetOutputPane()->AddSearchText(wxString() << "Running command: " << command);
+        m_channel->Execute(command, m_plugin->GetOutputPane());
+
+    } catch(clException& e) {
+        ::wxMessageBox(e.What(), "SFTP", wxICON_ERROR | wxOK | wxCENTER);
+    }
+}
+

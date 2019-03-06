@@ -45,6 +45,7 @@
 #include <wx/regex.h>
 #include <wx/sstream.h>
 #include <wx/tokenzr.h>
+#include "ICompilerLocator.h"
 
 static wxStringMap_t s_backticks;
 
@@ -1239,7 +1240,8 @@ void Project::SetExcludeConfigsForFile(const wxString& filename, const wxStringS
     SaveXmlFile();
 }
 
-wxString Project::GetCompileLineForCXXFile(const wxString& filenamePlaceholder, bool cxxFile) const
+wxString Project::GetCompileLineForCXXFile(const wxStringMap_t& compilersGlobalPaths,
+                                           const wxString& filenamePlaceholder, bool cxxFile) const
 {
     // Return a compilation line for a CXX file
     BuildMatrixPtr matrix = GetWorkspace()->GetBuildMatrix();
@@ -1253,9 +1255,24 @@ wxString Project::GetCompileLineForCXXFile(const wxString& filenamePlaceholder, 
     if(!compiler) { return ""; }
     // Build the command line
     wxString commandLine;
+    wxString extraFlags;
+#ifdef __WXMSW__
+    if(compiler->GetCompilerFamily() == COMPILER_FAMILY_MINGW) {
+#if _WIN64
+        extraFlags = "-target x86_64-pc-windows-gnu";
+#else
+        extraFlags = "-target i686-pc-windows-gnu";
+#endif
+    }
+#endif
+
+    // Add the compiler global paths if needed
+    if(compilersGlobalPaths.count(compiler->GetName())) {
+        extraFlags << " " << compilersGlobalPaths.find(compiler->GetName())->second;
+    }
 
     wxString compilerExe = compiler->GetTool(cxxFile ? "CXX" : "CC");
-    commandLine << compilerExe << " -c " << filenamePlaceholder << " -o " << filenamePlaceholder << ".o ";
+    commandLine << "clang " << " -c " << filenamePlaceholder << " -o " << filenamePlaceholder << ".o " << extraFlags;
 
     // Apply the environment
     EnvSetter es(NULL, NULL, GetName(), buildConf->GetName());
@@ -1296,6 +1313,8 @@ wxString Project::GetCompileLineForCXXFile(const wxString& filenamePlaceholder, 
     }
 
     commandLine.Trim().Trim(false);
+    commandLine.Replace("\n", " ");
+    commandLine.Replace("\r", " ");
     return commandLine;
 }
 
@@ -1326,10 +1345,10 @@ wxString Project::DoExpandBacktick(const wxString& backtick) const
     return cmpOption;
 }
 
-void Project::CreateCompileCommandsJSON(JSONElement& compile_commands)
+void Project::CreateCompileCommandsJSON(JSONItem& compile_commands, const wxStringMap_t& compilersGlobalPaths)
 {
-    wxString cFilePattern = GetCompileLineForCXXFile("$FileName", false);
-    wxString cxxFilePattern = GetCompileLineForCXXFile("$FileName", true);
+    wxString cFilePattern = GetCompileLineForCXXFile(compilersGlobalPaths, "$FileName", false);
+    wxString cxxFilePattern = GetCompileLineForCXXFile(compilersGlobalPaths, "$FileName", true);
     wxString workingDirectory = m_fileName.GetPath();
     std::for_each(m_filesTable.begin(), m_filesTable.end(), [&](const FilesMap_t::value_type& vt) {
         const wxString& fullpath = vt.second->GetFilename();
@@ -1346,7 +1365,7 @@ void Project::CreateCompileCommandsJSON(JSONElement& compile_commands)
             if(file_name.Contains(" ")) { file_name.Prepend("\"").Append("\""); }
             compilePattern.Replace("$FileName", file_name);
 
-            JSONElement json = JSONElement::createObject();
+            JSONItem json = JSONItem::createObject();
             json.addProperty("file", fullpath);
             json.addProperty("directory", workingDirectory);
             json.addProperty("command", compilePattern);
