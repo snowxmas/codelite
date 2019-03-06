@@ -3,6 +3,7 @@
 #include "clConsoleGnomeTerminal.h"
 #include "clConsoleKonsole.h"
 #include "clConsoleLXTerminal.h"
+#include "clConsoleQTerminal.h"
 #include "clConsoleMateTerminal.h"
 #include "clConsoleOSXTerminal.h"
 #include "clConsoleXfce4Terminal.h"
@@ -10,6 +11,32 @@
 #include "file_logger.h"
 #include <algorithm>
 #include <wx/utils.h>
+
+wxDEFINE_EVENT(wxEVT_TERMINAL_EXIT, clProcessEvent);
+
+class ConsoleProcess : public wxProcess
+{
+public:
+    wxEvtHandler* m_sink = nullptr;
+    wxString m_uid;
+
+public:
+    ConsoleProcess(wxEvtHandler* sink, const wxString& uid)
+        : m_sink(sink)
+        , m_uid(uid)
+    {
+    }
+
+    virtual ~ConsoleProcess() { m_sink = NULL; }
+    void OnTerminate(int pid, int status)
+    {
+        clProcessEvent terminateEvent(wxEVT_TERMINAL_EXIT);
+        terminateEvent.SetString(m_uid);
+        terminateEvent.SetInt(status); // pass the exit code
+        m_sink->AddPendingEvent(terminateEvent);
+        delete this;
+    }
+};
 
 clConsoleBase::clConsoleBase() {}
 
@@ -31,6 +58,8 @@ clConsoleBase::Ptr_t clConsoleBase::GetTerminal()
         terminal.reset(new clConsoleMateTerminal());
     } else if(terminalName.CmpNoCase("xfce4-terminal") == 0) {
         terminal.reset(new clConsoleXfce4Terminal());
+    } else if(terminalName.CmpNoCase("qterminal") == 0) {
+        terminal.reset(new clConsoleQTerminal());
     } else {
         // the default terminal is "gnome-terminal"
         terminal.reset(new clConsoleGnomeTerminal());
@@ -53,6 +82,7 @@ wxArrayString clConsoleBase::GetAvailaleTerminals()
     terminals.Add("gnome-terminal");
     terminals.Add("lxterminal");
     terminals.Add("mate-terminal");
+    terminals.Add("qterminal");
     terminals.Add("xfce4-terminal");
 #else
     terminals.Add("Terminal");
@@ -92,9 +122,20 @@ wxString clConsoleBase::EscapeString(const wxString& str, const wxString& c) con
 
 bool clConsoleBase::StartProcess(const wxString& command)
 {
-    SetPid(::wxExecute(command, wxEXEC_ASYNC | wxEXEC_MAKE_GROUP_LEADER | GetExecExtraFlags(), m_callback));
+    wxProcess* callback = nullptr;
+    if(m_callback) {
+        // user provided callback
+        callback = m_callback;
+    } else if(m_sink) {
+        // using events. This object will get deleted when the process exits
+        callback = new ConsoleProcess(m_sink, m_callbackUID);
+    }
+
+    SetPid(::wxExecute(command, wxEXEC_ASYNC | wxEXEC_MAKE_GROUP_LEADER | GetExecExtraFlags(), callback));
     // reset the m_callback (it will auto-delete itself)
     m_callback = nullptr;
+    m_sink = nullptr;
+    m_callbackUID.clear();
     return (GetPid() > 0);
 }
 

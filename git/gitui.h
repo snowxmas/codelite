@@ -39,14 +39,12 @@
 #include <wx/radiobut.h>
 #include <wx/choice.h>
 #include <wx/spinctrl.h>
-#include <wx/bitmap.h>
-#include <map>
-#include <wx/icon.h>
 #include <wx/notebook.h>
 #include "Notebook.h"
 #include <wx/gauge.h>
 #include <wx/pen.h>
 #include <wx/aui/auibar.h>
+#include <map>
 #include <wx/menu.h>
 #if wxVERSION_NUMBER >= 2900
 #include <wx/persist.h>
@@ -401,30 +399,6 @@ public:
                        const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(500, 300),
                        long style = wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
     virtual ~GitFileDiffDlgBase();
-};
-
-class GitImages : public wxImageList
-{
-protected:
-    // Maintain a map of all bitmaps representd by their name
-    std::map<wxString, wxBitmap> m_bitmaps;
-    // The requested image resolution (can be one of @2x, @1.5x, @1.25x or an empty string (the default)
-    wxString m_resolution;
-    int m_imagesWidth;
-    int m_imagesHeight;
-
-protected:
-public:
-    GitImages();
-    const wxBitmap& Bitmap(const wxString& name) const
-    {
-        if(!m_bitmaps.count(name + m_resolution)) return wxNullBitmap;
-        return m_bitmaps.find(name + m_resolution)->second;
-    }
-
-    void SetBitmapResolution(const wxString& res = wxEmptyString) { m_resolution = res; }
-
-    virtual ~GitImages();
 };
 
 class GitApplyPatchDlgBase : public wxDialog

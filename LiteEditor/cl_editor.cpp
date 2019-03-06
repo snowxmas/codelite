@@ -80,6 +80,8 @@
 #include <wx/regex.h>
 #include <wx/richtooltip.h> // wxRichToolTip
 #include <wx/wupdlock.h>
+#include "imanager.h"
+#include "bitmap_loader.h"
 //#include "clFileOrFolderDropTarget.h"
 
 #if wxUSE_PRINTING_ARCHITECTURE
@@ -123,6 +125,23 @@ bool clEditor::m_ccInitialized = false;
 wxPrintData* g_printData = NULL;
 wxPageSetupDialogData* g_pageSetupData = NULL;
 static int ID_OPEN_URL = wxNOT_FOUND;
+
+// This is needed for wxWidgets < 3.1
+#ifndef wxSTC_MARK_BOOKMARK
+#define wxSTC_MARK_BOOKMARK wxSTC_MARK_LEFTRECT
+#endif
+
+static bool IsWordChar(const wxChar& ch)
+{
+    static wxStringSet_t wordsChar;
+    if(wordsChar.empty()) {
+        wxString chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_.>";
+        for(size_t i = 0; i < chars.size(); ++i) {
+            wordsChar.insert(chars[i]);
+        }
+    }
+    return (wordsChar.count(ch) != 0);
+}
 
 //---------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------
@@ -301,6 +320,8 @@ clEditor::clEditor(wxWindow* parent)
     , m_mgr(PluginManager::Get())
     , m_hasCCAnnotation(false)
     , m_richTooltip(NULL)
+    , m_lastEndLine(0)
+    , m_lastLineCount(0)
 {
     Hide();
 #ifdef __WXGTK3__
@@ -356,6 +377,7 @@ clEditor::clEditor(wxWindow* parent)
     ms_bookmarkShapes[wxT("Rounded Rectangle")] = wxSTC_MARK_ROUNDRECT;
     ms_bookmarkShapes[wxT("Small Arrow")] = wxSTC_MARK_ARROW;
     ms_bookmarkShapes[wxT("Circle")] = wxSTC_MARK_CIRCLE;
+    ms_bookmarkShapes[wxT("Bookmark")] = wxSTC_MARK_BOOKMARK;
 
     SetSyntaxHighlight();
     CmdKeyClear(wxT('D'), wxSTC_KEYMOD_CTRL); // clear Ctrl+D because we use it for something else
@@ -393,6 +415,13 @@ clEditor::clEditor(wxWindow* parent)
 
 clEditor::~clEditor()
 {
+    // Report file-close event
+    if(GetFileName().IsOk() && GetFileName().FileExists()) {
+        clCommandEvent eventClose(wxEVT_FILE_CLOSED);
+        eventClose.SetFileName(GetFileName().GetFullPath());
+        EventNotifier::Get()->AddPendingEvent(eventClose);
+    }
+    
     wxDELETE(m_richTooltip);
     EventNotifier::Get()->Unbind(wxEVT_EDITOR_CONFIG_CHANGED, &clEditor::OnEditorConfigChanged, this);
 
@@ -552,6 +581,7 @@ void clEditor::SetProperties()
 
     // Fold and comments as well
     SetProperty(wxT("fold.comment"), wxT("1"));
+    SetProperty("fold.hypertext.comment", "1");
     SetModEventMask(wxSTC_MOD_DELETETEXT | wxSTC_MOD_INSERTTEXT | wxSTC_PERFORMED_UNDO | wxSTC_PERFORMED_REDO |
                     wxSTC_MOD_BEFOREDELETE | wxSTC_MOD_CHANGESTYLE);
 
@@ -590,11 +620,15 @@ void clEditor::SetProperties()
     SetMarginType(SYMBOLS_MARGIN_ID, wxSTC_MARGIN_SYMBOL);
 
     // Line numbers
-    SetMarginType(NUMBER_MARGIN_ID, wxSTC_MARGIN_NUMBER);
+    if(options->GetRelativeLineNumbers()) {
+        SetMarginType(NUMBER_MARGIN_ID, wxSTC_MARGIN_RTEXT);
+    } else {
+        SetMarginType(NUMBER_MARGIN_ID, wxSTC_MARGIN_NUMBER);
+    }
 
     // line number margin displays every thing but folding, bookmarks and breakpoint
-    SetMarginMask(NUMBER_MARGIN_ID,
-                  ~(mmt_folds | mmt_all_bookmarks | mmt_indicator | mmt_compiler | mmt_all_breakpoints));
+    SetMarginMask(NUMBER_MARGIN_ID, ~(mmt_folds | mmt_all_bookmarks | mmt_indicator | mmt_compiler |
+                                      mmt_all_breakpoints | mmt_line_marker));
 
     SetMarginType(EDIT_TRACKER_MARGIN_ID, 4); // Styled Text margin
     SetMarginWidth(EDIT_TRACKER_MARGIN_ID, options->GetHideChangeMarkerMargin() ? 0 : 3);
@@ -643,6 +677,16 @@ void clEditor::SetProperties()
     wxColour foldFgColour = wxColor(0xff, 0xff, 0xff);
     wxColour foldBgColour = wxColor(0x80, 0x80, 0x80);
     LexerConf::Ptr_t lexer = ColoursAndFontsManager::Get().GetLexer(GetContext()->GetName());
+    if(lexer) {
+        const StyleProperty& sp = lexer->GetProperty(SEL_TEXT_ATTR_ID);
+        m_selTextBgColour = sp.GetBgColour();
+        m_selTextColour = sp.GetFgColour();
+    } else {
+        m_selTextBgColour = StyleGetBackground(0);
+        m_selTextColour = StyleGetForeground(0);
+    }
+    MarkerDefine(smt_line_marker, wxSTC_MARK_LEFTRECT, StyleGetForeground(0));
+
     if(lexer && lexer->IsDark()) {
         const StyleProperty& defaultProperty = lexer->GetProperty(0);
         if(!defaultProperty.IsNull()) {
@@ -696,7 +740,7 @@ void clEditor::SetProperties()
     }
 
     // Bookmark
-    int marker = wxSTC_MARK_ARROW;
+    int marker = wxSTC_MARK_BOOKMARK;
     std::map<wxString, int>::iterator iter = ms_bookmarkShapes.find(options->GetBookmarkShape());
     if(iter != ms_bookmarkShapes.end()) { marker = iter->second; }
 
@@ -714,6 +758,7 @@ void clEditor::SetProperties()
 
     MarkerDefineBitmap(smt_breakpoint, wxBitmap(wxImage(stop_xpm)));
     MarkerDefineBitmap(smt_bp_disabled, wxBitmap(wxImage(BreakptDisabled)));
+
     // Give disabled breakpoints a "grey" look
     MarkerSetBackground(smt_bp_disabled, "GREY");
     MarkerSetAlpha(smt_bp_disabled, 30);
@@ -901,7 +946,8 @@ void clEditor::OnCharAdded(wxStyledTextEvent& event)
 
     // reset the flag
     m_prevSelectionInfo.Clear();
-
+    bool addClosingBrace = m_autoAddNormalBraces && (GetSelections() == 1);
+    bool addClosingDoubleQuotes = options->GetAutoCompleteDoubleQuotes() && (GetSelections() == 1);
     int pos = GetCurrentPos();
     bool canShowCompletionBox(true);
     // make sure line is visible
@@ -914,11 +960,11 @@ void clEditor::OnCharAdded(wxStyledTextEvent& event)
     //-------------------------------------
     // Smart quotes management
     //-------------------------------------
-    if(options->GetAutoCompleteDoubleQuotes() && (event.GetKey() == '"' || event.GetKey() == '\'') &&
+    if(addClosingDoubleQuotes && (event.GetKey() == '"' || event.GetKey() == '\'') &&
        event.GetKey() == GetCharAt(pos)) {
         CharRight();
         DeleteBack();
-    } else if(options->GetAutoCompleteDoubleQuotes() && !wxIsalnum(nextChar) && !wxIsalnum(prevChar)) {
+    } else if(addClosingDoubleQuotes && !wxIsalnum(nextChar) && !wxIsalnum(prevChar)) {
         // add complete quotes; but don't if the next char is alnum,
         // which is annoying if you're trying to retrofit quotes around a string!
         // Also not if the previous char is alnum: it's more likely (especially in non-code editors)
@@ -944,8 +990,7 @@ void clEditor::OnCharAdded(wxStyledTextEvent& event)
         CharRight();
         DeleteBack();
 
-    } else if(m_autoAddNormalBraces && (event.GetKey() == ')' || event.GetKey() == ']') &&
-              event.GetKey() == GetCharAt(pos)) {
+    } else if(addClosingBrace && (event.GetKey() == ')' || event.GetKey() == ']') && event.GetKey() == GetCharAt(pos)) {
         // disable the auto brace adding when inside comment or string
         if(!m_context->IsCommentOrString(pos)) {
             CharRight();
@@ -958,7 +1003,10 @@ void clEditor::OnCharAdded(wxStyledTextEvent& event)
     case ';':
         if(!m_disableSemicolonShift && !m_context->IsCommentOrString(pos)) m_context->SemicolonShift();
         break;
-
+    case '@':  // PHP / Java document style
+    case '\\': // Qt Style
+        if(m_context->IsAtBlockComment()) { m_context->BlockCommentComplete(); }
+        break;
     case '(':
         if(m_context->IsCommentOrString(GetCurrentPos()) == false) { CodeComplete(); }
         matchChar = ')';
@@ -1058,7 +1106,7 @@ void clEditor::OnCharAdded(wxStyledTextEvent& event)
     }
 
     if(matchChar && !m_disableSmartIndent && !m_context->IsCommentOrString(pos)) {
-        if(matchChar == ')' && m_autoAddNormalBraces) {
+        if(matchChar == ')' && addClosingBrace) {
             // Only add a close brace if the next char is whitespace
             // or if it's an already-matched ')' (which keeps things syntactically correct)
             long matchedPos(wxNOT_FOUND);
@@ -1077,7 +1125,7 @@ void clEditor::OnCharAdded(wxStyledTextEvent& event)
                 IndicatorFillRange(pos, 1);
                 break;
             }
-        } else if(matchChar != '}' && m_autoAddNormalBraces) {
+        } else if(matchChar != '}' && addClosingBrace) {
             InsertText(pos, matchChar);
             SetIndicatorCurrent(MATCH_INDICATOR);
             // use grey colour rather than black, otherwise this indicator is invisible when using the
@@ -1131,9 +1179,6 @@ void clEditor::OnScnPainted(wxStyledTextEvent& event)
 {
     event.Skip();
     if(m_positionToEnsureVisible == wxNOT_FOUND) { return; }
-    // CL_DEBUG1(wxString::Format(wxT("OnScnPainted: position = %i, preserveSelection = %s"),
-    //                           m_positionToEnsureVisible,
-    //                           m_preserveSelection ? wxT("true") : wxT("false")));
     DoEnsureCaretIsVisible(m_positionToEnsureVisible, m_preserveSelection);
     m_positionToEnsureVisible = wxNOT_FOUND;
 }
@@ -1155,6 +1200,10 @@ void clEditor::DoEnsureCaretIsVisible(int pos, bool preserveSelection)
 void clEditor::OnSciUpdateUI(wxStyledTextEvent& event)
 {
     event.Skip();
+
+    // Update the line numbers if needed (only when using custom drawing line numbers)
+    UpdateLineNumbers();
+
     // Get current position
     long pos = GetCurrentPos();
 
@@ -1222,11 +1271,8 @@ void clEditor::OnSciUpdateUI(wxStyledTextEvent& event)
 
     RecalcHorizontalScrollbar();
 
-    static int lastLine(wxNOT_FOUND);
-
     // get the current position
-    if((curLine != lastLine) && clMainFrame::Get()->GetMainBook()->IsNavBarShown()) {
-        lastLine = curLine;
+    if((curLine != m_lastLine) && clMainFrame::Get()->GetMainBook()->IsNavBarShown()) {
         clCodeCompletionEvent evtUpdateNavBar(wxEVT_CC_UPDATE_NAVBAR);
         evtUpdateNavBar.SetEditor(this);
         evtUpdateNavBar.SetLineNumber(curLine);
@@ -1235,6 +1281,11 @@ void clEditor::OnSciUpdateUI(wxStyledTextEvent& event)
 
     // let the context handle this as well
     m_context->OnSciUpdateUI(event);
+
+    // TODO:: mark the current line
+
+    // Keep the last line
+    m_lastLine = curLine;
 }
 
 void clEditor::OnMarginClick(wxStyledTextEvent& event)
@@ -1587,14 +1638,7 @@ void clEditor::UpdateBreakpoints()
     }
 }
 
-wxString clEditor::GetWordAtCaret()
-{
-    // Get the partial word that we have
-    long pos = GetCurrentPos();
-    long start = WordStartPosition(pos, true);
-    long end = WordEndPosition(pos, true);
-    return GetTextRange(start, end);
-}
+wxString clEditor::GetWordAtCaret(bool wordCharsOnly) { return GetWordAtPosition(GetCurrentPos(), wordCharsOnly); }
 
 //---------------------------------------------------------------------------
 // Most of the functionality for this functionality
@@ -1607,6 +1651,24 @@ void clEditor::CompleteWord(bool onlyRefresh)
 {
     if(EventNotifier::Get()->IsEventsDiabled()) return;
     if(AutoCompActive()) return; // Don't clobber the boxes
+
+    if(GetContext()->IsAtBlockComment()) {
+        // Check if the current word starts with \ or @
+        int wordStartPos = GetFirstNonWhitespacePos(true);
+        if(wordStartPos != wxNOT_FOUND) {
+            wxChar firstChar = GetCtrl()->GetCharAt(wordStartPos);
+            if((firstChar == '@') || (firstChar == '\\')) {
+                // Change the event to wxEVT_CC_BLOCK_COMMENT_WORD_COMPLETE
+                clCodeCompletionEvent evt(wxEVT_CC_BLOCK_COMMENT_WORD_COMPLETE);
+                evt.SetPosition(GetCurrentPosition());
+                evt.SetEditor(this);
+                evt.SetInsideCommentOrString(m_context->IsCommentOrString(PositionBefore(GetCurrentPos())));
+                evt.SetEventObject(this);
+                EventNotifier::Get()->ProcessEvent(evt);
+                return;
+            }
+        }
+    }
 
     // Let the plugins a chance to override the default behavior
     clCodeCompletionEvent evt(wxEVT_CC_CODE_COMPLETE);
@@ -1719,18 +1781,18 @@ void clEditor::OnDwellStart(wxStyledTextEvent& event)
             GetBookmarkTooltip(line, tooltip, title);
         }
 
+        bool compilerMarker = false;
         // Compiler marker takes precedence over any other tooltip on that margin
         if((MarkerGet(line) & mmt_compiler) && m_compilerMessagesMap.count(line)) {
+            compilerMarker = true;
             // Get the compiler tooltip
             tooltip = m_compilerMessagesMap.find(line)->second;
-            if(MarkerGet(line) & (1 << smt_warning)) {
-                title = "<color=\"yellow\">WARNING</color>";
-            } else {
-                title = "<color=\"pink\">ERROR</color>";
-            }
         }
 
-        if(!title.IsEmpty() && !tooltip.IsEmpty()) { DoShowCalltip(-1, title, tooltip); }
+        if(!tooltip.IsEmpty()) {
+            // if the marker is a compiler marker, dont manipulate the text
+            DoShowCalltip(-1, title, tooltip, !compilerMarker);
+        }
 
     } else if(ManagerST::Get()->DbgCanInteract() && clientRect.Contains(pt)) {
         m_context->OnDbgDwellStart(event);
@@ -1747,7 +1809,7 @@ void clEditor::OnDwellStart(wxStyledTextEvent& event)
 
         if(EventNotifier::Get()->ProcessEvent(evtTypeinfo)) {
             // Did the user provide a tooltip?
-            if(!evtTypeinfo.GetTooltip().IsEmpty()) { DoShowCalltip(wxNOT_FOUND, "", evtTypeinfo.GetTooltip()); }
+            if(!evtTypeinfo.GetTooltip().IsEmpty()) { DoShowCalltip(wxNOT_FOUND, "", evtTypeinfo.GetTooltip(), true); }
         } else {
             m_context->OnDwellStart(event);
         }
@@ -2857,23 +2919,21 @@ void clEditor::GetBookmarkTooltip(int lineno, wxString& tip, wxString& title)
     }
 }
 
-
 wxFontEncoding clEditor::DetectEncoding(const wxString& filename)
 {
     wxFontEncoding encoding = GetOptions()->GetFileFontEncoding();
 #if defined(USE_UCHARDET)
     wxFile file(filename);
-    if (!file.IsOpened())
-        return encoding;
-    
+    if(!file.IsOpened()) return encoding;
+
     size_t size = file.Length();
-    if (size == 0) {
+    if(size == 0) {
         file.Close();
         return encoding;
     }
 
-    wxByte* buffer = (wxByte*) malloc(sizeof(wxByte) * (size + 4));
-    if (!buffer) {
+    wxByte* buffer = (wxByte*)malloc(sizeof(wxByte) * (size + 4));
+    if(!buffer) {
         file.Close();
         return encoding;
     }
@@ -2884,29 +2944,29 @@ wxFontEncoding clEditor::DetectEncoding(const wxString& filename)
 
     size_t readBytes = file.Read((void*)buffer, size);
     bool result = false;
-    if (readBytes > 0) {
+    if(readBytes > 0) {
         uchardet_t ud = uchardet_new();
-        if (0 == uchardet_handle_data(ud, (const char *)buffer, readBytes)) {
+        if(0 == uchardet_handle_data(ud, (const char*)buffer, readBytes)) {
             uchardet_data_end(ud);
             wxString charset(uchardet_get_charset(ud));
             charset.MakeUpper();
-            if (charset.find("UTF-8") != wxString::npos) {
+            if(charset.find("UTF-8") != wxString::npos) {
                 encoding = wxFONTENCODING_UTF8;
-            } else if (charset.find("GB18030") != wxString::npos) {
+            } else if(charset.find("GB18030") != wxString::npos) {
                 encoding = wxFONTENCODING_GB2312;
-            } else if (charset.find("BIG5") != wxString::npos) {
+            } else if(charset.find("BIG5") != wxString::npos) {
                 encoding = wxFONTENCODING_BIG5;
-            } else if (charset.find("EUC-JP") != wxString::npos) {
+            } else if(charset.find("EUC-JP") != wxString::npos) {
                 encoding = wxFONTENCODING_EUC_JP;
-            } else if (charset.find("EUC-KR") != wxString::npos) {
+            } else if(charset.find("EUC-KR") != wxString::npos) {
                 encoding = wxFONTENCODING_EUC_KR;
-            } else if (charset.find("WINDOWS-1252") != wxString::npos) {
+            } else if(charset.find("WINDOWS-1252") != wxString::npos) {
                 encoding = wxFONTENCODING_CP1252;
-            } else if (charset.find("WINDOWS-1255") != wxString::npos) {
+            } else if(charset.find("WINDOWS-1255") != wxString::npos) {
                 encoding = wxFONTENCODING_CP1255;
-            } else if (charset.find("ISO-8859-8") != wxString::npos) {
+            } else if(charset.find("ISO-8859-8") != wxString::npos) {
                 encoding = wxFONTENCODING_ISO8859_8;
-            } else if (charset.find("SHIFT_JIS") != wxString::npos) {
+            } else if(charset.find("SHIFT_JIS") != wxString::npos) {
                 encoding = wxFONTENCODING_SHIFT_JIS;
             }
         }
@@ -2916,6 +2976,50 @@ wxFontEncoding clEditor::DetectEncoding(const wxString& filename)
     free(buffer);
 #endif
     return encoding;
+}
+
+void clEditor::DoUpdateLineNumbers() { return; }
+
+void clEditor::DoUpdateRelativeLineNumbers()
+{
+    int beginLine = std::max(0, GetFirstVisibleLine() - 10);
+    int curLine = GetCurrentLine();
+    int lineCount = GetLineCount();
+    int endLine = std::min(lineCount, GetFirstVisibleLine() + LinesOnScreen() + 10);
+    if((m_lastBeginLine == beginLine) && (m_lastLine == curLine) && (m_lastEndLine == endLine) &&
+       (m_lastLineCount == lineCount)) {
+        return;
+    }
+    m_lastBeginLine = beginLine;
+    m_lastLineCount = lineCount;
+    m_lastEndLine = endLine;
+    MarginSetText(curLine, (wxString() << " " << (curLine)));
+
+    // Use a distinct style to highlight the current line number
+    StyleSetBackground(CUR_LINE_NUMBER_STYLE, m_selTextBgColour);
+    StyleSetForeground(CUR_LINE_NUMBER_STYLE, m_selTextColour);
+    MarginSetStyle(curLine, CUR_LINE_NUMBER_STYLE);
+
+    for(int i = std::min(endLine, curLine - 1); i >= beginLine; --i) {
+        MarginSetText(i, (wxString() << " " << (curLine - i)));
+        MarginSetStyle(i, 0);
+    }
+    for(int i = std::max(beginLine, curLine + 1); i <= endLine; ++i) {
+        MarginSetText(i, (wxString() << " " << (i - curLine)));
+        MarginSetStyle(i, 0);
+    }
+}
+
+void clEditor::UpdateLineNumbers()
+{
+    OptionsConfigPtr c = GetOptions();
+    if(!c->GetDisplayLineNumbers()) {
+        return;
+    } else if(c->GetRelativeLineNumbers()) {
+        DoUpdateRelativeLineNumbers();
+    } else if(c->GetHighlightCurrentLineNumber()) {
+        DoUpdateLineNumbers();
+    }
 }
 
 void clEditor::OpenFile()
@@ -3171,9 +3275,7 @@ void clEditor::OnKeyDown(wxKeyEvent& event)
         wxPoint pt = ScreenToClient(wxGetMousePosition());
         int pos = PositionFromPointClose(pt.x, pt.y);
         if(pos != wxNOT_FOUND) {
-            int wordStart = WordStartPos(pos, true);
-            int wordEnd = WordEndPos(pos, true);
-            wxString wordAtMouse = GetTextRange(wordStart, wordEnd);
+            wxString wordAtMouse = GetWordAtPosition(pos, false);
             if(!wordAtMouse.IsEmpty()) {
                 // clLogMessage("Event wxEVT_DBG_EXPR_TOOLTIP is fired for string: %s", wordAtMouse);
                 clDebugEvent tipEvent(wxEVT_DBG_EXPR_TOOLTIP);
@@ -3237,6 +3339,7 @@ void clEditor::OnLeftUp(wxMouseEvent& event)
     if(!value) { DoQuickJump(event, false); }
     PostCmdEvent(wxEVT_EDITOR_CLICKED);
     event.Skip();
+    UpdateLineNumbers();
 }
 
 void clEditor::OnLeaveWindow(wxMouseEvent& event)
@@ -3254,6 +3357,7 @@ void clEditor::OnFocusLost(wxFocusEvent& event)
 {
     m_isFocused = false;
     event.Skip();
+    UpdateLineNumbers();
     if(HasCapture()) {
         CL_DEBUG("Releasing the mouse...");
         ReleaseMouse();
@@ -4154,7 +4258,7 @@ wxString clEditor::GetEolString()
     return eol;
 }
 
-void clEditor::DoShowCalltip(int pos, const wxString& title, const wxString& tip)
+void clEditor::DoShowCalltip(int pos, const wxString& title, const wxString& tip, bool manipulateText)
 {
     DoCancelCalltip();
     wxPoint pt;
@@ -4163,7 +4267,7 @@ void clEditor::DoShowCalltip(int pos, const wxString& title, const wxString& tip
     tooltip.Trim().Trim(false);
     if(!tooltip.IsEmpty()) { tooltip << "\n<hr>"; }
     tooltip << tip;
-    m_calltip = new CCBoxTipWindow(this, tooltip);
+    m_calltip = new CCBoxTipWindow(this, manipulateText, tooltip);
     if(pos == wxNOT_FOUND) {
         pt = ::wxGetMousePosition();
     } else {
@@ -4722,6 +4826,7 @@ void clEditor::OnKeyUp(wxKeyEvent& event)
         SetIndicatorCurrent(DEBUGGER_INDICATOR);
         IndicatorClearRange(0, GetLength());
     }
+    UpdateLineNumbers();
 }
 
 size_t clEditor::GetCodeNavModifier()
@@ -5045,6 +5150,7 @@ void clEditor::OnEditorConfigChanged(wxCommandEvent& event)
     event.Skip();
     DoUpdateOptions();
     SetProperties();
+    UpdateLineNumbers();
 }
 
 void clEditor::ConvertIndentToSpaces()
@@ -5414,6 +5520,11 @@ void clEditor::ReloadFromDisk(bool keepUndoHistory)
     }
 
     SetReloadingFile(false);
+    
+    // Notify about file-reload
+    clCommandEvent e(wxEVT_FILE_LOADED);
+    e.SetFileName(GetFileName().GetFullPath());
+    EventNotifier::Get()->AddPendingEvent(e);
 }
 
 void clEditor::PreferencesChanged()
@@ -5433,6 +5544,70 @@ void clEditor::NotifyMarkerChanged(int lineNumber)
     eventMarker.SetFileName(GetFileName().GetFullPath());
     if(lineNumber != wxNOT_FOUND) { eventMarker.SetLineNumber(lineNumber); }
     EventNotifier::Get()->AddPendingEvent(eventMarker);
+}
+
+wxString clEditor::GetWordAtPosition(int pos, bool wordCharsOnly)
+{
+    // Get the partial word that we have
+    if(wordCharsOnly) {
+        long start = WordStartPosition(pos, true);
+        long end = WordEndPosition(pos, true);
+        return GetTextRange(start, end);
+
+    } else {
+        int start = pos;
+        int end = pos;
+        int where = pos;
+        // find the start pos
+        while(true) {
+            int p = PositionBefore(where);
+            if((p != wxNOT_FOUND) && IsWordChar(GetCharAt(p))) {
+                where = p;
+                if(where == 0) { break; }
+                continue;
+            } else {
+                break;
+            }
+        }
+        wxSwap(start, where);
+        end = WordEndPosition(pos, true);
+        return GetTextRange(start, end);
+    }
+}
+
+int clEditor::GetFirstNonWhitespacePos(bool backward)
+{
+    int from = GetCurrentPos();
+    if(from == wxNOT_FOUND) { return wxNOT_FOUND; }
+
+    int pos = from;
+    if(backward) {
+        from = PositionBefore(from);
+    } else {
+        from = PositionAfter(from);
+    }
+    while(from != wxNOT_FOUND) {
+        wxChar ch = GetCharAt(from);
+        switch(ch) {
+        case ' ':
+        case '\t':
+        case '\n':
+            return pos;
+        default:
+            break;
+        }
+
+        // Keep the previous location
+        pos = from;
+
+        // Move the position
+        if(backward) {
+            from = PositionBefore(from);
+        } else {
+            from = PositionAfter(from);
+        }
+    }
+    return pos;
 }
 
 // ----------------------------------

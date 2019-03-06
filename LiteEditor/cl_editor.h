@@ -55,6 +55,7 @@
 #define HYPERLINK_INDICATOR 4
 #define MARKER_FIND_BAR_WORD_HIGHLIGHT 5
 #define MARKER_CONTEXT_WORD_HIGHLIGHT 6
+#define CUR_LINE_NUMBER_STYLE (wxSTC_STYLE_MAX - 1)
 
 #if(wxVERSION_NUMBER < 3101)
 // Some wxSTC keycodes names were altered in 311, & the old versions deprecated
@@ -260,6 +261,12 @@ protected:
     wxString m_keywordLocals;
     wxBitmap m_editorBitmap;
     size_t m_statusBarFields;
+    int m_lastBeginLine = wxNOT_FOUND;
+    int m_lastLine = wxNOT_FOUND;
+    int m_lastEndLine;
+    int m_lastLineCount;
+    wxColour m_selTextColour;
+    wxColour m_selTextBgColour;
 
 public:
     static bool m_ccShowPrivateMembers;
@@ -730,7 +737,7 @@ public:
     virtual void SetErrorMarker(int lineno, const wxString& annotationText);
     virtual void DelAllCompilerMarkers();
 
-    void DoShowCalltip(int pos, const wxString& title, const wxString& tip);
+    void DoShowCalltip(int pos, const wxString& title, const wxString& tip, bool manipulateText);
     void DoCancelCalltip();
     void DoCancelCodeCompletionBox();
     int DoGetOpenBracePos();
@@ -813,12 +820,18 @@ public:
      * @brief
      * @return
      */
-    virtual wxString GetWordAtCaret();
+    virtual wxString GetWordAtCaret(bool wordCharsOnly = true);
     /**
      * @brief
      * @return
      */
     virtual void GetWordAtMousePointer(wxString& word, wxRect& wordRect);
+    /**
+     * @brief get word at a given position
+     * @param pos word's position
+     * @param wordCharsOnly when set to false, return the string between the nearest whitespaces
+     */
+    virtual wxString GetWordAtPosition(int pos, bool wordCharsOnly = true);
     /**
      * @brief
      * @param text
@@ -988,11 +1001,15 @@ private:
     bool DoFindAndSelect(const wxString& pattern, const wxString& what, int start_pos, NavMgr* navmgr);
     void DoSaveMarkers();
     void DoRestoreMarkers();
-
+    int GetFirstNonWhitespacePos(bool backward = false);
     wxMenu* DoCreateDebuggerWatchMenu(const wxString& word);
-    
-    
+
     wxFontEncoding DetectEncoding(const wxString& filename);
+
+    // Line numbers drawings
+    void DoUpdateRelativeLineNumbers();
+    void DoUpdateLineNumbers();
+    void UpdateLineNumbers();
 
     // Event handlers
     void OpenURL(wxCommandEvent& event);

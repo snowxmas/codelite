@@ -33,6 +33,7 @@
 #include "cl_sftp.h"
 #include "ssh_account_info.h"
 #include <vector>
+#include "clSSHChannel.h"
 
 class MyClientData;
 class SFTP;
@@ -42,6 +43,7 @@ typedef std::vector<MyClientData*> MyClientDataVect_t;
 class SFTPTreeView : public SFTPTreeViewBase
 {
     clSFTP::Ptr_t m_sftp;
+    clSSHChannel::Ptr_t m_channel;
     BitmapLoader* m_bmpLoader;
     SSHAccountInfo m_account;
     SFTP* m_plugin;
@@ -59,6 +61,7 @@ public:
     SFTPTreeView(wxWindow* parent, SFTP* plugin);
     virtual ~SFTPTreeView();
     bool IsConnected() const { return m_sftp && m_sftp->IsConnected(); }
+    const SSHAccountInfo& GetAccount() const { return m_account; }
 
 protected:
     virtual void OnSftpSettings(wxCommandEvent& event);
@@ -89,7 +92,7 @@ protected:
     virtual void OnExecuteCommand(wxCommandEvent& event);
     void OnFileDropped(clCommandEvent& event);
     void OnEditorClosing(wxCommandEvent& evt);
-
+    void OnRemoteFind(wxCommandEvent& event);
     // Edit events
     void OnCopy(wxCommandEvent& event);
     void OnCut(wxCommandEvent& event);
@@ -97,6 +100,11 @@ protected:
     void OnSelectAll(wxCommandEvent& event);
     void OnUndo(wxCommandEvent& event);
     void OnRedo(wxCommandEvent& event);
+
+    // Find events
+    void OnFindOutput(clCommandEvent& event);
+    void OnFindFinished(clCommandEvent& event);
+    void OnFindError(clCommandEvent& event);
 
     void DoCloseSession();
     void DoOpenSession();
@@ -119,7 +127,7 @@ protected:
     bool GetAccountFromUser(SSHAccountInfo& account);
     SFTPSessionInfo& GetSession(bool createIfMissing);
     void DoLoadSession();
-    
+
 protected:
     virtual void OnItemActivated(wxTreeEvent& event);
     virtual void OnItemExpanding(wxTreeEvent& event);

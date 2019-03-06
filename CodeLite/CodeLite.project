@@ -44,6 +44,34 @@
  }]]]>
     </Plugin>
   </Plugins>
+  <VirtualDirectory Name="json_rpc">
+    <File Name="json_rpc/json_rpc_results.cpp"/>
+    <File Name="json_rpc/json_rpc_results.h"/>
+    <File Name="json_rpc/ResponseMessage.cpp"/>
+    <File Name="json_rpc/ResponseMessage.h"/>
+    <File Name="json_rpc/DidSaveTextDocumentRequest.cpp"/>
+    <File Name="json_rpc/DidSaveTextDocumentRequest.h"/>
+    <File Name="json_rpc/DidChangeTextDocumentRequest.cpp"/>
+    <File Name="json_rpc/DidChangeTextDocumentRequest.h"/>
+    <File Name="json_rpc/DidCloseTextDocumentRequest.cpp"/>
+    <File Name="json_rpc/DidCloseTextDocumentRequest.h"/>
+    <File Name="json_rpc/json_rpc_params.cpp"/>
+    <File Name="json_rpc/json_rpc_params.h"/>
+    <File Name="json_rpc/DidOpenTextDocumentRequest.cpp"/>
+    <File Name="json_rpc/DidOpenTextDocumentRequest.h"/>
+    <File Name="json_rpc/GotoDefinitionRequest.cpp"/>
+    <File Name="json_rpc/GotoDefinitionRequest.h"/>
+    <File Name="json_rpc/basic_types.cpp"/>
+    <File Name="json_rpc/basic_types.h"/>
+    <File Name="json_rpc/RequestMessage.cpp"/>
+    <File Name="json_rpc/RequestMessage.h"/>
+    <File Name="json_rpc/JSONObject.cpp"/>
+    <File Name="json_rpc/JSONObject.h"/>
+    <File Name="json_rpc/Message.cpp"/>
+    <File Name="json_rpc/Message.h"/>
+    <File Name="json_rpc/clJSONRPC.h"/>
+    <File Name="json_rpc/clJSONRPC.cpp"/>
+  </VirtualDirectory>
   <VirtualDirectory Name="Console">
     <File Name="clConsoleXfce4Terminal.cpp"/>
     <File Name="clConsoleXfce4Terminal.h"/>
@@ -51,6 +79,8 @@
     <File Name="clConsoleMateTerminal.h"/>
     <File Name="clConsoleLXTerminal.cpp"/>
     <File Name="clConsoleLXTerminal.h"/>
+    <File Name="clConsoleQTerminal.cpp"/>
+    <File Name="clConsoleQTerminal.h"/>
     <File Name="clConsoleBash.cpp"/>
     <File Name="clConsoleBash.h"/>
     <File Name="clConsoleOSXTerminal.cpp"/>
@@ -321,8 +351,8 @@
   </VirtualDirectory>
   <Dependencies Name="WinRelease_29"/>
   <VirtualDirectory Name="configuration">
-    <File Name="json_node.cpp"/>
-    <File Name="json_node.h"/>
+    <File Name="JSON.cpp"/>
+    <File Name="JSON.h"/>
     <File Name="cJSON.cpp"/>
     <File Name="cJSON.h"/>
     <File Name="cl_config.cpp"/>
