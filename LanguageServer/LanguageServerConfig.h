@@ -43,6 +43,20 @@ public:
     size_t GetFlags() const { return m_flags; }
     bool IsEnabled() const { return HasFlag(kEnabaled); }
     void SetEnabled(bool b) { EnableFlag(kEnabaled, b); }
+    LanguageServerConfig& SetServers(const LanguageServerEntry::Map_t& servers)
+    {
+        this->m_servers = servers;
+        return *this;
+    }
+    const LanguageServerEntry::Map_t& GetServers() const { return m_servers; }
+    /**
+     * @brief add server. erase an existing one with the same name
+     */
+    void AddServer(const LanguageServerEntry& server);
+    /**
+     * @brief delete an existing server by name
+     */
+    void RemoveServer(const wxString& name);
 };
 
 #endif // LANGUAGESERVERCONFIG_H

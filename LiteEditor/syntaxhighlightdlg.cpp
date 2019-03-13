@@ -84,8 +84,6 @@ SyntaxHighlightDlg::SyntaxHighlightDlg(wxWindow* parent)
     , m_globalThemeChanged(false)
     , m_globalBgColourChanged(false)
 {
-    SetSize(wxDLG_UNIT(this, wxSize(250, 250)));
-
     // Get list of available lexers
     wxString lexerName;
     clEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor(true);
@@ -160,8 +158,7 @@ SyntaxHighlightDlg::SyntaxHighlightDlg(wxWindow* parent)
         m_initialTheme = DrawingUtils::IsDark(baseColour) ? kTHEME_DARK : kTHEME_LIGHT;
         m_endingTheme = m_initialTheme;
     }
-    GetSizer()->Fit(this);
-    CentreOnParent();
+    ::clSetDialogBestSizeAndPosition(this);
 }
 
 void SyntaxHighlightDlg::DoUpdatePreview()

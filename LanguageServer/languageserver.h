@@ -2,12 +2,25 @@
 #define __LanguageServerPlugin__
 
 #include "plugin.h"
-#include "LanguageServerProtocol.h"
 #include "cl_command_event.h"
+#include "LanguageServerCluster.h"
+#include "cl_command_event.h"
+#include "CompileCommandsGenerator.h"
 
 class LanguageServerPlugin : public IPlugin
 {
-    LanguageServerProtocol m_server;
+    LanguageServerCluster::Ptr_t m_servers;
+    IProcess* m_process = nullptr;
+    CompileCommandsGenerator::Ptr_t m_compileCommandsGenerator;
+
+protected:
+    void OnSettings(wxCommandEvent& e);
+
+protected:
+    void GenerateCompileCommands();
+    void OnBuildEnded(clBuildEvent& event);
+    void OnFilesAdded(clCommandEvent& event);
+    void OnWorkspaceLoaded(wxCommandEvent& event);
 
 public:
     LanguageServerPlugin(IManager* manager);
@@ -26,11 +39,6 @@ public:
      * @brief Unplug the plugin. Perform here any cleanup needed (e.g. unbind events, destroy allocated windows)
      */
     virtual void UnPlug();
-    
-    /**
-     * @brief user as requested to 'find declaration'
-     */
-    void OnFindSymbold(clCodeCompletionEvent& event);
 };
 
 #endif // LanguageServerPlugin
