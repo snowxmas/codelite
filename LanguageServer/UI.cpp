@@ -25,29 +25,26 @@ LanguageServerSettingsDlgBase::LanguageServerSettingsDlgBase(wxWindow* parent, w
     wxBoxSizer* boxSizer2 = new wxBoxSizer(wxVERTICAL);
     this->SetSizer(boxSizer2);
 
+    wxBoxSizer* boxSizer22 = new wxBoxSizer(wxHORIZONTAL);
+
+    boxSizer2->Add(boxSizer22, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+
+    m_checkBoxEnable = new wxCheckBox(this, wxID_ANY, _("Enable Language Server Completion"), wxDefaultPosition,
+                                      wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+    m_checkBoxEnable->SetValue(false);
+
+    boxSizer22->Add(m_checkBoxEnable, 0, wxALL | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+
+    boxSizer22->Add(0, 0, 1, wxALL, WXC_FROM_DIP(5));
+
+    m_buttonNew = new wxButton(this, wxID_NEW, _("Add..."), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+
+    boxSizer22->Add(m_buttonNew, 0, wxALL | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+
     m_notebook = new wxNotebook(this, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), wxBK_DEFAULT);
     m_notebook->SetName(wxT("m_notebook"));
 
     boxSizer2->Add(m_notebook, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
-
-    m_panel12 =
-        new wxPanel(m_notebook, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_notebook, wxSize(-1, -1)), wxTAB_TRAVERSAL);
-    m_notebook->AddPage(m_panel12, _("General"), true);
-
-    wxBoxSizer* boxSizer14 = new wxBoxSizer(wxVERTICAL);
-    m_panel12->SetSizer(boxSizer14);
-
-    wxFlexGridSizer* flexGridSizer16 = new wxFlexGridSizer(0, 2, 0, 0);
-    flexGridSizer16->SetFlexibleDirection(wxBOTH);
-    flexGridSizer16->SetNonFlexibleGrowMode(wxFLEX_GROWMODE_SPECIFIED);
-
-    boxSizer14->Add(flexGridSizer16, 1, wxEXPAND, WXC_FROM_DIP(5));
-
-    m_checkBoxEnable = new wxCheckBox(m_panel12, wxID_ANY, _("Enable Language Server Completion"), wxDefaultPosition,
-                                      wxDLG_UNIT(m_panel12, wxSize(-1, -1)), 0);
-    m_checkBoxEnable->SetValue(false);
-
-    flexGridSizer16->Add(m_checkBoxEnable, 0, wxALL, WXC_FROM_DIP(5));
 
     m_stdBtnSizer4 = new wxStdDialogButtonSizer();
 
@@ -61,29 +58,164 @@ LanguageServerSettingsDlgBase::LanguageServerSettingsDlgBase(wxWindow* parent, w
     m_stdBtnSizer4->AddButton(m_button8);
     m_stdBtnSizer4->Realize();
 
-#if wxVERSION_NUMBER >= 2900
-    if(!wxPersistenceManager::Get().Find(m_notebook)) {
-        wxPersistenceManager::Get().RegisterAndRestore(m_notebook);
-    } else {
-        wxPersistenceManager::Get().Restore(m_notebook);
-    }
-#endif
-
     SetName(wxT("LanguageServerSettingsDlgBase"));
-    SetSize(wxDLG_UNIT(this, wxSize(500, 300)));
+    SetSize(wxDLG_UNIT(this, wxSize(400, 300)));
     if(GetSizer()) { GetSizer()->Fit(this); }
     if(GetParent()) {
         CentreOnParent(wxBOTH);
     } else {
         CentreOnScreen(wxBOTH);
     }
-#if wxVERSION_NUMBER >= 2900
-    if(!wxPersistenceManager::Get().Find(this)) {
-        wxPersistenceManager::Get().RegisterAndRestore(this);
-    } else {
-        wxPersistenceManager::Get().Restore(this);
-    }
-#endif
+    // Connect events
+    m_buttonNew->Connect(wxEVT_COMMAND_BUTTON_CLICKED,
+                         wxCommandEventHandler(LanguageServerSettingsDlgBase::OnAddServer), NULL, this);
 }
 
-LanguageServerSettingsDlgBase::~LanguageServerSettingsDlgBase() {}
+LanguageServerSettingsDlgBase::~LanguageServerSettingsDlgBase()
+{
+    m_buttonNew->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED,
+                            wxCommandEventHandler(LanguageServerSettingsDlgBase::OnAddServer), NULL, this);
+}
+
+LanguageServerPageBase::LanguageServerPageBase(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size,
+                                               long style)
+    : wxPanel(parent, id, pos, size, style)
+{
+    if(!bBitmapLoaded) {
+        // We need to initialise the default bitmap handler
+        wxXmlResource::Get()->AddHandler(new wxBitmapXmlHandler);
+        wxCrafterCbL3wsInitBitmapResources();
+        bBitmapLoaded = true;
+    }
+
+    wxBoxSizer* boxSizer31 = new wxBoxSizer(wxVERTICAL);
+    this->SetSizer(boxSizer31);
+
+    wxFlexGridSizer* flexGridSizer432 = new wxFlexGridSizer(0, 2, 0, 0);
+    flexGridSizer432->SetFlexibleDirection(wxBOTH);
+    flexGridSizer432->SetNonFlexibleGrowMode(wxFLEX_GROWMODE_SPECIFIED);
+    flexGridSizer432->AddGrowableCol(1);
+    flexGridSizer432->AddGrowableRow(4);
+
+    boxSizer31->Add(flexGridSizer432, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+
+    m_staticText453 =
+        new wxStaticText(this, wxID_ANY, _("Name"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+
+    flexGridSizer432->Add(m_staticText453, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+
+    m_textCtrlName = new wxTextCtrl(this, wxID_ANY, wxT(""), wxDefaultPosition, wxDLG_UNIT(this, wxSize(300, -1)), 0);
+    m_textCtrlName->SetToolTip(_("Give this language server a unique name"));
+    m_textCtrlName->SetFocus();
+#if wxVERSION_NUMBER >= 3000
+    m_textCtrlName->SetHint(wxT(""));
+#endif
+
+    flexGridSizer432->Add(m_textCtrlName, 0, wxALL | wxEXPAND | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+
+    m_staticText495 =
+        new wxStaticText(this, wxID_ANY, _("Executable:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+
+    flexGridSizer432->Add(m_staticText495, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+
+    m_filePickerExe =
+        new wxFilePickerCtrl(this, wxID_ANY, wxEmptyString, _("Select a file"), wxT("*"), wxDefaultPosition,
+                             wxDLG_UNIT(this, wxSize(-1, -1)), wxFLP_DEFAULT_STYLE | wxFLP_USE_TEXTCTRL | wxFLP_SMALL);
+    m_filePickerExe->SetToolTip(_("The language server executable"));
+
+    flexGridSizer432->Add(m_filePickerExe, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+
+    m_staticText537 =
+        new wxStaticText(this, wxID_ANY, _("Arguments:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+
+    flexGridSizer432->Add(m_staticText537, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+
+    m_textCtrlArgs = new wxTextCtrl(this, wxID_ANY, wxT(""), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+    m_textCtrlArgs->SetToolTip(_("Set here any arguments to pass to the language server executable"));
+#if wxVERSION_NUMBER >= 3000
+    m_textCtrlArgs->SetHint(wxT(""));
+#endif
+
+    flexGridSizer432->Add(m_textCtrlArgs, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+
+    m_staticText579 = new wxStaticText(this, wxID_ANY, _("Working directory:"), wxDefaultPosition,
+                                       wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+
+    flexGridSizer432->Add(m_staticText579, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+
+    m_dirPickerWorkingDir = new wxDirPickerCtrl(this, wxID_ANY, wxEmptyString, _("Select a folder"), wxDefaultPosition,
+                                                wxDLG_UNIT(this, wxSize(-1, -1)),
+                                                wxDIRP_SMALL | wxDIRP_DEFAULT_STYLE | wxDIRP_USE_TEXTCTRL);
+    m_dirPickerWorkingDir->SetToolTip(_("Set the language server working directory"));
+
+    flexGridSizer432->Add(m_dirPickerWorkingDir, 0, wxALL | wxEXPAND | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+
+    m_staticText6311 =
+        new wxStaticText(this, wxID_ANY, _("Languages:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+
+    flexGridSizer432->Add(m_staticText6311, 0, wxALL | wxALIGN_RIGHT, WXC_FROM_DIP(10));
+
+    m_dvListCtrl = new clThemedListCtrl(this, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, 100)),
+                                        wxDV_ROW_LINES | wxDV_SINGLE);
+
+    flexGridSizer432->Add(m_dvListCtrl, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+
+    m_dvListCtrl->AppendTextColumn(_("Language"), wxDATAVIEW_CELL_INERT, WXC_FROM_DIP(-2), wxALIGN_LEFT,
+                                   wxDATAVIEW_COL_RESIZABLE);
+    flexGridSizer432->Add(0, 0, 1, wxALL, WXC_FROM_DIP(5));
+
+    m_checkBoxEnabled =
+        new wxCheckBox(this, wxID_ANY, _("Enabled"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+    m_checkBoxEnabled->SetValue(true);
+
+    flexGridSizer432->Add(m_checkBoxEnabled, 0, wxALL, WXC_FROM_DIP(5));
+
+    SetName(wxT("LanguageServerPageBase"));
+    SetSize(wxDLG_UNIT(this, wxSize(-1, -1)));
+    if(GetSizer()) { GetSizer()->Fit(this); }
+}
+
+LanguageServerPageBase::~LanguageServerPageBase() {}
+
+NewLanguageServerDlgBase::NewLanguageServerDlgBase(wxWindow* parent, wxWindowID id, const wxString& title,
+                                                   const wxPoint& pos, const wxSize& size, long style)
+    : wxDialog(parent, id, title, pos, size, style)
+{
+    if(!bBitmapLoaded) {
+        // We need to initialise the default bitmap handler
+        wxXmlResource::Get()->AddHandler(new wxBitmapXmlHandler);
+        wxCrafterCbL3wsInitBitmapResources();
+        bBitmapLoaded = true;
+    }
+
+    wxBoxSizer* boxSizer35 = new wxBoxSizer(wxVERTICAL);
+    this->SetSizer(boxSizer35);
+
+    m_stdBtnSizer37 = new wxStdDialogButtonSizer();
+
+    boxSizer35->Add(m_stdBtnSizer37, 0, wxALL | wxALIGN_CENTER_HORIZONTAL, WXC_FROM_DIP(10));
+
+    m_buttonOK = new wxButton(this, wxID_OK, wxT(""), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+    m_buttonOK->SetDefault();
+    m_stdBtnSizer37->AddButton(m_buttonOK);
+
+    m_button41 = new wxButton(this, wxID_CANCEL, wxT(""), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+    m_stdBtnSizer37->AddButton(m_button41);
+    m_stdBtnSizer37->Realize();
+
+    SetName(wxT("NewLanguageServerDlgBase"));
+    SetSize(wxDLG_UNIT(this, wxSize(-1, -1)));
+    if(GetSizer()) { GetSizer()->Fit(this); }
+    if(GetParent()) {
+        CentreOnParent(wxBOTH);
+    } else {
+        CentreOnScreen(wxBOTH);
+    }
+    // Connect events
+    m_buttonOK->Connect(wxEVT_UPDATE_UI, wxUpdateUIEventHandler(NewLanguageServerDlgBase::OnOKUI), NULL, this);
+}
+
+NewLanguageServerDlgBase::~NewLanguageServerDlgBase()
+{
+    m_buttonOK->Disconnect(wxEVT_UPDATE_UI, wxUpdateUIEventHandler(NewLanguageServerDlgBase::OnOKUI), NULL, this);
+}

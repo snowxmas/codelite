@@ -6,10 +6,11 @@
 #include <macros.h>
 #include "globals.h"
 #include "LanguageServerConfig.h"
+#include "LanguageServerSettingsDlg.h"
+#include "cl_standard_paths.h"
+#include "CompileCommandsGenerator.h"
 
 static LanguageServerPlugin* thePlugin = NULL;
-
-#define CHECK_LSP_RUNNING() if(!m_server.IsRunning()) { return; }
 
 // Define the plugin entry point
 CL_PLUGIN_API IPlugin* CreatePlugin(IManager* manager)
@@ -35,18 +36,19 @@ LanguageServerPlugin::LanguageServerPlugin(IManager* manager)
 {
     m_longName = _("Support for Language Server Protocol (LSP)");
     m_shortName = wxT("LanguageServerPlugin");
-#ifdef __WXMSW__
-    m_server.Start("D:\\software\\llvm-7\\LLVM\\bin\\clangd.exe", wxEmptyString);
-#else
-    wxString command;
-    command << "clangd-7";
-    ::WrapInShell(command);
-    m_server.Start(command, wxEmptyString);
-#endif
-    EventNotifier::Get()->Bind(wxEVT_CC_FIND_SYMBOL, &LanguageServerPlugin::OnFindSymbold, this);
-    
+
     // Load the configuration
     LanguageServerConfig::Get().Load();
+
+    // Start all the servers
+    m_servers.reset(new LanguageServerCluster());
+    m_servers->Reload();
+
+    m_compileCommandsGenerator.reset(new CompileCommandsGenerator());
+
+    EventNotifier::Get()->Bind(wxEVT_BUILD_ENDED, &LanguageServerPlugin::OnBuildEnded, this);
+    EventNotifier::Get()->Bind(wxEVT_PROJ_FILE_ADDED, &LanguageServerPlugin::OnFilesAdded, this);
+    EventNotifier::Get()->Bind(wxEVT_WORKSPACE_LOADED, &LanguageServerPlugin::OnWorkspaceLoaded, this);
 }
 
 LanguageServerPlugin::~LanguageServerPlugin() {}
@@ -57,23 +59,54 @@ void LanguageServerPlugin::CreateToolBar(clToolBar* toolbar)
     wxUnusedVar(toolbar);
 }
 
-void LanguageServerPlugin::CreatePluginMenu(wxMenu* pluginsMenu) {}
+void LanguageServerPlugin::CreatePluginMenu(wxMenu* pluginsMenu)
+{
+    wxMenu* menu = new wxMenu();
+    menu->Append(XRCID("language-server-settings"), _("Settings"));
+    menu->Bind(wxEVT_MENU, &LanguageServerPlugin::OnSettings, this, XRCID("language-server-settings"));
+    pluginsMenu->Append(wxID_ANY, _("Language Server"), menu);
+}
 
 void LanguageServerPlugin::UnPlug()
 {
-    EventNotifier::Get()->Unbind(wxEVT_CC_FIND_SYMBOL, &LanguageServerPlugin::OnFindSymbold, this);
+    LanguageServerConfig::Get().Save();
+    m_servers.reset(nullptr);
+
+    EventNotifier::Get()->Unbind(wxEVT_BUILD_ENDED, &LanguageServerPlugin::OnBuildEnded, this);
+    EventNotifier::Get()->Unbind(wxEVT_PROJ_FILE_ADDED, &LanguageServerPlugin::OnFilesAdded, this);
+    EventNotifier::Get()->Unbind(wxEVT_WORKSPACE_LOADED, &LanguageServerPlugin::OnWorkspaceLoaded, this);
 }
 
-void LanguageServerPlugin::OnFindSymbold(clCodeCompletionEvent& event)
+void LanguageServerPlugin::OnSettings(wxCommandEvent& e)
+{
+    LanguageServerSettingsDlg dlg(EventNotifier::Get()->TopFrame());
+    if(dlg.ShowModal() == wxID_OK) {
+        // restart all language servers
+        dlg.Save();
+        m_servers->Reload();
+    }
+}
+
+void LanguageServerPlugin::OnBuildEnded(clBuildEvent& event)
 {
     event.Skip();
-    CHECK_LSP_RUNNING();
-    
-    IEditor* editor = dynamic_cast<IEditor*>(event.GetEditor());
-    CHECK_PTR_RET(editor);
+    GenerateCompileCommands();
+}
 
-    wxStyledTextCtrl* ctrl = editor->GetCtrl();
-    int col = ctrl->GetColumn(ctrl->GetCurrentPos());
-    int line = ctrl->LineFromPosition(ctrl->GetCurrentPos());
-    m_server.FindDefinition(editor->GetFileName(), line, col);
+void LanguageServerPlugin::GenerateCompileCommands()
+{
+    // this is a self destruct objecy
+    m_compileCommandsGenerator->GenerateCompileCommands();
+}
+
+void LanguageServerPlugin::OnFilesAdded(clCommandEvent& event)
+{
+    event.Skip();
+    GenerateCompileCommands();
+}
+
+void LanguageServerPlugin::OnWorkspaceLoaded(wxCommandEvent& event)
+{
+    event.Skip();
+    GenerateCompileCommands();
 }

@@ -49,7 +49,6 @@
 #include "cl_defs.h"
 #include "cl_standard_paths.h"
 #include "cl_unredo.h"
-#include "clang_compilation_db_thread.h"
 #include "code_completion_manager.h"
 #include "console_frame.h"
 #include "event_notifier.h"
@@ -99,7 +98,6 @@
 #include "buildmanager.h"
 #include "buildtabsettingsdata.h"
 #include "cl_defs.h"
-#include "clang_code_completion.h"
 #include "configuration_manager_dlg.h"
 #include "cpp_symbol_tree.h"
 #include "debugcoredump.h"
@@ -1054,7 +1052,7 @@ void clMainFrame::CreateGUIControls()
     m_myMenuBar = new MyMenuBar();
     m_myMenuBar->Set(mb);
     SetMenuBar(mb);
-    
+
 #ifdef __WXGTK__
     bool showMenuBar = clConfig::Get().Read(kConfigShowMenuBar, true);
     GetMenuBar()->Show(showMenuBar);
@@ -1203,8 +1201,7 @@ void clMainFrame::CreateGUIControls()
                                          m_tagsOptionsData.GetParserExcludePaths());
 
     ParseThreadST::Get()->Start();
-    ClangCompilationDbThreadST::Get()->Start();
-
+    
     // Connect this tree to the parse thread
     ParseThreadST::Get()->SetNotifyWindow(this);
 
@@ -1853,18 +1850,13 @@ void clMainFrame::OnSwitchWorkspace(wxCommandEvent& event)
     ManagerST::Get()->OpenWorkspace(wspFile);
 }
 
-void clMainFrame::OnCompleteWordRefreshList(wxCommandEvent& event)
-{
-    wxUnusedVar(event);
-    clEditor* editor = GetMainBook()->GetActiveEditor(true);
-    if(editor) { editor->CompleteWord(true); }
-}
+void clMainFrame::OnCompleteWordRefreshList(wxCommandEvent& event) { wxUnusedVar(event); }
 
 void clMainFrame::OnCodeComplete(wxCommandEvent& event)
 {
     wxUnusedVar(event);
     clEditor* editor = GetMainBook()->GetActiveEditor(true);
-    if(editor) { editor->CompleteWord(); }
+    if(editor) { editor->CompleteWord(LSP::CompletionItem::kTriggerUser); }
 }
 
 void clMainFrame::OnFunctionCalltip(wxCommandEvent& event)
@@ -2151,11 +2143,6 @@ void clMainFrame::OnCtagsOptions(wxCommandEvent& event)
             wxCommandEvent e(wxEVT_COMMAND_MENU_SELECTED, XRCID("retag_workspace"));
             AddPendingEvent(e);
         }
-
-#if HAS_LIBCLANG
-        // Clear clang's cache
-        ClangCodeCompletion::Instance()->ClearCache();
-#endif
         // Update the pre-processor dimming feature
         CodeCompletionManager::Get().RefreshPreProcessorColouring();
     }
@@ -4696,6 +4683,10 @@ void clMainFrame::UpdateAUI()
 void clMainFrame::OnRetaggingCompelted(wxCommandEvent& e)
 {
     e.Skip();
+    
+    // Generate compile_commands.json file
+    ManagerST::Get()->GenerateCompileCommands();
+    
     GetStatusBar()->SetMessage(_("Done"));
     GetWorkspacePane()->ClearProgress();
 
@@ -5629,6 +5620,7 @@ void clMainFrame::OnWordComplete(wxCommandEvent& event)
     clCodeCompletionEvent ccEvent(wxEVT_CC_WORD_COMPLETE);
     ccEvent.SetEditor(editor);
     ccEvent.SetEventObject(this);
+    ccEvent.SetTriggerKind(LSP::CompletionItem::kTriggerUser);
     ccEvent.SetWord(stc->GetTextRange(start, curPos));
     EventNotifier::Get()->ProcessEvent(ccEvent);
 
@@ -5772,17 +5764,14 @@ void clMainFrame::OnShowMenuBar(wxCommandEvent& event)
     clConfig::Get().Write(kConfigShowMenuBar, !isShown);
 }
 
-void clMainFrame::OnShowMenuBarUI(wxUpdateUIEvent& event) 
-{ 
+void clMainFrame::OnShowMenuBarUI(wxUpdateUIEvent& event)
+{
 #ifdef __WXGTK__
-    event.Check(GetMenuBar()->IsShown()); 
+    event.Check(GetMenuBar()->IsShown());
 #else
     event.Check(true);
-    event.Enable(false); 
+    event.Enable(false);
 #endif
 }
 
-void clMainFrame::Raise()
-{
-    wxFrame::Raise();
-}
+void clMainFrame::Raise() { wxFrame::Raise(); }

@@ -36,7 +36,6 @@
 #include "cl_command_event.h"
 #include "cl_editor.h"
 #include "cl_editor_tip_window.h"
-#include "clang_code_completion.h"
 #include "code_completion_manager.h"
 #include "codelite_events.h"
 #include "colourrequest.h"
@@ -421,7 +420,7 @@ clEditor::~clEditor()
         eventClose.SetFileName(GetFileName().GetFullPath());
         EventNotifier::Get()->AddPendingEvent(eventClose);
     }
-    
+
     wxDELETE(m_richTooltip);
     EventNotifier::Get()->Unbind(wxEVT_EDITOR_CONFIG_CHANGED, &clEditor::OnEditorConfigChanged, this);
 
@@ -530,7 +529,7 @@ BPtoMarker clEditor::GetMarkerForBreakpt(enum BreakpointType bp_type)
 void clEditor::SetCaretAt(long pos)
 {
     DoSetCaretAt(pos);
-    EnsureCaretVisible();
+    CallAfter(&clEditor::EnsureCaretVisible);
 }
 
 /// Setup some scintilla properties
@@ -1145,7 +1144,7 @@ void clEditor::OnCharAdded(wxStyledTextEvent& event)
         if(TagsManagerST::Get()->GetCtagsOptions().GetFlags() & CC_WORD_ASSIST) {
             if(GetWordAtCaret().Len() == (size_t)TagsManagerST::Get()->GetCtagsOptions().GetMinWordLen() &&
                pos - startPos >= TagsManagerST::Get()->GetCtagsOptions().GetMinWordLen()) {
-                CompleteWord();
+                CompleteWord(LSP::CompletionItem::kTriggerKindInvoked);
             }
         }
     }
@@ -1163,16 +1162,18 @@ void clEditor::OnCharAdded(wxStyledTextEvent& event)
 
 void clEditor::SetEnsureCaretIsVisible(int pos, bool preserveSelection /*=true*/, bool forceDelay /*=false*/)
 {
-    OptionsConfigPtr opts = EditorConfigST::Get()->GetOptions();
-    if(forceDelay || (opts && opts->GetWordWrap())) {
-        // If the text may be word-wrapped, don't EnsureVisible immediately but from the
-        // paintevent handler, so that scintilla has time to take word-wrap into account
-        m_positionToEnsureVisible = pos;
-        m_preserveSelection = preserveSelection;
-    } else {
-        DoEnsureCaretIsVisible(pos, preserveSelection);
-        m_positionToEnsureVisible = wxNOT_FOUND;
-    }
+    wxUnusedVar(forceDelay);
+    DoEnsureCaretIsVisible(pos, preserveSelection);
+    //OptionsConfigPtr opts = EditorConfigST::Get()->GetOptions();
+    //if(forceDelay || (opts && opts->GetWordWrap())) {
+    //    // If the text may be word-wrapped, don't EnsureVisible immediately but from the
+    //    // paintevent handler, so that scintilla has time to take word-wrap into account
+    //    m_positionToEnsureVisible = pos;
+    //    m_preserveSelection = preserveSelection;
+    //} else {
+    //    DoEnsureCaretIsVisible(pos, preserveSelection);
+    //    m_positionToEnsureVisible = wxNOT_FOUND;
+    //}
 }
 
 void clEditor::OnScnPainted(wxStyledTextEvent& event)
@@ -1575,17 +1576,6 @@ bool clEditor::SaveToFile(const wxFileName& fileName)
                 bSaveSucceeded = true;
             }
         }
-#if HAS_LIBCLANG
-        if(!bSaveSucceeded) {
-            // Try clearing the clang cache and try again
-            ClangCodeCompletion::Instance()->ClearCache();
-            if(!::wxRenameFile(intermediateFile.GetFullPath(), symlinkedFile.GetFullPath(), true)) {
-                wxMessageBox(wxString::Format(_("Failed to override read-only file")), "CodeLite",
-                             wxOK | wxICON_WARNING);
-                return false;
-            }
-        }
-#endif
     }
 #else
     if(!::wxRenameFile(intermediateFile.GetFullPath(), symlinkedFile.GetFullPath(), true)) {
@@ -1647,7 +1637,7 @@ wxString clEditor::GetWordAtCaret(bool wordCharsOnly) { return GetWordAtPosition
 // layer (outside of the library) to provide the input arguments for
 // the CodeParser library
 //---------------------------------------------------------------------------
-void clEditor::CompleteWord(bool onlyRefresh)
+void clEditor::CompleteWord(LSP::CompletionItem::eTriggerKind triggerKind, bool onlyRefresh)
 {
     if(EventNotifier::Get()->IsEventsDiabled()) return;
     if(AutoCompActive()) return; // Don't clobber the boxes
@@ -1664,6 +1654,7 @@ void clEditor::CompleteWord(bool onlyRefresh)
                 evt.SetEditor(this);
                 evt.SetInsideCommentOrString(m_context->IsCommentOrString(PositionBefore(GetCurrentPos())));
                 evt.SetEventObject(this);
+                evt.SetTriggerKind(triggerKind);
                 EventNotifier::Get()->ProcessEvent(evt);
                 return;
             }
@@ -1675,7 +1666,7 @@ void clEditor::CompleteWord(bool onlyRefresh)
     evt.SetPosition(GetCurrentPosition());
     evt.SetEditor(this);
     evt.SetInsideCommentOrString(m_context->IsCommentOrString(PositionBefore(GetCurrentPos())));
-
+    evt.SetTriggerKind(triggerKind);
     evt.SetEventObject(this);
 
     if(EventNotifier::Get()->ProcessEvent(evt)) {
@@ -1703,6 +1694,7 @@ void clEditor::CodeComplete(bool refreshingList)
     if(!refreshingList) {
         clCodeCompletionEvent evt(wxEVT_CC_CODE_COMPLETE);
         evt.SetPosition(GetCurrentPosition());
+        evt.SetTriggerKind(LSP::CompletionItem::kTriggerCharacter);
         evt.SetInsideCommentOrString(m_context->IsCommentOrString(PositionBefore(GetCurrentPos())));
         evt.SetEventObject(this);
         evt.SetEditor(this);
@@ -1717,7 +1709,7 @@ void clEditor::CodeComplete(bool refreshingList)
         }
 
     } else {
-        CompleteWord();
+        CompleteWord(LSP::CompletionItem::kTriggerCharacter);
     }
 }
 
@@ -4497,6 +4489,22 @@ bool clEditor::FindAndSelect(const wxString& pattern, const wxString& what, int 
     return DoFindAndSelect(pattern, what, pos, navmgr);
 }
 
+bool clEditor::SelectRange(const LSP::Range& range)
+{
+    BrowseRecord jumpfrom = CreateBrowseRecord();
+    ClearSelections();
+    int startPos = PositionFromLine(range.GetStart().GetLine());
+    startPos += range.GetStart().GetCharacter();
+
+    int endPos = PositionFromLine(range.GetEnd().GetLine());
+    endPos += range.GetEnd().GetCharacter();
+    CenterLine(LineFromPosition(startPos), GetColumn(startPos));
+    SetSelectionStart(startPos);
+    SetSelectionEnd(endPos);
+    NavMgr::Get()->AddJump(jumpfrom, CreateBrowseRecord());
+    return true;
+}
+
 bool clEditor::DoFindAndSelect(const wxString& _pattern, const wxString& what, int start_pos, NavMgr* navmgr)
 {
     BrowseRecord jumpfrom = CreateBrowseRecord();
@@ -5520,7 +5528,7 @@ void clEditor::ReloadFromDisk(bool keepUndoHistory)
     }
 
     SetReloadingFile(false);
-    
+
     // Notify about file-reload
     clCommandEvent e(wxEVT_FILE_LOADED);
     e.SetFileName(GetFileName().GetFullPath());
