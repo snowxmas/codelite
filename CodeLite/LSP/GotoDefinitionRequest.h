@@ -1,13 +1,13 @@
 #ifndef GOTODEFINITIONREQUEST_H
 #define GOTODEFINITIONREQUEST_H
 
-#include "RequestMessage.h" // Base class: LSP::RequestMessage
 #include <wx/filename.h>
 #include "basic_types.h"
+#include "LSP/Request.h"
 
 namespace LSP
 {
-class WXDLLIMPEXP_CL GotoDefinitionRequest : public LSP::RequestMessage
+class WXDLLIMPEXP_CL GotoDefinitionRequest : public LSP::Request
 {
     wxFileName m_filename;
     size_t m_line = 0;
@@ -23,7 +23,8 @@ public:
     const wxFileName& GetFilename() const { return m_filename; }
     size_t GetLine() const { return m_line; }
     void OnResponse(const LSP::ResponseMessage& response, wxEvtHandler* owner);
-    void BuildUID();
+    bool IsPositionDependantRequest() const { return true; }
+    bool IsValidAt(const wxFileName& filename, size_t line, size_t col) const;
 };
 };     // namespace LSP
 #endif // GOTODEFINITIONREQUEST_H

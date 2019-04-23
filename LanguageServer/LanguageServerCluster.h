@@ -8,6 +8,8 @@
 #include <wx/sharedptr.h>
 #include "LSP/LSPEvent.h"
 #include "LanguageServerEntry.h"
+#include "LSP/basic_types.h"
+#include "entry.h"
 
 class LanguageServerCluster : public wxEvtHandler
 {
@@ -22,20 +24,31 @@ protected:
     void RestartServer(const wxString& name);
     void StartServer(const LanguageServerEntry& entry);
 
+    void StopAll();
+    void StartAll();
+    
+    /**
+     * @brief covnert LSP::SignatureHelp class to TagEntryPtrVector_t
+     */
+    void LSPSignatureHelpToTagEntries(TagEntryPtrVector_t& tags, const LSP::SignatureHelp& sighelp);
+    
 protected:
+    void OnSignatureHelp(LSPEvent& event);
     void OnSymbolFound(LSPEvent& event);
     void OnCompletionReady(LSPEvent& event);
     void OnReparseNeeded(LSPEvent& event);
     void OnRestartNeeded(LSPEvent& event);
     void OnLSPInitialized(LSPEvent& event);
+    void OnMethodNotFound(LSPEvent& event);
+    void OnWorkspaceClosed(wxCommandEvent& event);
+    void OnWorkspaceOpen(wxCommandEvent& event);
+    void OnCompileCommandsGenerated(clCommandEvent& event);
 
 public:
     LanguageServerCluster();
     virtual ~LanguageServerCluster();
 
     void Reload();
-    void OnFindSymbold(clCodeCompletionEvent& event);
-    void OnCodeComplete(clCodeCompletionEvent& event);
 };
 
 #endif // LANGUAGESERVERCLUSTER_H

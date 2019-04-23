@@ -303,47 +303,6 @@ WelcomePageBase::~WelcomePageBase()
                                 this);
 }
 
-FileExplorerBase::FileExplorerBase(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style)
-    : wxPanel(parent, id, pos, size, style)
-{
-    if(!bBitmapLoaded) {
-        // We need to initialise the default bitmap handler
-        wxXmlResource::Get()->AddHandler(new wxBitmapXmlHandler);
-        wxC3F25InitBitmapResources();
-        bBitmapLoaded = true;
-    }
-
-    wxBoxSizer* boxSizer262 = new wxBoxSizer(wxVERTICAL);
-    this->SetSizer(boxSizer262);
-
-    m_genericDirCtrl =
-        new wxGenericDirCtrl(this, wxID_ANY, wxT(""), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)),
-                             wxDIRCTRL_MULTIPLE | wxDIRCTRL_SHOW_FILTERS);
-    m_genericDirCtrl->ShowHidden(false);
-
-    boxSizer262->Add(m_genericDirCtrl, 1, wxALL | wxEXPAND, WXC_FROM_DIP(2));
-
-    SetName(wxT("FileExplorerBase"));
-    SetSize(wxDLG_UNIT(this, wxSize(-1, -1)));
-    if(GetSizer()) { GetSizer()->Fit(this); }
-    // Connect events
-    m_genericDirCtrl->Connect(wxEVT_COMMAND_TREE_ITEM_ACTIVATED, wxTreeEventHandler(FileExplorerBase::OnItemActivated),
-                              NULL, this);
-    m_genericDirCtrl->Connect(wxEVT_COMMAND_TREE_ITEM_MENU, wxTreeEventHandler(FileExplorerBase::OnContextMenu), NULL,
-                              this);
-    m_genericDirCtrl->Connect(wxEVT_COMMAND_TREE_KEY_DOWN, wxTreeEventHandler(FileExplorerBase::OnKeyDown), NULL, this);
-}
-
-FileExplorerBase::~FileExplorerBase()
-{
-    m_genericDirCtrl->Disconnect(wxEVT_COMMAND_TREE_ITEM_ACTIVATED,
-                                 wxTreeEventHandler(FileExplorerBase::OnItemActivated), NULL, this);
-    m_genericDirCtrl->Disconnect(wxEVT_COMMAND_TREE_ITEM_MENU, wxTreeEventHandler(FileExplorerBase::OnContextMenu),
-                                 NULL, this);
-    m_genericDirCtrl->Disconnect(wxEVT_COMMAND_TREE_KEY_DOWN, wxTreeEventHandler(FileExplorerBase::OnKeyDown), NULL,
-                                 this);
-}
-
 WorkspaceTabBase::WorkspaceTabBase(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style)
     : wxPanel(parent, id, pos, size, style)
 {
@@ -357,14 +316,13 @@ WorkspaceTabBase::WorkspaceTabBase(wxWindow* parent, wxWindowID id, const wxPoin
     wxBoxSizer* mainSizer = new wxBoxSizer(wxVERTICAL);
     this->SetSizer(mainSizer);
 
-    m_simpleBook = new wxSimplebook(this, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)),
-                                    wxBK_DEFAULT | wxBORDER_NONE);
+    m_simpleBook = new wxSimplebook(this, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), wxBORDER_NONE);
     m_simpleBook->SetName(wxT("m_simpleBook"));
     m_simpleBook->SetEffect(wxSHOW_EFFECT_NONE);
 
     mainSizer->Add(m_simpleBook, 1, wxEXPAND, WXC_FROM_DIP(5));
 
-    m_panelCxx = new wxPanel(m_simpleBook, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_simpleBook, wxSize(-1, -1)),
+    m_panelCxx = new wxPanel(m_simpleBook, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_simpleBook, wxSize(200, 200)),
                              wxTAB_TRAVERSAL);
     m_simpleBook->AddPage(m_panelCxx, _("C++ Workspace"), true);
 
@@ -382,17 +340,61 @@ WorkspaceTabBase::WorkspaceTabBase(wxWindow* parent, wxWindowID id, const wxPoin
 
     boxSizer505->Add(m_configChangeCtrl, 0, wxTOP | wxBOTTOM | wxEXPAND, WXC_FROM_DIP(2));
 
-    m_fileView = new FileViewTree(m_panelCxx, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panelCxx, wxSize(-1, -1)),
+    m_splitter = new clThemedSplitterWindow(m_panelCxx, wxID_ANY, wxDefaultPosition,
+                                            wxDLG_UNIT(m_panelCxx, wxSize(-1, -1)), wxSP_LIVE_UPDATE);
+    m_splitter->SetSashGravity(0);
+    m_splitter->SetMinimumPaneSize(10);
+
+    boxSizer505->Add(m_splitter, 1, wxEXPAND, WXC_FROM_DIP(5));
+
+    m_splitterPagePinnedProjects =
+        new wxPanel(m_splitter, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_splitter, wxSize(-1, -1)), wxTAB_TRAVERSAL);
+
+    wxBoxSizer* boxSizer621 = new wxBoxSizer(wxVERTICAL);
+    m_splitterPagePinnedProjects->SetSizer(boxSizer621);
+
+    m_dvListCtrlPinnedProjects = new clThemedListCtrl(m_splitterPagePinnedProjects, wxID_ANY, wxDefaultPosition,
+                                                      wxDLG_UNIT(m_splitterPagePinnedProjects, wxSize(-1, 100)),
+                                                      wxDV_NO_HEADER | wxDV_ROW_LINES | wxDV_SINGLE | wxBORDER_NONE);
+
+    boxSizer621->Add(m_dvListCtrlPinnedProjects, 1, wxEXPAND, WXC_FROM_DIP(5));
+
+    m_dvListCtrlPinnedProjects->AppendTextColumn(_("Project"), wxDATAVIEW_CELL_INERT, WXC_FROM_DIP(-2), wxALIGN_LEFT,
+                                                 wxDATAVIEW_COL_RESIZABLE);
+    m_splitterPageTreeView =
+        new wxPanel(m_splitter, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_splitter, wxSize(-1, -1)), wxTAB_TRAVERSAL);
+    m_splitter->SplitHorizontally(m_splitterPagePinnedProjects, m_splitterPageTreeView, 50);
+
+    wxBoxSizer* boxSizer619 = new wxBoxSizer(wxVERTICAL);
+    m_splitterPageTreeView->SetSizer(boxSizer619);
+
+    m_fileView = new FileViewTree(m_splitterPageTreeView, wxID_ANY, wxDefaultPosition,
+                                  wxDLG_UNIT(m_splitterPageTreeView, wxSize(-1, -1)),
                                   wxTR_MULTIPLE | wxTR_NO_LINES | wxTR_HAS_BUTTONS);
 
-    boxSizer505->Add(m_fileView, 1, wxEXPAND, WXC_FROM_DIP(2));
+    boxSizer619->Add(m_fileView, 1, wxEXPAND, WXC_FROM_DIP(2));
 
     SetName(wxT("WorkspaceTabBase"));
     SetSize(wxDLG_UNIT(this, wxSize(-1, -1)));
     if(GetSizer()) { GetSizer()->Fit(this); }
+    // Connect events
+    m_dvListCtrlPinnedProjects->Connect(wxEVT_COMMAND_DATAVIEW_ITEM_CONTEXT_MENU,
+                                        wxDataViewEventHandler(WorkspaceTabBase::OnPinnedCxxProjectContextMenu), NULL,
+                                        this);
+    m_dvListCtrlPinnedProjects->Connect(wxEVT_COMMAND_DATAVIEW_SELECTION_CHANGED,
+                                        wxDataViewEventHandler(WorkspaceTabBase::OnPinnedCxxProjectSelected), NULL,
+                                        this);
 }
 
-WorkspaceTabBase::~WorkspaceTabBase() {}
+WorkspaceTabBase::~WorkspaceTabBase()
+{
+    m_dvListCtrlPinnedProjects->Disconnect(wxEVT_COMMAND_DATAVIEW_ITEM_CONTEXT_MENU,
+                                           wxDataViewEventHandler(WorkspaceTabBase::OnPinnedCxxProjectContextMenu),
+                                           NULL, this);
+    m_dvListCtrlPinnedProjects->Disconnect(wxEVT_COMMAND_DATAVIEW_SELECTION_CHANGED,
+                                           wxDataViewEventHandler(WorkspaceTabBase::OnPinnedCxxProjectSelected), NULL,
+                                           this);
+}
 
 EditorFrameBase::EditorFrameBase(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos,
                                  const wxSize& size, long style)

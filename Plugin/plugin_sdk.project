@@ -45,6 +45,14 @@
     </Plugin>
   </Plugins>
   <VirtualDirectory Name="LanguageServerProtocol">
+    <File Name="LSPNetworkSTDIO.cpp"/>
+    <File Name="LSPNetworkSTDIO.h"/>
+    <File Name="LSPNetworkSocketClient.cpp"/>
+    <File Name="LSPNetworkSocketClient.h"/>
+    <File Name="LSPStartupInfo.cpp"/>
+    <File Name="LSPStartupInfo.h"/>
+    <File Name="LSPNetwork.cpp"/>
+    <File Name="LSPNetwork.h"/>
     <File Name="LanguageServerProtocol.h"/>
     <File Name="LanguageServerProtocol.cpp"/>
   </VirtualDirectory>
@@ -63,6 +71,8 @@
     <File Name="clButton.cpp"/>
   </VirtualDirectory>
   <VirtualDirectory Name="clTreeCtrl">
+    <File Name="clThemedSplitterWindow.cpp"/>
+    <File Name="clThemedSplitterWindow.h"/>
     <File Name="clCustomScrollBar.cpp"/>
     <File Name="clCustomScrollBar.h"/>
     <File Name="clThemedListCtrl.cpp"/>
@@ -133,6 +143,16 @@
     <Topleveldir>/src/codelite/Plugin</Topleveldir>
   </Reconciliation>
   <VirtualDirectory Name="src">
+    <VirtualDirectory Name="clangd">
+      <File Name="CompileFlagsTxt.cpp"/>
+      <File Name="CompileFlagsTxt.h"/>
+      <File Name="CompileCommandsJSON.cpp"/>
+      <File Name="CompileCommandsJSON.h"/>
+      <File Name="CompileCommandsGenerator.h"/>
+      <File Name="CompileCommandsGenerator.cpp"/>
+      <File Name="compilation_database.h"/>
+      <File Name="compilation_database.cpp"/>
+    </VirtualDirectory>
     <File Name="clSystemSettings.cpp"/>
     <File Name="clSystemSettings.h"/>
     <File Name="async_executable_cmd.cpp"/>
@@ -157,8 +177,6 @@
     <File Name="localworkspace.h"/>
     <File Name="localworkspace.cpp"/>
     <File Name="shell_command.cpp"/>
-    <File Name="compilation_database.h"/>
-    <File Name="compilation_database.cpp"/>
     <File Name="Markup.cpp"/>
     <File Name="Markup.h"/>
     <File Name="VirtualDirectorySelectorDlg.h"/>
@@ -167,8 +185,6 @@
     <File Name="bookmark_manager.cpp"/>
     <File Name="unredobase.cpp"/>
     <File Name="unredobase.h"/>
-    <File Name="CompileCommandsCreateor.h"/>
-    <File Name="CompileCommandsCreateor.cpp"/>
     <File Name="ColoursAndFontsManager.h"/>
     <File Name="ColoursAndFontsManager.cpp"/>
     <VirtualDirectory Name="EclipseImporters">
@@ -673,8 +689,6 @@
     <File Name="sftp_settings.h"/>
   </VirtualDirectory>
   <VirtualDirectory Name="Diff">
-    <File Name="DiffFoldersDlg.cpp"/>
-    <File Name="DiffFoldersDlg.h"/>
     <File Name="DiffSelectFoldersDlg.cpp"/>
     <File Name="DiffSelectFoldersDlg.h"/>
     <File Name="DiffFoldersFrame.cpp"/>
@@ -758,7 +772,7 @@
     <Project Name="databaselayer_sqlite"/>
     <Project Name="wxshapeframework"/>
   </Dependencies>
-  <Settings Type="Executable">
+  <Settings Type="Dynamic Library">
     <GlobalSettings>
       <Compiler Options="" C_Options="" Assembler="">
         <IncludePath Value="."/>
@@ -918,6 +932,7 @@
         <IncludePath Value="../Interfaces"/>
         <IncludePath Value="../sdk/libssh/include"/>
         <Preprocessor Value="USE_SFTP=1"/>
+        <Preprocessor Value="CL_DEBUG_BUILD=1"/>
       </Compiler>
       <Linker Options="$(shell wx-config --libs std,stc,ribbon,propgrid  --unicode=yes)" Required="yes">
         <LibraryPath Value="../lib/gcc_lib"/>

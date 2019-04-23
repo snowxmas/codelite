@@ -32,20 +32,18 @@
 #include "codelite_exports.h"
 
 class wxTerminal;
-class UnixWriteThread;
 class WXDLLIMPEXP_CL UnixProcessImpl : public IProcess
 {
     int m_readHandle;
     int m_stderrHandle = wxNOT_FOUND;
     int m_writeHandle;
     ProcessReaderThread* m_thr = nullptr;
-    UnixWriteThread* m_writerThread = nullptr;
+    wxString m_tty;
     friend class wxTerminal;
-
 private:
     void StartReaderThread();
     bool ReadFromFd(int fd, fd_set& rset, wxString& output);
-    
+
 public:
     UnixProcessImpl(wxEvtHandler* parent);
     virtual ~UnixProcessImpl();
@@ -60,12 +58,17 @@ public:
     int GetWriteHandle() const { return m_writeHandle; }
     void SetStderrHandle(int stderrHandle) { this->m_stderrHandle = stderrHandle; }
 
+    void SetTty(const wxString& tty) { this->m_tty = tty; }
+    const wxString& GetTty() const { return m_tty; }
+
 public:
     virtual void Cleanup();
     virtual bool IsAlive();
     virtual bool Read(wxString& buff, wxString& buffErr);
     virtual bool Write(const wxString& buff);
     virtual bool Write(const std::string& buff);
+    virtual bool WriteRaw(const wxString& buff);
+    virtual bool WriteRaw(const std::string& buff);
     virtual void Terminate();
     virtual bool WriteToConsole(const wxString& buff);
     virtual void Detach();

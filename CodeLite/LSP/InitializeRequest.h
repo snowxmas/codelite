@@ -1,11 +1,11 @@
 #ifndef INITIALIZEREQUEST_H
 #define INITIALIZEREQUEST_H
 
-#include "LSP/RequestMessage.h"
+#include "LSP/Request.h"
 namespace LSP
 {
 
-class WXDLLIMPEXP_CL InitializeRequest : public LSP::RequestMessage
+class WXDLLIMPEXP_CL InitializeRequest : public LSP::Request
 {
     int m_processId = wxNOT_FOUND;
     wxString m_rootUri;
@@ -26,9 +26,8 @@ public:
     int GetProcessId() const { return m_processId; }
     const wxString& GetRootUri() const { return m_rootUri; }
     JSONItem ToJSON(const wxString& name) const;
-    void BuildUID();
+    void OnResponse(const LSP::ResponseMessage& response, wxEvtHandler* owner);
+    bool IsPositionDependantRequest() const { return false; }
 };
-
-}; // namespace LSP
-
+};     // namespace LSP
 #endif // INITIALIZEREQUEST_H

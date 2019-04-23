@@ -29,11 +29,11 @@
 #include <wx/scrolwin.h>
 #include <wx/statbmp.h>
 #include <wx/commandlinkbutton.h>
-#include <wx/dirctrl.h>
 #include <wx/simplebook.h>
 #include <wx/toolbar.h>
 #include "clToolBar.h"
 #include "clConfigurationSelectionCtrl.h"
+#include "clThemedSplitterWindow.h"
 #include <wx/treectrl.h>
 #include "fileview.h"
 #include <wx/frame.h>
@@ -179,23 +179,6 @@ public:
     virtual ~WelcomePageBase();
 };
 
-class FileExplorerBase : public wxPanel
-{
-protected:
-    wxGenericDirCtrl* m_genericDirCtrl;
-
-protected:
-    virtual void OnItemActivated(wxTreeEvent& event) { event.Skip(); }
-    virtual void OnContextMenu(wxTreeEvent& event) { event.Skip(); }
-    virtual void OnKeyDown(wxTreeEvent& event) { event.Skip(); }
-
-public:
-    wxGenericDirCtrl* GetGenericDirCtrl() { return m_genericDirCtrl; }
-    FileExplorerBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition,
-                     const wxSize& size = wxSize(-1, -1), long style = wxTAB_TRAVERSAL);
-    virtual ~FileExplorerBase();
-};
-
 class WorkspaceTabBase : public wxPanel
 {
 protected:
@@ -203,13 +186,24 @@ protected:
     wxPanel* m_panelCxx;
     clToolBar* m_toolbar580;
     clConfigurationSelectionCtrl* m_configChangeCtrl;
+    clThemedSplitterWindow* m_splitter;
+    wxPanel* m_splitterPagePinnedProjects;
+    clThemedListCtrl* m_dvListCtrlPinnedProjects;
+    wxPanel* m_splitterPageTreeView;
     FileViewTree* m_fileView;
 
 protected:
+    virtual void OnPinnedCxxProjectContextMenu(wxDataViewEvent& event) { event.Skip(); }
+    virtual void OnPinnedCxxProjectSelected(wxDataViewEvent& event) { event.Skip(); }
+
 public:
     clToolBar* GetToolbar580() { return m_toolbar580; }
     clConfigurationSelectionCtrl* GetConfigChangeCtrl() { return m_configChangeCtrl; }
+    clThemedListCtrl* GetDvListCtrlPinnedProjects() { return m_dvListCtrlPinnedProjects; }
+    wxPanel* GetSplitterPagePinnedProjects() { return m_splitterPagePinnedProjects; }
     FileViewTree* GetFileView() { return m_fileView; }
+    wxPanel* GetSplitterPageTreeView() { return m_splitterPageTreeView; }
+    clThemedSplitterWindow* GetSplitter() { return m_splitter; }
     wxPanel* GetPanelCxx() { return m_panelCxx; }
     wxSimplebook* GetSimpleBook() { return m_simpleBook; }
     WorkspaceTabBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition,

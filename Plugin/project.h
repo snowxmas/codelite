@@ -322,6 +322,7 @@ private:
     FilesMap_t m_filesTable;
     FoldersMap_t m_virtualFoldersTable;
     wxStringSet_t m_excludeFiles;
+    wxStringSet_t emptySet;
 
 private:
     void DoUpdateProjectSettings();
@@ -771,7 +772,7 @@ public:
      * name which can later be replaced by the caller with the actual file name
      */
     wxString GetCompileLineForCXXFile(const wxStringMap_t& compilersGlobalPaths, BuildConfigPtr buildConf,
-                                      const wxString& filenamePlaceholder = "$FileName", bool cxxFile = true) const;
+                                      const wxString& filenamePlaceholder = "$FileName", bool cxxFile = true);
 
     void ClearAllVirtDirs();
 
@@ -826,6 +827,12 @@ public:
      */
     void CreateCompileCommandsJSON(JSONItem& compile_commands, const wxStringMap_t& compilersGlobalPaths);
 
+    /**
+     * @brief create compile_flags.txt file for this project
+     * @param compilersGlobalPaths
+     */
+    void CreateCompileFlags(const wxStringMap_t& compilersGlobalPaths);
+
     void SetWorkspaceFolder(const wxString& workspaceFolders) { this->m_workspaceFolder = workspaceFolders; }
     const wxString& GetWorkspaceFolder() const { return m_workspaceFolder; }
 
@@ -835,11 +842,6 @@ public:
      * that matches the current workspace configuration
      */
     BuildConfigPtr GetBuildConfiguration(const wxString& configName = "") const;
-
-    /**
-     * @brief clear the backtick expansion info
-     */
-    static void ClearBacktickCache();
 
 private:
     /**
@@ -852,7 +854,7 @@ private:
     void DoDeleteVDFromCache(const wxString& vd);
     wxArrayString DoBacktickToIncludePath(const wxString& backtick);
     wxArrayString DoBacktickToPreProcessors(const wxString& backtick);
-    wxString DoExpandBacktick(const wxString& backtick) const;
+    wxString DoExpandBacktick(const wxString& backtick);
     void DoGetVirtualDirectories(wxXmlNode* parent, TreeNode<wxString, VisualWorkspaceNode>* tree);
 
     // Recursive helper function

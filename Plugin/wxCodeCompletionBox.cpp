@@ -535,7 +535,7 @@ void wxCodeCompletionBox::InsertSelection()
         wxCodeCompletionBoxEntry::Ptr_t match = m_entries.at(m_index);
         // Let the owner override the default behavior
         clCodeCompletionEvent e(wxEVT_CCBOX_SELECTION_MADE);
-        e.SetWord(match->GetText());
+        e.SetWord(match->GetInsertText());
         e.SetEventObject(m_eventObject);
         e.SetEntry(match);
         if(!EventNotifier::Get()->ProcessEvent(e)) {
@@ -549,7 +549,7 @@ void wxCodeCompletionBox::InsertSelection()
                     return;
                 }
             }
-            wxCodeCompletionBoxManager::Get().CallAfter(&wxCodeCompletionBoxManager::InsertSelection, match->GetText());
+            wxCodeCompletionBoxManager::Get().CallAfter(&wxCodeCompletionBoxManager::InsertSelection, match);
         }
     }
 }
@@ -583,11 +583,8 @@ wxCodeCompletionBoxEntry::Vec_t wxCodeCompletionBox::TagsToEntries(const TagEntr
 {
     wxCodeCompletionBoxEntry::Vec_t entries;
     for(size_t i = 0; i < tags.size(); ++i) {
-        TagEntryPtr tag = tags.at(i);
-        wxString text = tag->GetDisplayName().Trim().Trim(false);
-        int imgIndex = GetImageId(tag);
-        wxCodeCompletionBoxEntry::Ptr_t entry = wxCodeCompletionBoxEntry::New(text, imgIndex);
-        entry->m_tag = tag;
+        TagEntryPtr tag = tags[i];
+        wxCodeCompletionBoxEntry::Ptr_t entry = TagToEntry(tag);
         entries.push_back(entry);
     }
     return entries;
@@ -649,6 +646,13 @@ wxCodeCompletionBoxEntry::Ptr_t wxCodeCompletionBox::TagToEntry(TagEntryPtr tag)
     int imgIndex = GetImageId(tag);
     wxCodeCompletionBoxEntry::Ptr_t entry = wxCodeCompletionBoxEntry::New(text, imgIndex);
     entry->m_tag = tag;
+    entry->SetInsertText(text.BeforeFirst('('));
+    entry->SetIsFunction(tag->IsMethod());
+    entry->SetIsTemplateFunction(tag->IsTemplateFunction());
+
+    wxString sig = tag->GetSignature();
+    sig = sig.AfterFirst('(').BeforeLast(')');
+    entry->SetSignature(sig);
     return entry;
 }
 
@@ -868,7 +872,33 @@ wxCodeCompletionBox::LSPCompletionsToEntries(const LSP::CompletionItem::Vec_t& c
         wxString text = completion->GetLabel();
         int imgIndex = GetImageId(completion);
         wxCodeCompletionBoxEntry::Ptr_t entry = wxCodeCompletionBoxEntry::New(text, imgIndex);
-        entry->SetComment(completion->GetDetail());
+
+        wxString comment;
+        if(!completion->GetDetail().IsEmpty()) { comment << completion->GetDetail(); }
+        if(!completion->GetDocumentation().IsEmpty()) { comment << "\n" << completion->GetDocumentation(); }
+
+        // if 'insertText' is provided, use it instead of the label
+        wxString insertText;
+        insertText = completion->GetInsertText().IsEmpty() ? completion->GetLabel() : completion->GetInsertText();
+        if(completion->HasTextEdit()) {
+            // According to the spec: if textEdit exists, we ignore 'insertText'
+            insertText = completion->GetTextEdit()->GetNewText();
+        }
+        entry->SetInsertText(insertText);
+        entry->SetImgIndex(imgIndex);
+        entry->SetComment(comment);
+        entry->SetIsFunction(completion->GetKind() == LSP::CompletionItem::kKindConstructor ||
+                             completion->GetKind() == LSP::CompletionItem::kKindFunction ||
+                             completion->GetKind() == LSP::CompletionItem::kKindMethod);
+        entry->SetIsTemplateFunction(completion->GetLabel().Contains("<") && completion->GetLabel().Contains(">"));
+        if(entry->IsFunction()) {
+            // extract the function signature from the label
+            wxString label = completion->GetLabel();
+            wxString signature = label.AfterFirst('(');
+            signature = signature.BeforeLast(')');
+            signature.Trim().Trim(false);
+            entry->SetSignature(signature);
+        }
         entries.push_back(entry);
     }
     return entries;

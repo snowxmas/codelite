@@ -1,1 +1,7 @@
-* wxCrafter: replace the code toolbar
+LSP:
+====
+Display diagnostic messages
+
+Project View:
+=============
+Support pinned projects

@@ -211,10 +211,6 @@ void ContextPhp::AutoIndent(const wxChar& nChar)
 
 wxString ContextPhp::CallTipContent() { return wxEmptyString; }
 
-void ContextPhp::CodeComplete(long pos) {}
-
-void ContextPhp::CompleteWord() {}
-
 int ContextPhp::DoGetCalltipParamterIndex() { return ContextBase::DoGetCalltipParamterIndex(); }
 
 wxString ContextPhp::GetCurrentScopeName() { return wxT(""); }
@@ -222,10 +218,6 @@ wxString ContextPhp::GetCurrentScopeName() { return wxT(""); }
 wxMenu* ContextPhp::GetMenu() { return ContextBase::GetMenu(); }
 
 TagEntryPtr ContextPhp::GetTagAtCaret(bool scoped, bool impl) { return NULL; }
-
-void ContextPhp::GoHyperlink(int start, int end, int type, bool alt) {}
-
-void ContextPhp::GotoDefinition() {}
 
 void ContextPhp::GotoPreviousDefintion() {}
 
@@ -353,19 +345,7 @@ bool ContextPhp::IsAtLineComment() const
 
 bool ContextPhp::IsStringTriggerCodeComplete(const wxString& str) const
 {
-    int curpos = GetCtrl().GetCurrentPos();
-    // curpos = GetCtrl().PositionBefore(curpos);
-    int style = GetCtrl().GetStyleAt(curpos);
-    if(IS_BETWEEN(style, wxSTC_HJ_START, wxSTC_HJA_REGEX)) {
-        // When in JS section, trigger CC if str is a dot
-        return str == ".";
-
-    } else if(IS_BETWEEN(style, wxSTC_H_DEFAULT, wxSTC_H_ENTITY)) {
-        return str == "</" || str == "<";
-
-    } else {
-        return (m_completionTriggerStrings.count(str) > 0);
-    }
+    return (m_completionTriggerStrings.count(str) > 0);
 }
 
 void ContextPhp::ProcessIdleActions() { ContextGeneric::ProcessIdleActions(); }

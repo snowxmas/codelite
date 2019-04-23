@@ -37,6 +37,7 @@
 #include <wx/regex.h>
 #include <wx/tokenzr.h>
 #include <wx/xrc/xmlres.h>
+#include "ServiceProviderManager.h"
 
 // static wxColor GetInactiveColor(const wxColor& col)
 //{
@@ -198,10 +199,12 @@ void ContextBase::OnUserTypedXChars(const wxString& word)
         // Try to call code completion
         clCodeCompletionEvent ccEvt(wxEVT_CC_CODE_COMPLETE);
         ccEvt.SetEditor(&GetCtrl());
+        ccEvt.SetInsideCommentOrString(IsCommentOrString(GetCtrl().GetCurrentPos()));
+        ccEvt.SetTriggerKind(LSP::CompletionItem::kTriggerKindInvoked);
         ccEvt.SetPosition(GetCtrl().GetCurrentPos());
         ccEvt.SetWord(word);
 
-        if(!EventNotifier::Get()->ProcessEvent(ccEvt)) {
+        if(!ServiceProviderManager::Get().ProcessEvent(ccEvt)) {
             // This is ugly, since CodeLite should not be calling
             // the plugins... we take comfort in the fact that it
             // merely fires an event and not calling it directly
@@ -366,7 +369,7 @@ void ContextBase::BlockCommentComplete()
     int curPos = stc->GetCurrentPos();
     int start = stc->WordStartPosition(stc->GetCurrentPos(), true);
     if(curPos < start) return;
-    
+
     // Fire an event indicating user typed '@' in a block comment
     clCodeCompletionEvent ccEvent(wxEVT_CC_BLOCK_COMMENT_CODE_COMPLETE);
     ccEvent.SetEditor(&GetCtrl());

@@ -5,6 +5,8 @@
 #include <wx/string.h>
 #include "cl_config.h"
 #include <wxStringHash.h>
+#include "LSPNetwork.h"
+#include <map>
 
 class LanguageServerEntry
 {
@@ -14,15 +16,34 @@ class LanguageServerEntry
     wxString m_args;
     wxString m_workingDirectory;
     wxArrayString m_languages;
+    wxString m_connectionString;
+    int m_priority = 50;
+    wxStringSet_t m_unimplementedMethods;
 
 public:
-    typedef std::unordered_map<wxString, LanguageServerEntry> Map_t;
+    // use 'map' to keep the items sorted by name
+    typedef std::map<wxString, LanguageServerEntry> Map_t;
+
+    /**
+     * @brief try to validate the LSP by checking that all paths do exists
+     * @return
+     */
+    bool IsValid() const;
 
 public:
     virtual void FromJSON(const JSONItem& json);
     virtual JSONItem ToJSON() const;
     LanguageServerEntry();
     virtual ~LanguageServerEntry();
+
+    const wxStringSet_t& GetUnimplementedMethods() const { return m_unimplementedMethods; }
+    
+    /**
+     * @brief add unimplemented method to this LSP
+     * @param methodName
+     */
+    void AddUnImplementedMethod(const wxString& methodName);
+
     LanguageServerEntry& SetArgs(const wxString& args)
     {
         this->m_args = args;
@@ -33,8 +54,20 @@ public:
         this->m_exepath = exepath;
         return *this;
     }
+    LanguageServerEntry& SetConnectionString(const wxString& connectionString)
+    {
+        this->m_connectionString = connectionString;
+        return *this;
+    }
+    const wxString& GetConnectionString() const { return m_connectionString; }
     const wxString& GetArgs() const { return m_args; }
     const wxString& GetExepath() const { return m_exepath; }
+    LanguageServerEntry& SetPriority(int priority)
+    {
+        this->m_priority = priority;
+        return *this;
+    }
+    int GetPriority() const { return m_priority; }
     LanguageServerEntry& SetEnabled(bool enabled)
     {
         this->m_enabled = enabled;
@@ -59,6 +92,7 @@ public:
         return *this;
     }
     const wxString& GetName() const { return m_name; }
+    eNetworkType GetNetType() const;
 };
 
 #endif // LANGUAGESERVERENTRY_H

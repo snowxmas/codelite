@@ -33,6 +33,22 @@ CL_PLUGIN_API PluginInfo* GetPluginInfo()
 
 CL_PLUGIN_API int GetPluginInterfaceVersion() { return PLUGIN_INTERFACE_VERSION; }
 
+
+// Helper
+WordCompleter::WordCompleter(WordCompletionPlugin* plugin)
+    : ServiceProvider("Words", eServiceType::kCodeCompletion)
+    , m_plugin(plugin)
+{
+    SetPriority(20);
+    Bind(wxEVT_CC_WORD_COMPLETE, &WordCompleter::OnWordComplete, this);
+}
+
+WordCompleter::~WordCompleter()
+{
+    Unbind(wxEVT_CC_WORD_COMPLETE, &WordCompleter::OnWordComplete, this);
+}
+void WordCompleter::OnWordComplete(clCodeCompletionEvent& event) { m_plugin->OnWordComplete(event); }
+
 WordCompletionPlugin::WordCompletionPlugin(IManager* manager)
     : IPlugin(manager)
 {
@@ -40,8 +56,8 @@ WordCompletionPlugin::WordCompletionPlugin(IManager* manager)
     m_shortName = wxT("Word Completion");
 
     wxTheApp->Bind(wxEVT_MENU, &WordCompletionPlugin::OnSettings, this, XRCID("text_word_complete_settings"));
-    EventNotifier::Get()->Bind(wxEVT_CC_WORD_COMPLETE, &WordCompletionPlugin::OnWordComplete, this);
     m_dictionary = new WordCompletionDictionary();
+    m_completer = new WordCompleter(this);
 }
 
 WordCompletionPlugin::~WordCompletionPlugin() {}
@@ -58,7 +74,7 @@ void WordCompletionPlugin::CreatePluginMenu(wxMenu* pluginsMenu)
 void WordCompletionPlugin::UnPlug()
 {
     wxDELETE(m_dictionary);
-    EventNotifier::Get()->Unbind(wxEVT_CC_WORD_COMPLETE, &WordCompletionPlugin::OnWordComplete, this);
+    wxDELETE(m_completer);
     wxTheApp->Unbind(wxEVT_MENU, &WordCompletionPlugin::OnSettings, this, XRCID("text_word_complete_settings"));
 }
 

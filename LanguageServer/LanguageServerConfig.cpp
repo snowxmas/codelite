@@ -1,9 +1,14 @@
 #include "LanguageServerConfig.h"
 #include <algorithm>
+#include <NodeJSLocator.h>
 
 LanguageServerConfig::LanguageServerConfig()
     : clConfigItem("LSPConfig")
 {
+    NodeJSLocator locator;
+    locator.Locate();
+
+    m_nodejs = locator.GetNodejs();
 }
 
 LanguageServerConfig::~LanguageServerConfig() {}
@@ -32,6 +37,7 @@ void LanguageServerConfig::FromJSON(const JSONItem& json)
 {
     m_servers.clear();
     m_flags = json.namedObject("flags").toSize_t(m_flags);
+    m_nodejs = json.namedObject("nodejs").toString(m_nodejs);
     if(json.hasNamedObject("servers")) {
         JSONItem servers = json.namedObject("servers");
         size_t count = servers.arraySize();
@@ -48,6 +54,7 @@ JSONItem LanguageServerConfig::ToJSON() const
 {
     JSONItem json = JSONItem::createObject(GetName());
     json.addProperty("flags", m_flags);
+    json.addProperty("nodejs", m_nodejs);
     JSONItem servers = JSONItem::createArray("servers");
     std::for_each(m_servers.begin(), m_servers.end(),
                   [&](const LanguageServerEntry::Map_t::value_type& vt) { servers.append(vt.second.ToJSON()); });
@@ -64,4 +71,18 @@ void LanguageServerConfig::AddServer(const LanguageServerEntry& server)
 void LanguageServerConfig::RemoveServer(const wxString& name)
 {
     if(m_servers.count(name)) { m_servers.erase(name); }
+}
+
+const LanguageServerEntry& LanguageServerConfig::GetServer(const wxString& name) const
+{
+    static LanguageServerEntry NullEntry;
+    if(m_servers.count(name) == 0) { return NullEntry; }
+    return m_servers.find(name)->second;
+}
+
+LanguageServerEntry& LanguageServerConfig::GetServer(const wxString& name)
+{
+    static LanguageServerEntry NullEntry;
+    if(m_servers.count(name) == 0) { return NullEntry; }
+    return m_servers[name];
 }

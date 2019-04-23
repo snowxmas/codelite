@@ -423,7 +423,6 @@
       <File Name="pluginmgrdlg.cpp"/>
       <File Name="plugindlgbase.wxcp"/>
     </VirtualDirectory>
-    <VirtualDirectory Name="DoxygenUI"/>
     <VirtualDirectory Name="Accelerators">
       <File Name="acceltabledlg.h"/>
       <File Name="acceltabledlg.cpp"/>
@@ -783,12 +782,6 @@
   <VirtualDirectory Name="CodeCompletion">
     <File Name="code_completion_manager.h"/>
     <File Name="code_completion_manager.cpp"/>
-    <VirtualDirectory Name="GeneratedCode">
-      <File Name="clang_output_parser_api.h"/>
-      <File Name="clang_result_lexer.cpp"/>
-      <File Name="clang_result_parser.cpp"/>
-      <File Name="clang_result_parser.h"/>
-    </VirtualDirectory>
     <File Name="CxxPreProcessorThread.h"/>
     <File Name="CxxPreProcessorThread.cpp"/>
     <File Name="CxxUsingNamespaceCollectorThread.h"/>
@@ -975,8 +968,6 @@
     <File Name="ImportFilesDialogNew.h"/>
     <File Name="ImportFilesDialogNew.cpp"/>
     <File Name="DebuggerSettings_liteeditor_bitmaps.cpp"/>
-    <File Name="FileExplorerTab.h"/>
-    <File Name="FileExplorerTab.cpp"/>
     <File Name="breakpoint_dlg_liteeditor_bitmaps.cpp"/>
     <File Name="breakpointdlgbase.cpp"/>
   </VirtualDirectory>
@@ -1411,7 +1402,7 @@
         <LibraryPath Value="Debug"/>
       </Linker>
       <ResourceCompiler Options="" Required="no"/>
-      <General OutputFile="" IntermediateDirectory="./Debug" Command="/home/eran/root/bin/codelite" CommandArguments="--with-plugins=LanguageServerPlugin" UseSeparateDebugArgs="yes" DebugArguments="--with-plugins=LanguageServerPlugin" WorkingDirectory="" PauseExecWhenProcTerminates="no" IsGUIProgram="yes" IsEnabled="yes"/>
+      <General OutputFile="" IntermediateDirectory="./Debug" Command="/home/eran/root/bin/codelite" CommandArguments="" UseSeparateDebugArgs="yes" DebugArguments="" WorkingDirectory="" PauseExecWhenProcTerminates="no" IsGUIProgram="yes" IsEnabled="yes"/>
       <BuildSystem Name="Default"/>
       <Environment EnvVarSetName="&lt;Use Defaults&gt;" DbgSetName="&lt;Use Defaults&gt;">
         <![CDATA[]]>
@@ -1638,7 +1629,7 @@ GTK_OVERLAY_SCROLLING=0]]>
         <SearchPaths>$LLVM_HOME/tools/lldb/include</SearchPaths>
       </Completion>
     </Configuration>
-    <Configuration Name="CMake_Release" CompilerType="g++-64" DebuggerType="GNU gdb debugger" Type="Executable" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
+    <Configuration Name="CMake_Release" CompilerType="" DebuggerType="GNU gdb debugger" Type="Executable" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
       <Compiler Options="$(shell wx-config --cxxflags --debug=no --unicode=yes);-O2;$(shell pkg-config --cflags gtk+-2.0);-Wall;-fno-strict-aliasing" C_Options="$(shell wx-config --cxxflags --debug=no --unicode=yes);-O2;$(shell pkg-config --cflags gtk+-2.0);-Wall;-fno-strict-aliasing" Assembler="" Required="yes" PreCompiledHeader="" PCHInCommandLine="no" PCHFlags="" PCHFlagsPolicy="0">
         <IncludePath Value="."/>
         <IncludePath Value="../CodeLite"/>
@@ -1864,7 +1855,8 @@ resources.cpp: resources.xrc
       <BuildSystem Name="Default"/>
       <Environment EnvVarSetName="&lt;Use Defaults&gt;" DbgSetName="">
         <![CDATA[SUDO_ASKPASS=/usr/bin/ssh-askpass
-PATH=.:/home/eran/devl/wxWidgets/build-release-gtk3:$PATH]]>
+PATH=.:/home/eran/devl/wxWidgets/build-release-gtk3:$PATH
+LD_LIBRARY_PATH=.:/home/eran/devl/wxWidgets/build-release-gtk3/lib:$LD_LIBRARY_PATH]]>
       </Environment>
       <Debugger IsRemote="no" RemoteHostName="" RemoteHostPort="" DebuggerPath="" IsExtended="no">
         <DebuggerSearchPaths/>
@@ -1890,7 +1882,8 @@ PATH=.:/home/eran/devl/wxWidgets/build-release-gtk3:$PATH]]>
         <CustomPostBuild/>
         <CustomPreBuild>resources.cpp
 resources.cpp: resources.xrc
-	wxrc -c -v -o resources.cpp resources.xrc</CustomPreBuild>
+	wxrc -c -v -o resources.cpp resources.xrc
+</CustomPreBuild>
       </AdditionalRules>
       <Completion EnableCpp11="no" EnableCpp14="no">
         <ClangCmpFlagsC/>

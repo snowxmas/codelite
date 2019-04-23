@@ -561,7 +561,7 @@ clEditor* MainBook::OpenFile(const wxString& file_name, const wxString& projectN
         return NULL;
     }
 
-    if(FileExtManager::GetType(fileName.GetFullName()) == FileExtManager::TypeBmp) {
+    if(FileExtManager::GetType(fileName.GetFullPath()) == FileExtManager::TypeBmp) {
         // a bitmap file, open it using an image viewer
         DoOpenImageViewer(fileName);
         return NULL;
@@ -1536,6 +1536,7 @@ clEditor* MainBook::OpenFile(const BrowseRecord& rec)
             editor->SetCurrentPos(rec.position);
             editor->SetSelectionStart(rec.position);
             editor->SetSelectionEnd(rec.position);
+            editor->EnsureCaretVisible();
         }
     }
     return editor;

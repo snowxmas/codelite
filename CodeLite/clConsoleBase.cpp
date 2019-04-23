@@ -7,6 +7,8 @@
 #include "clConsoleMateTerminal.h"
 #include "clConsoleOSXTerminal.h"
 #include "clConsoleXfce4Terminal.h"
+#include "clConsoleRXVTerminal.h"
+#include "clConsoleCodeLiteTerminal.h"
 #include "cl_config.h"
 #include "file_logger.h"
 #include <algorithm>
@@ -47,8 +49,11 @@ clConsoleBase::Ptr_t clConsoleBase::GetTerminal()
     clConsoleBase::Ptr_t terminal;
     wxString terminalName = GetSelectedTerminalName();
 #ifdef __WXMSW__
-    wxUnusedVar(terminalName);
-    terminal.reset(new clConsoleCMD());
+    if(terminalName.CmpNoCase("codelite-terminal") == 0) {
+        terminal.reset(new clConsoleCodeLiteTerminal());
+    } else {
+        terminal.reset(new clConsoleCMD());
+    }
 #elif defined(__WXGTK__)
     if(terminalName.CmpNoCase("konsole") == 0) {
         terminal.reset(new clConsoleKonsole());
@@ -60,14 +65,22 @@ clConsoleBase::Ptr_t clConsoleBase::GetTerminal()
         terminal.reset(new clConsoleXfce4Terminal());
     } else if(terminalName.CmpNoCase("qterminal") == 0) {
         terminal.reset(new clConsoleQTerminal());
+    } else if(terminalName.CmpNoCase("rxvt-unicode") == 0) {
+        terminal.reset(new clConsoleRXVTTerminal());
+    } else if(terminalName.CmpNoCase("codelite-terminal") == 0) {
+        terminal.reset(new clConsoleCodeLiteTerminal());
     } else {
         // the default terminal is "gnome-terminal"
         terminal.reset(new clConsoleGnomeTerminal());
     }
 #else
-    clConsoleOSXTerminal* t = new clConsoleOSXTerminal();
-    terminal.reset(t);
-    if(terminalName.CmpNoCase("iTerm2") == 0) { t->SetTerminalApp("iTerm"); }
+    if(terminalName.CmpNoCase("codelite-terminal") == 0) {
+        terminal.reset(new clConsoleCodeLiteTerminal());
+    } else {
+        clConsoleOSXTerminal* t = new clConsoleOSXTerminal();
+        terminal.reset(t);
+        if(terminalName.CmpNoCase("iTerm2") == 0) { t->SetTerminalApp("iTerm"); }
+    }
 #endif
     return terminal;
 }
@@ -84,10 +97,12 @@ wxArrayString clConsoleBase::GetAvailaleTerminals()
     terminals.Add("mate-terminal");
     terminals.Add("qterminal");
     terminals.Add("xfce4-terminal");
+    terminals.Add("rxvt-unicode");
 #else
     terminals.Add("Terminal");
     terminals.Add("iTerm2");
 #endif
+    terminals.Add("codelite-terminal");
     return terminals;
 }
 
@@ -213,57 +228,55 @@ clConsoleEnvironment::clConsoleEnvironment(const wxStringMap_t& env)
 wxArrayString clConsoleBase::SplitArguments(const wxString& args)
 {
     const int STATE_NORMAL = 0;
-    const int STATE_DQUOTES = 1;
-    const int STATE_ESCAPE = 2;
+    const int STATE_STRING = 1;
+
     int state = STATE_NORMAL;
-    int prevState = STATE_NORMAL;
     wxArrayString outputArr;
     wxString curtoken;
+    wxChar prevChar = 0;
     for(size_t i = 0; i < args.size(); ++i) {
         wxChar ch = args[i];
         switch(state) {
         case STATE_NORMAL: {
             switch(ch) {
-            case '\\':
-                curtoken << ch;
-                prevState = STATE_NORMAL;
-                state = STATE_ESCAPE;
-                break;
             case ' ':
-                ADD_CURRENT_TOKEN();
+            case '\t':
+                if(prevChar == '\\') {
+                    curtoken << ch;
+                } else {
+                    ADD_CURRENT_TOKEN();
+                }
                 break;
             case '"':
-                ADD_CURRENT_TOKEN();
-                state = STATE_DQUOTES;
+            case '\'':
+                // we dont want to keep the string markers
+                state = STATE_STRING;
                 break;
             default:
                 curtoken << ch;
                 break;
             }
         } break;
-        case STATE_DQUOTES: {
+        case STATE_STRING: {
             switch(ch) {
-            case '\\':
-                curtoken << ch;
-                prevState = STATE_DQUOTES;
-                state = STATE_ESCAPE;
-                break;
             case '"':
-                ADD_CURRENT_TOKEN();
-                state = STATE_NORMAL;
+            case '\'':
+                if(prevChar == '\\') {
+                    curtoken << ch;
+                } else {
+                    // we dont want to keep the string markers
+                    state = STATE_NORMAL;
+                }
                 break;
             default:
                 curtoken << ch;
                 break;
             }
         } break;
-        case STATE_ESCAPE:
-            curtoken << ch;
-            state = prevState;
-            break;
         default:
             break;
         }
+        prevChar = ch;
     }
     // if we still got some unprocessed token, add it
     ADD_CURRENT_TOKEN();

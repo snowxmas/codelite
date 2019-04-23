@@ -22,7 +22,6 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
-#include "FileExplorerTab.h"
 #include "app.h"
 #include "bitmap_loader.h"
 #include "build_settings_config.h"
@@ -377,9 +376,9 @@ IEditor* PluginManager::OpenFile(const wxString& fileName, const wxBitmap& bmp, 
     return editor;
 }
 
-IEditor* PluginManager::OpenFile(const wxString& fileName, const wxString& projectName, int lineno)
+IEditor* PluginManager::OpenFile(const wxString& fileName, const wxString& projectName, int lineno, OF_extra flags)
 {
-    IEditor* editor = clMainFrame::Get()->GetMainBook()->OpenFile(fileName, projectName, lineno);
+    IEditor* editor = clMainFrame::Get()->GetMainBook()->OpenFile(fileName, projectName, lineno, wxNOT_FOUND, flags);
     if(editor) { editor->SetActive(); }
     return editor;
 }

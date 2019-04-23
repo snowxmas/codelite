@@ -9,7 +9,8 @@ NewLanguageServerDlg::NewLanguageServerDlg(wxWindow* parent)
 {
     m_page = new LanguageServerPage(this);
     GetSizer()->Insert(0, m_page, 1, wxEXPAND);
-    ::clSetDialogBestSizeAndPosition(this);
+    GetSizer()->Fit(this);
+    CentreOnParent();
 }
 
 NewLanguageServerDlg::~NewLanguageServerDlg() {}

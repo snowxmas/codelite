@@ -47,9 +47,11 @@
 #include <wx/tokenzr.h>
 #include "ICompilerLocator.h"
 #include "asyncprocess.h"
+#include "compiler_command_line_parser.h"
+#include "fileutils.h"
+#include "localworkspace.h"
 
-static wxStringMap_t s_backticks;
-
+// Make the m_backticks thread safe
 #define EXCLUDE_FROM_BUILD_FOR_CONFIG "ExcludeProjConfig"
 
 // ============---------------------
@@ -1219,10 +1221,7 @@ size_t Project::GetFileFlags(const wxString& fileName, const wxString& virtualDi
 const wxStringSet_t& Project::GetExcludeConfigForFile(const wxString& filename) const
 {
     clProjectFile::Ptr_t pfile = GetFile(filename);
-    if(!pfile) {
-        static wxStringSet_t emptySet;
-        return emptySet;
-    }
+    if(!pfile) { return emptySet; }
     return pfile->GetExcludeConfigs();
 }
 
@@ -1241,8 +1240,70 @@ void Project::SetExcludeConfigsForFile(const wxString& filename, const wxStringS
     SaveXmlFile();
 }
 
+static void ProcessIncludes(const wxArrayString& paths, const wxString& wd, wxStringSet_t& res,
+                            std::vector<wxString>& pathsVec)
+{
+    // Convert the include paths to full path, prepend -I and add them
+    for(const wxString& path : paths) {
+        wxFileName fnPath(path, "");
+        if(!wd.IsEmpty() && fnPath.IsRelative()) { fnPath.MakeAbsolute(wd); }
+        wxString include_path = fnPath.GetPath();
+        ::WrapWithQuotes(include_path);
+
+        if(res.count(include_path) == 0) {
+            res.insert(include_path);
+            pathsVec.push_back("-I" + include_path);
+        }
+    }
+}
+
+static void ProcessMacros(const wxArrayString& macros, wxStringSet_t& res)
+{
+    for(const wxString& macro : macros) {
+        wxString tmpMacro = macro;
+        tmpMacro.Trim().Trim(false);
+        if(tmpMacro.IsEmpty()) { continue; }
+        if(!tmpMacro.StartsWith("-D")) { tmpMacro.Prepend("-D"); }
+        if(res.count(tmpMacro) == 0) { res.insert(tmpMacro); }
+    }
+}
+
+static wxString GetExtraFlags(CompilerPtr compiler)
+{
+#ifdef __WXMSW__
+    if(compiler->GetCompilerFamily() == COMPILER_FAMILY_MINGW) {
+#if _WIN64
+        return "-target x86_64-pc-windows-gnu";
+#else
+        return "-target i686-pc-windows-gnu";
+#endif
+    }
+#endif
+    return "";
+}
+
+static void GetExtraFlags(wxString& content, CompilerPtr compiler)
+{
+#ifdef __WXMSW__
+    if(compiler->GetCompilerFamily() == COMPILER_FAMILY_MINGW) {
+        if(!content.IsEmpty() && !content.EndsWith("\n")) { content << "\n"; }
+#if _WIN64
+        content << "-target"
+                << "\n"
+                << "x86_64-pc-windows-gnu"
+                << "\n";
+#else
+        content << "-target"
+                << "\n"
+                << "i686-pc-windows-gnu"
+                << "\n";
+#endif
+    }
+#endif
+}
+
 wxString Project::GetCompileLineForCXXFile(const wxStringMap_t& compilersGlobalPaths, BuildConfigPtr buildConf,
-                                           const wxString& filenamePlaceholder, bool cxxFile) const
+                                           const wxString& filenamePlaceholder, bool cxxFile)
 {
     // Return a compilation line for a CXX file
     if(!buildConf) { return ""; }
@@ -1251,20 +1312,15 @@ wxString Project::GetCompileLineForCXXFile(const wxStringMap_t& compilersGlobalP
     if(!compiler) { return ""; }
     // Build the command line
     wxString commandLine;
-    wxString extraFlags;
-#ifdef __WXMSW__
-    if(compiler->GetCompilerFamily() == COMPILER_FAMILY_MINGW) {
-#if _WIN64
-        extraFlags = "-target x86_64-pc-windows-gnu";
-#else
-        extraFlags = "-target i686-pc-windows-gnu";
-#endif
-    }
-#endif
+    wxString extraFlags = GetExtraFlags(compiler);
 
     // Add the compiler global paths if needed
     if(compilersGlobalPaths.count(compiler->GetName())) {
-        extraFlags << " " << compilersGlobalPaths.find(compiler->GetName())->second;
+        const wxString& semiColonSepList = compilersGlobalPaths.find(compiler->GetName())->second;
+        wxArrayString compilerPaths = ::wxStringTokenize(semiColonSepList, ";", wxTOKEN_STRTOK);
+        for(const wxString& compilerPath : compilerPaths) {
+            extraFlags << " -I" << compilerPath;
+        }
     }
 
     wxString compilerExe = compiler->GetTool(cxxFile ? "CXX" : "CC");
@@ -1278,9 +1334,10 @@ wxString Project::GetCompileLineForCXXFile(const wxStringMap_t& compilersGlobalP
     wxArrayString prepArr;
     buildConf->GetPreprocessor(prepArr);
     for(size_t i = 0; i < prepArr.GetCount(); ++i) {
-        commandLine << "-D" << prepArr.Item(i) << " ";
+        commandLine << " -D" << prepArr.Item(i);
     }
 
+    commandLine << " ";
     // Add the include paths
     wxString inclPathAsString = buildConf->GetIncludePath();
     wxArrayString inclPathArr = ::wxStringTokenize(inclPathAsString, ";", wxTOKEN_STRTOK);
@@ -1293,7 +1350,7 @@ wxString Project::GetCompileLineForCXXFile(const wxStringMap_t& compilersGlobalP
 
         commandLine << "-I" << incl_path << " ";
     }
-    
+
     // Get the compile options
     wxString projectCompileOptions = cxxFile ? buildConf->GetCompileOptions() : buildConf->GetCCompileOptions();
     wxArrayString projectCompileOptionsArr = ::wxStringTokenize(projectCompileOptions, ";", wxTOKEN_STRTOK);
@@ -1305,14 +1362,14 @@ wxString Project::GetCompileLineForCXXFile(const wxStringMap_t& compilersGlobalP
         // unchanged
         commandLine << " " << DoExpandBacktick(cmpOption) << " ";
     }
-    
+
     commandLine.Trim().Trim(false);
     commandLine.Replace("\n", " ");
     commandLine.Replace("\r", " ");
     return commandLine;
 }
 
-wxString Project::DoExpandBacktick(const wxString& backtick) const
+wxString Project::DoExpandBacktick(const wxString& backtick)
 {
     wxString tmp;
     wxString cmpOption = backtick;
@@ -1324,25 +1381,21 @@ wxString Project::DoExpandBacktick(const wxString& backtick) const
         tmp.Clear();
         if(cmpOption.EndsWith(wxT(")"), &tmp) || cmpOption.EndsWith(wxT("`"), &tmp)) { cmpOption = tmp; }
 
-        if(s_backticks.find(cmpOption) == s_backticks.end()) {
+        // Expand the backticks into their value
+        wxString expandedValue;
+        {
+            EnvSetter es(NULL, NULL, GetName(), wxEmptyString);
+            cmpOption = MacroManager::Instance()->Expand(cmpOption, nullptr, GetName(), wxEmptyString);
 
-            // Expand the backticks into their value
-            wxString expandedValue;
-            {
-                EnvSetter es(NULL, NULL, GetName(), wxEmptyString);
-                cmpOption = MacroManager::Instance()->Expand(cmpOption, nullptr, GetName(), wxEmptyString);
+            // Check the cache
+            if(!GetWorkspace()->GetBacktickValue(cmpOption, expandedValue)) {
                 IProcess::Ptr_t p(::CreateSyncProcess(cmpOption, IProcessCreateDefault, GetFileName().GetPath()));
                 if(p) { p->WaitForTerminate(expandedValue); }
+                GetWorkspace()->SetBacktickValue(cmpOption, expandedValue);
             }
-
-            s_backticks[cmpOption] = expandedValue;
-            cmpOption = expandedValue;
-
-        } else {
-            cmpOption = s_backticks.find(cmpOption)->second;
+            return expandedValue;
         }
     }
-
     return cmpOption;
 }
 
@@ -1351,6 +1404,9 @@ void Project::CreateCompileCommandsJSON(JSONItem& compile_commands, const wxStri
     BuildConfigPtr buildConf = GetBuildConfiguration();
     wxString cFilePattern = GetCompileLineForCXXFile(compilersGlobalPaths, buildConf, "$FileName", false);
     wxString cxxFilePattern = GetCompileLineForCXXFile(compilersGlobalPaths, buildConf, "$FileName", true);
+
+    CreateCompileFlags(compilersGlobalPaths);
+
     wxString workingDirectory = m_fileName.GetPath();
     std::for_each(m_filesTable.begin(), m_filesTable.end(), [&](const FilesMap_t::value_type& vt) {
         const wxString& fullpath = vt.second->GetFilename();
@@ -1452,8 +1508,6 @@ wxArrayString Project::GetPreProcessors(bool clearCache)
         // Apply the environment
         EnvSetter es(NULL, NULL, GetName(), buildConf->GetName());
 
-        if(clearCache) { s_backticks.clear(); }
-
         // Get the pre-processors and add them to the array
         wxString projectPPS = buildConf->GetPreprocessor();
         wxArrayString projectPPSArr = ::wxStringTokenize(projectPPS, wxT(";"), wxTOKEN_STRTOK);
@@ -1499,8 +1553,6 @@ wxArrayString Project::DoGetCompilerOptions(bool cxxOptions, bool clearCache, bo
 
         // Apply the environment
         EnvSetter es(NULL, NULL, GetName(), buildConf->GetName());
-
-        if(clearCache) { s_backticks.clear(); }
 
         // Get the switches from
         wxString optionsStr = cxxOptions ? buildConf->GetCompileOptions() : buildConf->GetCCompileOptions();
@@ -1565,8 +1617,6 @@ void Project::ProjectRenamed(const wxString& oldname, const wxString& newname)
     }
 }
 
-void Project::ClearBacktickCache() { s_backticks.clear(); }
-
 void Project::GetUnresolvedMacros(const wxString& configName, wxArrayString& vars) const
 {
     vars.clear();
@@ -1574,7 +1624,7 @@ void Project::GetUnresolvedMacros(const wxString& configName, wxArrayString& var
     if(buildConfig) {
         // Check for environment variables
         // Environment variable has the format of $(VAR_NAME)
-        static wxRegEx reEnvironmentVar("\\$\\(([a-z0-9_]+)\\)", wxRE_ICASE | wxRE_ADVANCED);
+        wxRegEx reEnvironmentVar("\\$\\(([a-z0-9_]+)\\)", wxRE_ICASE | wxRE_ADVANCED);
 
         wxString includePaths = buildConfig->GetIncludePath();
         wxString libPaths = buildConfig->GetLibPath();
@@ -1652,8 +1702,6 @@ wxArrayString Project::DoGetUnPreProcessors(bool clearCache, const wxString& cmp
 
     // Apply the environment
     EnvSetter es(NULL, NULL, GetName(), buildConf->GetName());
-
-    if(clearCache) { s_backticks.clear(); }
 
     // Atm, we can only "set" undefined in the compiler options
     wxArrayString projectCompileOptionsArr = ::wxStringTokenize(cmpOptions, ";", wxTOKEN_STRTOK);
@@ -1796,6 +1844,78 @@ void Project::AddExcludeConfigForFile(const wxString& filename, const wxString& 
         // Update the xml
         SetExcludeConfigsForFile(filename, excludeConfigs);
     }
+}
+
+//===--------------------------------------------------------------------------------
+// Build compile_flags.txt file and store it next to the project file
+//===--------------------------------------------------------------------------------
+void Project::CreateCompileFlags(const wxStringMap_t& compilersGlobalPaths)
+{
+    BuildConfigPtr buildConf = GetBuildConfiguration();
+    if(!buildConf) { return; }
+
+    CompilerPtr cmp = (buildConf) ? buildConf->GetCompiler() : nullptr;
+    wxStringSet_t macroSet;
+    std::vector<wxString> pathsVec;
+    wxString compile_flags_content;
+    if(buildConf->IsCustomBuild() && (buildConf->GetBuilder() != "CMake")) {
+        // Probably just plain old Makefile build system
+        CHECK_PTR_RET(GetWorkspace());
+        CHECK_PTR_RET(GetWorkspace()->GetLocalWorkspace());
+
+        wxStringSet_t cookie;
+        wxArrayString workspacePaths, dummy;
+        wxString macrosStr;
+        GetWorkspace()->GetLocalWorkspace()->GetParserPaths(workspacePaths, dummy);
+        GetWorkspace()->GetLocalWorkspace()->GetParserMacros(macrosStr);
+
+        // Loop over the workspace parser paths, fix them and add the to the list of paths
+        wxString workspacePath = GetWorkspace()->GetFileName().GetPath();
+        ProcessIncludes(workspacePaths, workspacePath, cookie, pathsVec);
+
+        // Add the compiler paths
+        wxArrayString tmpMacros = ::wxStringTokenize(macrosStr, "\n", wxTOKEN_STRTOK);
+        ProcessMacros(tmpMacros, macroSet);
+
+    } else {
+        wxString cFilePattern = GetCompileLineForCXXFile(compilersGlobalPaths, buildConf, "$FileName", false);
+        wxString cxxFilePattern = GetCompileLineForCXXFile(compilersGlobalPaths, buildConf, "$FileName", true);
+
+        wxStringSet_t pathsSet;
+
+        CompilerCommandLineParser cxxParser(cxxFilePattern);
+        CompilerCommandLineParser cParser(cFilePattern);
+
+        // Process local include paths
+        ProcessIncludes(cxxParser.GetIncludes(), GetFileName().GetPath(), pathsSet, pathsVec);
+        ProcessIncludes(cParser.GetIncludes(), GetFileName().GetPath(), pathsSet, pathsVec);
+
+        // Process the compiler paths
+        if(cmp && compilersGlobalPaths.count(cmp->GetName())) {
+            ProcessIncludes(::wxStringTokenize(compilersGlobalPaths.find(cmp->GetName())->second, ";", wxTOKEN_STRTOK),
+                            "", pathsSet, pathsVec);
+        }
+        ProcessMacros(cxxParser.GetMacrosWithPrefix(), macroSet);
+        ProcessMacros(cParser.GetMacrosWithPrefix(), macroSet);
+    }
+
+    // Write the include paths
+    for(const wxString& path : pathsVec) {
+        compile_flags_content << path << "\n";
+    }
+
+    // Write the macros
+    for(const wxString& macro : macroSet) {
+        compile_flags_content << macro << "\n";
+    }
+
+    // Add the target flag
+    if(cmp) { GetExtraFlags(compile_flags_content, buildConf->GetCompiler()); }
+
+    // Write the file content
+    wxFileName compile_flags(GetFileName());
+    compile_flags.SetFullName("compile_flags.txt");
+    FileUtils::WriteFileContent(compile_flags, compile_flags_content);
 }
 
 bool clProjectFolder::RenameFile(Project* project, const wxString& fullpath, const wxString& newName)

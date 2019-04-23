@@ -45,6 +45,18 @@
     </Plugin>
   </Plugins>
   <VirtualDirectory Name="LSP">
+    <File Name="LSP/SignatureHelpRequest.cpp"/>
+    <File Name="LSP/SignatureHelpRequest.h"/>
+    <File Name="LSP/GotoImplementationRequest.cpp"/>
+    <File Name="LSP/GotoImplementationRequest.h"/>
+    <File Name="LSP/Notification.cpp"/>
+    <File Name="LSP/Notification.h"/>
+    <File Name="LSP/Request.cpp"/>
+    <File Name="LSP/Request.h"/>
+    <File Name="LSP/MessageWithParams.cpp"/>
+    <File Name="LSP/MessageWithParams.h"/>
+    <File Name="LSP/GotoDeclarationRequest.h"/>
+    <File Name="LSP/GotoDeclarationRequest.cpp"/>
     <File Name="LSP/ResponseError.cpp"/>
     <File Name="LSP/ResponseError.h"/>
     <File Name="LSP/CompletionItem.cpp"/>
@@ -57,8 +69,6 @@
     <File Name="LSP/LSPEvent.h"/>
     <File Name="LSP/ResponseMessage.h"/>
     <File Name="LSP/ResponseMessage.cpp"/>
-    <File Name="LSP/RequestMessage.h"/>
-    <File Name="LSP/RequestMessage.cpp"/>
     <File Name="LSP/Message.h"/>
     <File Name="LSP/Message.cpp"/>
     <File Name="LSP/JSONObject.h"/>
@@ -77,12 +87,14 @@
     <File Name="LSP/DidCloseTextDocumentRequest.cpp"/>
     <File Name="LSP/DidChangeTextDocumentRequest.h"/>
     <File Name="LSP/DidChangeTextDocumentRequest.cpp"/>
-    <File Name="LSP/clJSONRPC.h"/>
-    <File Name="LSP/clJSONRPC.cpp"/>
     <File Name="LSP/basic_types.h"/>
     <File Name="LSP/basic_types.cpp"/>
   </VirtualDirectory>
   <VirtualDirectory Name="Console">
+    <File Name="clConsoleCodeLiteTerminal.cpp"/>
+    <File Name="clConsoleCodeLiteTerminal.h"/>
+    <File Name="clConsoleRXVTerminal.h"/>
+    <File Name="clConsoleRXVTerminal.cpp"/>
     <File Name="clConsoleXfce4Terminal.cpp"/>
     <File Name="clConsoleXfce4Terminal.h"/>
     <File Name="clConsoleMateTerminal.cpp"/>
@@ -104,11 +116,14 @@
     <File Name="clConsoleBase.cpp"/>
     <File Name="clConsoleBase.h"/>
   </VirtualDirectory>
-  <VirtualDirectory Name="Network">
-    <File Name="clNetworkMessage.h"/>
-    <File Name="clNetworkMessage.cpp"/>
-  </VirtualDirectory>
+  <VirtualDirectory Name="Network"/>
   <VirtualDirectory Name="src">
+    <File Name="StringUtils.cpp"/>
+    <File Name="StringUtils.h"/>
+    <File Name="ServiceProviderManager.cpp"/>
+    <File Name="ServiceProviderManager.h"/>
+    <File Name="ServiceProvider.cpp"/>
+    <File Name="ServiceProvider.h"/>
     <File Name="clJoinableThread.h"/>
     <File Name="clJoinableThread.cpp"/>
     <File Name="search_thread.h"/>
@@ -278,6 +293,10 @@
     <File Name="crawler_include.h"/>
   </VirtualDirectory>
   <VirtualDirectory Name="AsyncProcess">
+    <File Name="MyCreatePipe.h"/>
+    <File Name="MyCreatePipe.cpp"/>
+    <File Name="UnixProcess.h"/>
+    <File Name="UnixProcess.cpp"/>
     <File Name="ChildProcess.h"/>
     <File Name="ChildProcess.cpp"/>
     <File Name="asyncprocess.cpp"/>
@@ -358,8 +377,6 @@
     <File Name="clprogressdlgbase.cpp"/>
     <File Name="clprogressdlgbase.fbp"/>
     <File Name="clprogressdlgbase.h"/>
-    <File Name="refactoring_storage.h"/>
-    <File Name="refactoring_storage.cpp"/>
   </VirtualDirectory>
   <Dependencies Name="WinRelease_29"/>
   <VirtualDirectory Name="configuration">
@@ -473,7 +490,7 @@
   <Dependencies Name="Win_x86_Release">
     <Project Name="PCH"/>
   </Dependencies>
-  <Settings Type="Executable">
+  <Settings Type="Dynamic Library">
     <GlobalSettings>
       <Compiler Options="" C_Options="" Assembler="">
         <IncludePath Value="."/>
@@ -587,6 +604,7 @@
         <IncludePath Value="../sdk/websocketpp"/>
         <Preprocessor Value="USE_SFTP=1"/>
         <Preprocessor Value="wxUSE_GUI=1"/>
+        <Preprocessor Value="CL_DEBUG_BUILD=1"/>
       </Compiler>
       <Linker Options="$(shell wx-config --libs std,stc  --unicode=yes);" Required="yes">
         <LibraryPath Value="../lib/gcc_lib"/>
@@ -630,7 +648,8 @@ PhpLexer.cpp: PhpLexer.l
 JSLexer.cpp: JSLexer.l
 	flex -Pjs --noline --batch --outfile=JSLexer.cpp JSLexer.l
 XmlLexer.cpp: XMLLexer.l
-	flex --noline --batch --outfile=XmlLexer.cpp XMLLexer.l</CustomPreBuild>
+	flex --noline --batch --outfile=XmlLexer.cpp XMLLexer.l
+</CustomPreBuild>
       </AdditionalRules>
       <Completion EnableCpp11="no" EnableCpp14="no">
         <ClangCmpFlagsC/>

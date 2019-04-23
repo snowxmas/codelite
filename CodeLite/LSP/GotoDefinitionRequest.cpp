@@ -10,7 +10,6 @@ LSP::GotoDefinitionRequest::GotoDefinitionRequest(const wxFileName& filename, si
     m_params.reset(new TextDocumentPositionParams());
     m_params->As<TextDocumentPositionParams>()->SetTextDocument(TextDocumentIdentifier(filename));
     m_params->As<TextDocumentPositionParams>()->SetPosition(Position(line, column));
-    SetNeedsReply(true);
 }
 
 LSP::GotoDefinitionRequest::~GotoDefinitionRequest() {}
@@ -26,15 +25,15 @@ void LSP::GotoDefinitionRequest::OnResponse(const LSP::ResponseMessage& response
         loc.FromJSON(result);
     }
 
-    // Fire an event with the matching location
-    LSPEvent definitionEvent(wxEVT_LSP_DEFINITION);
-    definitionEvent.SetLocation(loc);
-    owner->AddPendingEvent(definitionEvent);
+    if(!loc.GetUri().IsEmpty()) {
+        // Fire an event with the matching location
+        LSPEvent definitionEvent(wxEVT_LSP_DEFINITION);
+        definitionEvent.SetLocation(loc);
+        owner->AddPendingEvent(definitionEvent);
+    }
 }
 
-void LSP::GotoDefinitionRequest::BuildUID()
+bool LSP::GotoDefinitionRequest::IsValidAt(const wxFileName& filename, size_t line, size_t col) const
 {
-    if(!m_uuid.IsEmpty()) { return; }
-    m_uuid << GetMethod() << ":"
-           << m_params->As<TextDocumentPositionParams>()->GetTextDocument().GetFilename().GetFullPath();
+    return (m_filename == filename) && (m_line == line) && (m_column == col);
 }

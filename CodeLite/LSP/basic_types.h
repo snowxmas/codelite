@@ -1,9 +1,10 @@
 #ifndef JSONRPC_BASICTYPES_H
 #define JSONRPC_BASICTYPES_H
 
-#include "codelite_exports.h"
 #include "JSON.h"
+#include <vector>
 #include "JSONObject.h"
+#include "codelite_exports.h"
 #include <wx/sharedptr.h>
 
 namespace LSP
@@ -88,8 +89,8 @@ public:
 //===----------------------------------------------------------------------------------
 class WXDLLIMPEXP_CL Position : public Serializable
 {
-    int m_line;
-    int m_character;
+    int m_line = wxNOT_FOUND;
+    int m_character = wxNOT_FOUND;
 
 public:
     virtual void FromJSON(const JSONItem& json);
@@ -114,8 +115,12 @@ public:
     }
     int GetCharacter() const { return m_character; }
     int GetLine() const { return m_line; }
+    bool IsOk() const { return m_line != wxNOT_FOUND && m_character != wxNOT_FOUND; }
 };
 
+//===----------------------------------------------------------------------------------
+// Range
+//===----------------------------------------------------------------------------------
 class WXDLLIMPEXP_CL Range : public Serializable
 {
     Position m_start;
@@ -144,6 +149,28 @@ public:
     }
     const Position& GetEnd() const { return m_end; }
     const Position& GetStart() const { return m_start; }
+    bool IsOk() const { return m_start.IsOk() && m_end.IsOk(); }
+};
+
+//===----------------------------------------------------------------------------------
+// TextEdit
+//===----------------------------------------------------------------------------------
+
+class WXDLLIMPEXP_CL TextEdit : public LSP::Serializable
+{
+    Range m_range;
+    wxString m_newText;
+
+public:
+    TextEdit() {}
+    virtual ~TextEdit() {}
+    virtual void FromJSON(const JSONItem& json);
+    virtual JSONItem ToJSON(const wxString& name) const;
+    void SetNewText(const wxString& newText) { this->m_newText = newText; }
+    void SetRange(const Range& range) { this->m_range = range; }
+    const wxString& GetNewText() const { return m_newText; }
+    const Range& GetRange() const { return m_range; }
+    bool IsOk() const { return m_range.IsOk(); }
 };
 
 class WXDLLIMPEXP_CL Location : public Serializable
@@ -225,5 +252,96 @@ public:
     int GetVersion() const { return m_version; }
 };
 
+class WXDLLIMPEXP_CL ParameterInformation : public LSP::Serializable
+{
+    wxString m_label;
+    wxString m_documentation;
+
+public:
+    ParameterInformation() {}
+    virtual ~ParameterInformation() {}
+    ParameterInformation& SetDocumentation(const wxString& documentation)
+    {
+        this->m_documentation = documentation;
+        return *this;
+    }
+    ParameterInformation& SetLabel(const wxString& label)
+    {
+        this->m_label = label;
+        return *this;
+    }
+    const wxString& GetDocumentation() const { return m_documentation; }
+    const wxString& GetLabel() const { return m_label; }
+    virtual void FromJSON(const JSONItem& json);
+    virtual JSONItem ToJSON(const wxString& name) const;
+
+    typedef std::vector<ParameterInformation> Vec_t;
+};
+
+class WXDLLIMPEXP_CL SignatureInformation : public LSP::Serializable
+{
+    wxString m_label;
+    wxString m_documentation;
+    ParameterInformation::Vec_t m_parameters;
+
+public:
+    typedef std::vector<LSP::SignatureInformation> Vec_t;
+
+public:
+    SignatureInformation() {}
+    virtual ~SignatureInformation() {}
+    SignatureInformation& SetParameters(const ParameterInformation::Vec_t& parameters)
+    {
+        this->m_parameters = parameters;
+        return *this;
+    }
+    const ParameterInformation::Vec_t& GetParameters() const { return m_parameters; }
+    SignatureInformation& SetDocumentation(const wxString& documentation)
+    {
+        this->m_documentation = documentation;
+        return *this;
+    }
+    SignatureInformation& SetLabel(const wxString& label)
+    {
+        this->m_label = label;
+        return *this;
+    }
+    const wxString& GetDocumentation() const { return m_documentation; }
+    const wxString& GetLabel() const { return m_label; }
+    virtual void FromJSON(const JSONItem& json);
+    virtual JSONItem ToJSON(const wxString& name) const;
+};
+
+class WXDLLIMPEXP_CL SignatureHelp : public LSP::Serializable
+{
+    SignatureInformation::Vec_t m_signatures;
+    int m_activeSignature = 0;
+    int m_activeParameter = 0;
+
+public:
+    SignatureHelp() {}
+    virtual ~SignatureHelp() {}
+
+    SignatureHelp& SetActiveParameter(int activeParameter)
+    {
+        this->m_activeParameter = activeParameter;
+        return *this;
+    }
+    SignatureHelp& SetActiveSignature(int activeSignature)
+    {
+        this->m_activeSignature = activeSignature;
+        return *this;
+    }
+    SignatureHelp& SetSignatures(const SignatureInformation::Vec_t& signatures)
+    {
+        this->m_signatures = signatures;
+        return *this;
+    }
+    int GetActiveParameter() const { return m_activeParameter; }
+    int GetActiveSignature() const { return m_activeSignature; }
+    const SignatureInformation::Vec_t& GetSignatures() const { return m_signatures; }
+    virtual void FromJSON(const JSONItem& json);
+    virtual JSONItem ToJSON(const wxString& name) const;
+};
 };     // namespace LSP
 #endif // JSONRPC_BASICTYPES_H

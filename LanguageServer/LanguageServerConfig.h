@@ -14,6 +14,7 @@ public:
 protected:
     size_t m_flags = 0;
     LanguageServerEntry::Map_t m_servers;
+    wxString m_nodejs;
 
 private:
     LanguageServerConfig();
@@ -49,14 +50,25 @@ public:
         return *this;
     }
     const LanguageServerEntry::Map_t& GetServers() const { return m_servers; }
+    LanguageServerEntry::Map_t& GetServers() { return m_servers; }
+    
+    LanguageServerEntry& GetServer(const wxString& name);
+    const LanguageServerEntry& GetServer(const wxString& name) const;
     /**
      * @brief add server. erase an existing one with the same name
      */
     void AddServer(const LanguageServerEntry& server);
+    
     /**
      * @brief delete an existing server by name
      */
     void RemoveServer(const wxString& name);
+    LanguageServerConfig& SetNodejs(const wxString& nodejs)
+    {
+        this->m_nodejs = nodejs;
+        return *this;
+    }
+    const wxString& GetNodejs() const { return m_nodejs; }
 };
 
 #endif // LANGUAGESERVERCONFIG_H

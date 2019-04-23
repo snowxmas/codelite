@@ -35,6 +35,8 @@
 #include <map>
 #include <wx/ffile.h>
 #include <wx/log.h>
+#include <fstream>
+#include "StringUtils.h"
 #if wxUSE_GUI
 #include <wx/msgdlg.h>
 #endif
@@ -228,7 +230,8 @@ static void SplitMask(const wxString& maskString, wxArrayString& includeMask, wx
     for(size_t i = 0; i < masks.size(); ++i) {
         wxString& mask = masks.Item(i);
         mask.Trim().Trim(false);
-        if(mask[0] == '!') {
+        // exclude mask starts with "!" or "-"
+        if((mask[0] == '!') || (mask[0] == '-')) {
             mask.Remove(0, 1);
             excludeMask.Add(mask);
         } else {
@@ -351,19 +354,20 @@ bool FileUtils::FuzzyMatch(const wxString& needle, const wxString& haystack)
     return true;
 }
 
-bool FileUtils::IsHidden(const wxFileName& filename)
+bool FileUtils::IsHidden(const wxString& filename)
 {
 #ifdef __WXMSW__
-    DWORD dwAttrs = GetFileAttributes(filename.GetFullPath().c_str());
+    DWORD dwAttrs = GetFileAttributes(filename.c_str());
     if(dwAttrs == INVALID_FILE_ATTRIBUTES) return false;
-    return (dwAttrs & FILE_ATTRIBUTE_HIDDEN) || (filename.GetFullName().StartsWith("."));
+    return (dwAttrs & FILE_ATTRIBUTE_HIDDEN) || (wxFileName(filename).GetFullName().StartsWith("."));
 #else
     // is it enough to test for file name?
-    return filename.GetFullName().StartsWith(".");
+    wxFileName fn(filename);
+    return fn.GetFullName().StartsWith(".");
 #endif
 }
 
-bool FileUtils::IsHidden(const wxString& filename) { return IsHidden(filename); }
+bool FileUtils::IsHidden(const wxFileName& filename) { return IsHidden(filename.GetFullPath()); }
 
 bool FileUtils::WildMatch(const wxArrayString& masks, const wxString& filename)
 {
@@ -578,12 +582,46 @@ void FileUtils::OpenBuiltInTerminal(const wxString& wd, const wxString& user_com
     ::wxExecute(newCommand, wxEXEC_ASYNC);
 }
 
-std::string FileUtils::ToStdString(const wxString& str)
+std::string FileUtils::ToStdString(const wxString& str) { return StringUtils::ToStdString(str); }
+
+bool FileUtils::ReadBufferFromFile(const wxFileName& fn, wxString& data, size_t bufferSize)
 {
-    const char* data = str.mb_str(wxConvUTF8).data();
-    if(!data) { data = str.To8BitData().data(); }
-    std::string res;
-    if(!data) { return res; }
-    res = data;
-    return res;
+    if(!fn.FileExists()) { return false; }
+    std::wifstream fin(fn.GetFullPath().c_str(), std::ios::binary);
+    if(fin.bad()) {
+        clERROR() << "Failed to open file:" << fn;
+        return false;
+    }
+
+    std::vector<wchar_t> buffer(bufferSize, 0);
+    if(!fin.eof()) { fin.read(buffer.data(), buffer.size()); }
+    data.reserve(buffer.size());
+    data << std::wstring(buffer.begin(), buffer.begin() + buffer.size());
+    return true;
+}
+
+bool FileUtils::IsSymlink(const wxString& filename)
+{
+#ifdef __WXMSW__
+    DWORD dwAttrs = GetFileAttributesW(filename.c_str());
+    if(dwAttrs == INVALID_FILE_ATTRIBUTES) { return false; }
+    return dwAttrs & FILE_ATTRIBUTE_REPARSE_POINT;
+#else
+    wxStructStat buff;
+    if(wxLstat(filename, &buff) != 0) { return false; }
+    return S_ISLNK(buff.st_mode);
+#endif
+}
+
+bool FileUtils::IsDirectory(const wxString& filename)
+{
+#ifdef __WXMSW__
+    DWORD dwAttrs = GetFileAttributesW(filename.c_str());
+    if(dwAttrs == INVALID_FILE_ATTRIBUTES) { return false; }
+    return dwAttrs & FILE_ATTRIBUTE_DIRECTORY;
+#else
+    wxStructStat buff;
+    if(wxLstat(filename, &buff) != 0) { return false; }
+    return S_ISDIR(buff.st_mode);
+#endif
 }

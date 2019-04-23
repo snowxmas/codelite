@@ -152,7 +152,7 @@ const wxEventType wxEVT_WXC_PROJECT_LOADED = wxNewEventType();
 const wxEventType wxEVT_WXC_SELECT_TREE_TLW = wxNewEventType();
 const wxEventType wxEVT_WXC_CODE_PREVIEW_PAGE_CHANGED = wxNewEventType();
 
-GUICraftMainPanel::GUICraftMainPanel(wxWindow* parent, wxCrafterPlugin* plugin, wxTreeCtrl* treeView)
+GUICraftMainPanel::GUICraftMainPanel(wxWindow* parent, wxCrafterPlugin* plugin, clTreeCtrl* treeView)
     : GUICraftMainPanelBase(parent)
     , m_clipboardItem(NULL)
     , m_previewAlive(false)
@@ -361,7 +361,7 @@ GUICraftMainPanel::~GUICraftMainPanel()
     // Only disconnect the events in Tabbed mode,
     // in the "frame" mode, the main panel and the tree view have the same
     // parent
-    if(m_plugin->IsTabMode()) {
+    if(false) {
         m_treeControls->Disconnect(wxEVT_COMMAND_TREE_BEGIN_DRAG, wxTreeEventHandler(GUICraftMainPanel::OnBeginDrag),
                                    NULL, this);
         m_treeControls->Disconnect(wxEVT_COMMAND_TREE_END_DRAG, wxTreeEventHandler(GUICraftMainPanel::OnEndDrag), NULL,
@@ -920,6 +920,8 @@ void GUICraftMainPanel::OnSizerToolUI(wxUpdateUIEvent& e)
     } else {
         e.Check(false);
     }
+    
+    m_sizerFlags.DoUpdateUI(m_pgMgrSizerFlags->GetGrid(), e); // This will do updateui for the alignment tools
 }
 
 wxString GUICraftMainPanel::GetStyleFromGuiID(int guiId) const
@@ -1171,7 +1173,7 @@ void GUICraftMainPanel::DoBuildTree(wxTreeItemId& itemToSelect, wxcWidget* wrapp
             insertionItem = m_treeControls->GetPrevSibling(beforeItem);
 
             if(insertionItem.IsOk() == false) {
-                item = m_treeControls->PrependItem(parent, wrapper->GetName(), imgId, imgId,
+                item = m_treeControls->AppendItem(parent, wrapper->GetName(), imgId, imgId,
                                                    new GUICraftItemData(wrapper));
                 if(itemToSelect.IsOk() == false) itemToSelect = item;
 
@@ -1259,7 +1261,7 @@ void GUICraftMainPanel::DoMoveToplevelWindow(wxcWidget* tlw, int direction)
     if(!doPrepend) {
         insertedItem = m_treeControls->InsertItem(root, target, text, image, image, new GUICraftItemData(tlw));
     } else {
-        insertedItem = m_treeControls->PrependItem(root, text, image, image, new GUICraftItemData(tlw));
+        insertedItem = m_treeControls->AppendItem(root, text, image, image, new GUICraftItemData(tlw));
     }
 
     CHECK_TREEITEM(insertedItem);
@@ -1996,7 +1998,7 @@ void GUICraftMainPanel::DoPasteOrDuplicate(wxcWidget* source, wxcWidget* target,
 void GUICraftMainPanel::OnBeginDrag(wxTreeEvent& event)
 {
     // event.Skip();
-    m_draggedItem = event.GetItem();
+    m_draggedItem = m_treeControls->GetSelection();
     if(m_draggedItem.IsOk()) { event.Allow(); }
 }
 

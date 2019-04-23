@@ -101,6 +101,7 @@ EVT_MENU(XRCID("save_as_template"), FileViewTree::OnSaveAsTemplate)
 EVT_MENU(XRCID("build_order"), FileViewTree::OnBuildOrder)
 EVT_MENU(XRCID("clean_project"), FileViewTree::OnClean)
 EVT_MENU(XRCID("build_project"), FileViewTree::OnBuild)
+EVT_MENU(XRCID("pin_project"), FileViewTree::OnPinProject)
 EVT_MENU(XRCID("rebuild_project"), FileViewTree::OnReBuild)
 EVT_MENU(XRCID("generate_makefile"), FileViewTree::OnRunPremakeStep)
 EVT_MENU(XRCID("stop_build"), FileViewTree::OnStopBuild)
@@ -311,7 +312,7 @@ void FileViewTree::BuildProjectNode(const wxString& projectName)
 
     FolderColour::Map_t coloursMap;
     FolderColour::List_t coloursList;
-    LocalWorkspaceST::Get()->GetFolderColours(coloursMap);
+    clCxxWorkspaceST::Get()->GetLocalWorkspace()->GetFolderColours(coloursMap);
 
     // Sort the list
     FolderColour::SortToList(coloursMap, coloursList);
@@ -409,26 +410,7 @@ void FileViewTree::ShowVirtualFolderContextMenu(FilewViewTreeItemData* itemData)
 void FileViewTree::ShowProjectContextMenu(const wxString& projectName)
 {
     wxMenu menu;
-    DoCreateProjectContextMenu(menu, projectName);
-
-    if(!ManagerST::Get()->IsBuildInProgress()) {
-        // Let the plugins alter it
-        wxMenu* pluginsMenu = new wxMenu;
-        clContextMenuEvent event(wxEVT_CONTEXT_MENU_PROJECT);
-        event.SetMenu(pluginsMenu);
-        pluginsMenu->SetParent(&menu);
-        EventNotifier::Get()->ProcessEvent(event);
-
-        // Use the old system
-        PluginManager::Get()->HookPopupMenu(pluginsMenu, MenuTypeFileView_Project);
-        if(pluginsMenu->GetMenuItemCount()) {
-            // we got something from the plugins
-            menu.PrependSeparator();
-            menu.Prepend(wxID_ANY, _("Plugins..."), pluginsMenu);
-        } else {
-            wxDELETE(pluginsMenu);
-        }
-    }
+    CreateProjectContextMenu(menu, projectName);
     PopupMenu(&menu);
 }
 
@@ -1036,7 +1018,7 @@ void FileViewTree::OnLocalPrefs(wxCommandEvent& event)
         return; // Probably not possible, but...
     }
 
-    wxXmlNode* lwsnode = LocalWorkspaceST::Get()->GetLocalWorkspaceOptionsNode();
+    wxXmlNode* lwsnode = clCxxWorkspaceST::Get()->GetLocalWorkspace()->GetLocalWorkspaceOptionsNode();
     // Don't check lwsnode: it'll be NULL if there are currently no local workspace options
 
     // Start by getting the global settings
@@ -1045,7 +1027,8 @@ void FileViewTree::OnLocalPrefs(wxCommandEvent& event)
     // If we're setting workspace options, run the dialog and return
     if(event.GetId() == XRCID("local_workspace_prefs")) {
         EditorSettingsLocal dlg(higherOptions, lwsnode, pLevel_workspace, this);
-        if(dlg.ShowModal() == wxID_OK && LocalWorkspaceST::Get()->SetWorkspaceOptions(dlg.GetLocalOpts())) {
+        if(dlg.ShowModal() == wxID_OK &&
+           clCxxWorkspaceST::Get()->GetLocalWorkspace()->SetWorkspaceOptions(dlg.GetLocalOpts())) {
             clMainFrame::Get()->GetMainBook()->ApplySettingsChanges();
             // Notify plugins that some settings have changed
             PostCmdEvent(wxEVT_EDITOR_SETTINGS_CHANGED);
@@ -1057,14 +1040,14 @@ void FileViewTree::OnLocalPrefs(wxCommandEvent& event)
     wxTreeItemId item = GetSingleSelection();
     if(!item.IsOk()) { return; }
 
-    wxXmlNode* lpnode = LocalWorkspaceST::Get()->GetLocalProjectOptionsNode(GetItemText(item));
+    wxXmlNode* lpnode = clCxxWorkspaceST::Get()->GetLocalWorkspace()->GetLocalProjectOptionsNode(GetItemText(item));
     // Don't check lpnode: it'll be NULL if there are currently no local project options
     // Merge any local workspace options with the global ones inside 'higherOptions'
     LocalOptionsConfig wsOC(higherOptions, lwsnode);
 
     EditorSettingsLocal dlg(higherOptions, lpnode, pLevel_project, this);
     if(dlg.ShowModal() == wxID_OK &&
-       LocalWorkspaceST::Get()->SetProjectOptions(dlg.GetLocalOpts(), GetItemText(item))) {
+       clCxxWorkspaceST::Get()->GetLocalWorkspace()->SetProjectOptions(dlg.GetLocalOpts(), GetItemText(item))) {
         clMainFrame::Get()->GetMainBook()->ApplySettingsChanges();
         // Notify plugins that some settings have changed
         PostCmdEvent(wxEVT_EDITOR_SETTINGS_CHANGED);
@@ -1365,7 +1348,9 @@ void FileViewTree::OnCleanProjectOnly(wxCommandEvent& event)
 
 void FileViewTree::ExpandToPath(const wxString& project, const wxFileName& fileName)
 {
-    if(m_projectsMap.count(project)) {
+    if(m_projectsMap.count(project) == 0) { return; }
+
+    if(fileName.IsOk()) {
         wxTreeItemId child = m_projectsMap.find(project)->second;
         FilewViewTreeItemData* childData = static_cast<FilewViewTreeItemData*>(GetItemData(child));
         if(childData->GetData().GetDisplayName() == project) {
@@ -1382,6 +1367,12 @@ void FileViewTree::ExpandToPath(const wxString& project, const wxFileName& fileN
                 clLogMessage(message);
             }
         }
+    } else {
+        // just expand to the project
+        wxTreeItemId child = m_projectsMap.find(project)->second;
+        if(!child.IsOk()) { return; }
+        SelectItem(child);
+        EnsureVisible(child);
     }
 }
 
@@ -1931,7 +1922,7 @@ void FileViewTree::OnRebuildProjectOnly(wxCommandEvent& event)
 void FileViewTree::OnLocalWorkspaceSettings(wxCommandEvent& e)
 {
     if(ManagerST::Get()->IsWorkspaceOpen()) {
-        WorkspaceSettingsDlg dlg(clMainFrame::Get(), LocalWorkspaceST::Get());
+        WorkspaceSettingsDlg dlg(clMainFrame::Get(), clCxxWorkspaceST::Get()->GetLocalWorkspace());
         if(dlg.ShowModal() == wxID_OK) {
             clMainFrame::Get()->SelectBestEnvSet();
             // Update the new paths
@@ -2340,7 +2331,7 @@ void FileViewTree::OnOpenFileExplorerFromFilePath(wxCommandEvent& e)
     }
 }
 
-void FileViewTree::DoCreateProjectContextMenu(wxMenu& menu, const wxString& projectName)
+void FileViewTree::CreateProjectContextMenu(wxMenu& menu, const wxString& projectName, bool usedByFileView)
 {
     wxMenuItem* item(NULL);
     BitmapLoader* bmpLoader = clGetManager()->GetStdIcons();
@@ -2351,7 +2342,17 @@ void FileViewTree::DoCreateProjectContextMenu(wxMenu& menu, const wxString& proj
     wxBitmap bmpFolder = bmpLoader->LoadBitmap("folder-yellow");
     wxBitmap bmpConsole = bmpLoader->LoadBitmap("console");
     wxBitmap bmpColourPallette = bmpLoader->LoadBitmap("colour-pallette");
+    wxBitmap bmpPin = bmpLoader->LoadBitmap("ToolPin");
 
+    if(usedByFileView) {
+        // When the menu is created for internal usage (i.e. by this class)
+        // add the "Pin Project" menu item
+        item = new wxMenuItem(&menu, XRCID("pin_project"), _("Pin Project"), _("Pin Project"));
+        item->SetBitmap(bmpPin);
+        menu.Append(item);
+        menu.AppendSeparator();
+    }
+    
     item = new wxMenuItem(&menu, XRCID("build_project"), _("Build"), _("Build project"));
     item->SetBitmap(bmpBuild);
     menu.Append(item);
@@ -2443,6 +2444,26 @@ void FileViewTree::DoCreateProjectContextMenu(wxMenu& menu, const wxString& proj
     item = new wxMenuItem(&menu, XRCID("project_properties"), _("Settings..."), _("Settings..."));
     item->SetBitmap(bmpSettings);
     menu.Append(item);
+    
+    // Add the plugins menu
+    if(!ManagerST::Get()->IsBuildInProgress()) {
+        // Let the plugins alter it
+        wxMenu* pluginsMenu = new wxMenu;
+        clContextMenuEvent event(wxEVT_CONTEXT_MENU_PROJECT);
+        event.SetMenu(pluginsMenu);
+        pluginsMenu->SetParent(&menu);
+        EventNotifier::Get()->ProcessEvent(event);
+
+        // Use the old system
+        PluginManager::Get()->HookPopupMenu(pluginsMenu, MenuTypeFileView_Project);
+        if(pluginsMenu->GetMenuItemCount()) {
+            // we got something from the plugins
+            menu.PrependSeparator();
+            menu.Prepend(wxID_ANY, _("Plugins..."), pluginsMenu);
+        } else {
+            wxDELETE(pluginsMenu);
+        }
+    }
 }
 
 void FileViewTree::UnselectAllProject()
@@ -2703,11 +2724,11 @@ void FileViewTree::OnSetBgColourVirtualFolder(wxCommandEvent& e)
 
     // Read the current colours map
     FolderColour::Map_t coloursMap;
-    if(!LocalWorkspaceST::Get()->GetFolderColours(coloursMap)) return;
+    if(!clCxxWorkspaceST::Get()->GetLocalWorkspace()->GetFolderColours(coloursMap)) return;
     // Colour the tree (it will also update the 'coloursMap' table)
     m_colourHelper->SetBgColour(item, col, coloursMap);
     // Store the settings
-    LocalWorkspaceST::Get()->SetFolderColours(coloursMap);
+    clCxxWorkspaceST::Get()->GetLocalWorkspace()->SetFolderColours(coloursMap);
 }
 
 void FileViewTree::OnClearBgColourVirtualFolder(wxCommandEvent& e)
@@ -2718,13 +2739,13 @@ void FileViewTree::OnClearBgColourVirtualFolder(wxCommandEvent& e)
 
     // Fetch the current colours map
     FolderColour::Map_t coloursMap;
-    if(!LocalWorkspaceST::Get()->GetFolderColours(coloursMap)) return;
+    if(!clCxxWorkspaceST::Get()->GetLocalWorkspace()->GetFolderColours(coloursMap)) return;
 
     // Colour the tree (it will also update the 'coloursMap' table)
     m_colourHelper->ResetBgColour(item, coloursMap);
 
     // Update the local settings
-    LocalWorkspaceST::Get()->SetFolderColours(coloursMap);
+    clCxxWorkspaceST::Get()->GetLocalWorkspace()->SetFolderColours(coloursMap);
 }
 
 void FileViewTree::OnAddProjectToWorkspaceFolder(wxCommandEvent& evt)
@@ -2787,7 +2808,7 @@ void FileViewTree::DoAddChildren(const wxTreeItemId& parentItem)
 
     FolderColour::Map_t coloursMap;
     FolderColour::List_t coloursList;
-    LocalWorkspaceST::Get()->GetFolderColours(coloursMap);
+    clCxxWorkspaceST::Get()->GetLocalWorkspace()->GetFolderColours(coloursMap);
 
     // Sort the list
     FolderColour::SortToList(coloursMap, coloursList);
@@ -2993,5 +3014,14 @@ void FileViewTree::OnFindInFilesShowing(clFindInFilesEvent& event)
         }
         selections.Trim();
         event.SetTransientPaths(selections);
+    }
+}
+
+void FileViewTree::OnPinProject(wxCommandEvent& event)
+{
+    wxTreeItemId item = GetSingleSelection();
+    if(item.IsOk()) {
+        wxString projectName = GetItemText(item);
+        clMainFrame::Get()->GetWorkspaceTab()->AddPinnedProject(projectName);
     }
 }

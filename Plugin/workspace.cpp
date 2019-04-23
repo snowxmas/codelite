@@ -45,16 +45,21 @@
 #include "file_logger.h"
 #include "macromanager.h"
 #include "build_settings_config.h"
+#include "localworkspace.h"
+#include "compiler_command_line_parser.h"
 
 clCxxWorkspace::clCxxWorkspace()
     : m_saveOnExit(true)
 {
     SetWorkspaceType(_("C++"));
+    m_localWorkspace = new LocalWorkspace();
 }
 
 clCxxWorkspace::~clCxxWorkspace()
 {
     if(m_saveOnExit && m_doc.IsOk()) { SaveXmlFile(); }
+    delete m_localWorkspace;
+    m_localWorkspace = nullptr;
 }
 
 wxString clCxxWorkspace::GetName() const
@@ -194,7 +199,7 @@ bool clCxxWorkspace::CreateWorkspace(const wxString& name, const wxString& path,
     m_doc.GetRoot()->AddProperty(wxT("Database"), dbFileName.GetFullPath(wxPATH_UNIX));
 
     m_doc.GetRoot()->DeleteAttribute(wxT("SWTLW"));
-    if(LocalWorkspaceST::Get()->GetParserFlags() & LocalWorkspace::EnableSWTLW) {
+    if(GetLocalWorkspace()->GetParserFlags() & LocalWorkspace::EnableSWTLW) {
         m_doc.GetRoot()->AddProperty(wxT("SWTLW"), "Yes");
     }
 
@@ -400,6 +405,7 @@ ProjectPtr clCxxWorkspace::FindProjectByName(const wxString& projName, wxString&
 
 void clCxxWorkspace::GetProjectList(wxArrayString& list) const
 {
+    list.reserve(m_projects.size());
     ProjectMap_t::const_iterator iter = m_projects.begin();
     for(; iter != m_projects.end(); iter++) {
         wxString name;
@@ -637,7 +643,7 @@ bool clCxxWorkspace::SaveXmlFile()
     // we read new path values from the LW and set the appropiate attribute value.
     if(m_doc.GetRoot()->GetAttribute(wxT("SWTLW")) != wxEmptyString) { m_doc.GetRoot()->DeleteAttribute(wxT("SWTLW")); }
 
-    if(LocalWorkspaceST::Get()->GetParserFlags() & LocalWorkspace::EnableSWTLW) {
+    if(GetLocalWorkspace()->GetParserFlags() & LocalWorkspace::EnableSWTLW) {
         m_doc.GetRoot()->AddProperty(wxT("SWTLW"), "Yes");
         SyncFromLocalWorkspaceSTParserPaths();
         SyncFromLocalWorkspaceSTParserMacros();
@@ -678,7 +684,7 @@ void clCxxWorkspace::SyncToLocalWorkspaceSTParserPaths()
 
             child = child->GetNext();
         }
-        LocalWorkspaceST::Get()->SetParserPaths(inclduePaths, excludePaths);
+        GetLocalWorkspace()->SetParserPaths(inclduePaths, excludePaths);
     }
 }
 
@@ -698,7 +704,7 @@ void clCxxWorkspace::SyncFromLocalWorkspaceSTParserPaths()
     //
     wxArrayString inclduePaths;
     wxArrayString excludePaths;
-    LocalWorkspaceST::Get()->GetParserPaths(inclduePaths, excludePaths);
+    GetLocalWorkspace()->GetParserPaths(inclduePaths, excludePaths);
 
     workspaceInclPaths = new wxXmlNode(m_doc.GetRoot(), wxXML_ELEMENT_NODE, wxT("WorkspaceParserPaths"));
     for(size_t i = 0; i < inclduePaths.GetCount(); i++) {
@@ -719,7 +725,7 @@ void clCxxWorkspace::SyncToLocalWorkspaceSTParserMacros()
     if(workspaceMacros) {
         macros = workspaceMacros->GetNodeContent();
         macros.Trim().Trim(false);
-        LocalWorkspaceST::Get()->SetParserMacros(macros);
+        GetLocalWorkspace()->SetParserMacros(macros);
     }
 }
 
@@ -738,7 +744,7 @@ void clCxxWorkspace::SyncFromLocalWorkspaceSTParserMacros()
     // Get workspace parse macros from local workspace file.
     //
     wxString macros;
-    LocalWorkspaceST::Get()->GetParserMacros(macros);
+    GetLocalWorkspace()->GetParserMacros(macros);
     workspaceMacros = new wxXmlNode(m_doc.GetRoot(), wxXML_ELEMENT_NODE, wxT("WorkspaceParserMacros"));
     if(!macros.IsEmpty()) {
         wxXmlNode* contentNode = new wxXmlNode(wxXML_CDATA_SECTION_NODE, wxEmptyString, macros);
@@ -1009,7 +1015,7 @@ cJSON* clCxxWorkspace::CreateCompileCommandsJSON() const
         std::for_each(pathsArr.begin(), pathsArr.end(), [&](wxString& path) {
             path.Trim().Trim(false);
             if(path.EndsWith("\\")) { path.RemoveLast(); }
-            paths << "-I" << path << " ";
+            paths << path << ";";
         });
         compilersGlobalPaths.insert({ compiler_name, paths });
     }
@@ -1024,8 +1030,31 @@ cJSON* clCxxWorkspace::CreateCompileCommandsJSON() const
                 buildConf->GetCustomBuildWorkingDir(), NULL, activeProject->GetName(), buildConf->GetName());
             wxFileName fnWorkingDirectory(buildWorkingDirectory, "compile_commands.json");
             if(fnWorkingDirectory.FileExists()) {
+
                 JSON root(fnWorkingDirectory);
-                return root.release();
+                if(root.isOk()) {
+                    JSON newFile(cJSON_Array);
+                    JSONItem newArr = newFile.toElement();
+                    JSONItem arr = root.toElement();
+                    int size = arr.arraySize();
+                    for(int i = 0; i < size; ++i) {
+                        JSONItem file = arr.arrayItem(i);
+                        wxString command = file.namedObject("command").toString();
+                        wxString filename = file.namedObject("file").toString();
+                        wxString directory = file.namedObject("directory").toString();
+
+                        JSONItem fileItem = JSONItem::createObject();
+                        fileItem.addProperty("file", filename).addProperty("directory", directory);
+
+                        // Fix the build command
+                        CompilerCommandLineParser cclp(command, directory);
+                        cclp.MakeAbsolute(directory);
+                        fileItem.addProperty("command", wxString()
+                                                            << "clang " << cclp.GetCompileLine() << " -c " << filename);
+                        newArr.arrayAppend(fileItem);
+                    }
+                    return newFile.release();
+                }
             }
         }
     }
@@ -1130,7 +1159,7 @@ wxString clCxxWorkspace::GetFilesMask() const
     wxString findInFilesMask = "*.c;*.cpp;*.cxx;*.cc;*.h;*.hpp;*.inc;*.mm;*.m;*.xrc;*.ini;*.xml";
     if(IsOpen()) {
         wxString fifMask;
-        LocalWorkspaceST::Get()->GetSearchInFilesMask(fifMask, findInFilesMask);
+        GetLocalWorkspace()->GetSearchInFilesMask(fifMask, findInFilesMask);
         if(fifMask.IsEmpty()) { fifMask = findInFilesMask; }
     }
     return findInFilesMask;
@@ -1217,8 +1246,8 @@ void clCxxWorkspace::DoLoadProjectsFromXml(wxXmlNode* parentNode, const wxString
                   (child->GetName() == wxT("WorkspaceParserMacros"))) {
             wxString swtlw = XmlUtils::ReadString(m_doc.GetRoot(), "SWTLW");
             if(swtlw.CmpNoCase("yes") == 0) {
-                LocalWorkspaceST::Get()->SetParserFlags(LocalWorkspaceST::Get()->GetParserFlags() |
-                                                        LocalWorkspace::EnableSWTLW);
+                GetLocalWorkspace()->SetParserFlags(GetLocalWorkspace()->GetParserFlags() |
+                                                    LocalWorkspace::EnableSWTLW);
                 SyncToLocalWorkspaceSTParserPaths();
                 SyncToLocalWorkspaceSTParserMacros();
             }
@@ -1448,4 +1477,43 @@ size_t clCxxWorkspace::GetExcludeFilesForConfig(std::vector<wxString>& files, co
         }
     });
     return files.size();
+}
+
+void clCxxWorkspace::CreateCompileFlags() const
+{
+    // Build the global compiler paths, we will need this later on...
+    wxStringMap_t compilersGlobalPaths;
+    std::unordered_map<wxString, wxArrayString> pathsMap = BuildSettingsConfigST::Get()->GetCompilersGlobalPaths();
+    for(const std::unordered_map<wxString, wxArrayString>::value_type& vt : pathsMap) {
+        wxString compiler_name = vt.first;
+        wxArrayString pathsArr = vt.second;
+        wxString paths;
+        std::for_each(pathsArr.begin(), pathsArr.end(), [&](wxString& path) {
+            path.Trim().Trim(false);
+            if(path.EndsWith("\\")) { path.RemoveLast(); }
+            paths << path << ";";
+        });
+        compilersGlobalPaths.insert({ compiler_name, paths });
+    }
+
+    for(const ProjectMap_t::value_type& vt : m_projects) {
+        vt.second->CreateCompileFlags(compilersGlobalPaths);
+    }
+}
+
+void clCxxWorkspace::ClearBacktickCache() { m_backticks.clear(); }
+
+bool clCxxWorkspace::HasBacktick(const wxString& backtick) const { return m_backticks.count(backtick) != 0; }
+
+void clCxxWorkspace::SetBacktickValue(const wxString& backtick, const wxString& value)
+{
+    m_backticks.erase(backtick);
+    m_backticks.insert({ backtick, value });
+}
+
+bool clCxxWorkspace::GetBacktickValue(const wxString& backtick, wxString& value) const
+{
+    if(!HasBacktick(backtick)) { return false; }
+    value = m_backticks.find(backtick)->second;
+    return true;
 }

@@ -81,6 +81,7 @@
 #include <wx/wupdlock.h>
 #include "imanager.h"
 #include "bitmap_loader.h"
+#include "ServiceProviderManager.h"
 //#include "clFileOrFolderDropTarget.h"
 
 #if wxUSE_PRINTING_ARCHITECTURE
@@ -755,30 +756,52 @@ void clEditor::SetProperties()
         MarkerSetAlpha(smt_breakpoint, 30);
     }
 
-    MarkerDefineBitmap(smt_breakpoint, wxBitmap(wxImage(stop_xpm)));
-    MarkerDefineBitmap(smt_bp_disabled, wxBitmap(wxImage(BreakptDisabled)));
+    wxBitmap breakpointBmp = clGetManager()->GetStdIcons()->LoadBitmap("breakpoint");
+    wxBitmap breakpointCondBmp = clGetManager()->GetStdIcons()->LoadBitmap("breakpoint_cond");
+    wxBitmap breakpointCmdList = clGetManager()->GetStdIcons()->LoadBitmap("breakpoint_cmdlist");
+    wxBitmap breakpointIgnored = clGetManager()->GetStdIcons()->LoadBitmap("breakpoint_ignored");
 
-    // Give disabled breakpoints a "grey" look
-    MarkerSetBackground(smt_bp_disabled, "GREY");
-    MarkerSetAlpha(smt_bp_disabled, 30);
+    wxColour breakpointColour = wxColour("#FF5733");
+    wxColour disabledColour = breakpointColour.ChangeLightness(165);
+    wxColour defaultBgColour = StyleGetBackground(0); // Default style background colour
+    
+    MarkerDefine(smt_breakpoint, wxSTC_MARK_CIRCLE);
+    this->MarkerSetBackground(smt_breakpoint, breakpointColour);
+    this->MarkerSetForeground(smt_breakpoint, breakpointColour);
 
-    MarkerDefineBitmap(smt_bp_cmdlist, wxBitmap(wxImage(BreakptCommandList)));
-    MarkerDefineBitmap(smt_bp_cmdlist_disabled, wxBitmap(wxImage(BreakptCommandListDisabled)));
-    MarkerDefineBitmap(smt_bp_ignored, wxBitmap(wxImage(BreakptIgnore)));
-    MarkerDefineBitmap(smt_cond_bp, wxBitmap(wxImage(ConditionalBreakpt)));
-    MarkerDefineBitmap(smt_cond_bp_disabled, wxBitmap(wxImage(ConditionalBreakptDisabled)));
+    MarkerDefine(smt_bp_disabled, wxSTC_MARK_CIRCLE);
+    this->MarkerSetBackground(smt_bp_disabled, disabledColour);
+    this->MarkerSetForeground(smt_bp_disabled, disabledColour);
+
+    MarkerDefine(smt_bp_cmdlist, wxSTC_MARK_CHARACTER + 33); // !
+    this->MarkerSetBackground(smt_bp_cmdlist, breakpointColour);
+    this->MarkerSetForeground(smt_bp_cmdlist, breakpointColour);
+
+    MarkerDefine(smt_bp_cmdlist_disabled, wxSTC_MARK_CHARACTER + 33); // !
+    this->MarkerSetForeground(smt_bp_cmdlist, disabledColour);
+    this->MarkerSetBackground(smt_bp_cmdlist, defaultBgColour);
+
+    MarkerDefine(smt_bp_ignored, wxSTC_MARK_CHARACTER + 105); // i
+    this->MarkerSetForeground(smt_bp_ignored, breakpointColour);
+    this->MarkerSetBackground(smt_bp_ignored, defaultBgColour);
+
+    MarkerDefine(smt_cond_bp, wxSTC_MARK_CHARACTER + 63); // ?
+    this->MarkerSetForeground(smt_cond_bp, breakpointColour);
+    this->MarkerSetBackground(smt_cond_bp, defaultBgColour);
+    
+    MarkerDefine(smt_cond_bp_disabled, wxSTC_MARK_CHARACTER + 63); // ?
+    this->MarkerSetForeground(smt_cond_bp_disabled, disabledColour);
+    this->MarkerSetBackground(smt_cond_bp_disabled, defaultBgColour);
 
     if(options->HasOption(OptionsConfig::Opt_Mark_Debugger_Line)) {
         MarkerDefine(smt_indicator, wxSTC_MARK_BACKGROUND, wxNullColour, options->GetDebuggerMarkerLine());
         MarkerSetAlpha(smt_indicator, 50);
 
     } else {
-
-        wxImage img(arrow_right_green_xpm);
-        wxBitmap bmp(img);
-        MarkerDefineBitmap(smt_indicator, bmp);
-        MarkerSetBackground(smt_indicator, wxT("LIME GREEN"));
-        MarkerSetForeground(smt_indicator, wxT("BLACK"));
+        MarkerDefine(smt_indicator, wxSTC_MARK_SHORTARROW);
+        wxColour debuggerMarkerColour(136, 170, 0);
+        MarkerSetBackground(smt_indicator, debuggerMarkerColour);
+        MarkerSetForeground(smt_indicator, debuggerMarkerColour.ChangeLightness(50));
     }
 
     // warning and error markers
@@ -1101,7 +1124,7 @@ void clEditor::OnCharAdded(wxStyledTextEvent& event)
     if((GetContext()->IsStringTriggerCodeComplete(strTyped) || GetContext()->IsStringTriggerCodeComplete(strTyped2)) &&
        !GetContext()->IsCommentOrString(GetCurrentPos())) {
         // this char should trigger a code completion
-        CodeComplete();
+        CallAfter(&clEditor::CodeComplete, false);
     }
 
     if(matchChar && !m_disableSmartIndent && !m_context->IsCommentOrString(pos)) {
@@ -1144,7 +1167,8 @@ void clEditor::OnCharAdded(wxStyledTextEvent& event)
         if(TagsManagerST::Get()->GetCtagsOptions().GetFlags() & CC_WORD_ASSIST) {
             if(GetWordAtCaret().Len() == (size_t)TagsManagerST::Get()->GetCtagsOptions().GetMinWordLen() &&
                pos - startPos >= TagsManagerST::Get()->GetCtagsOptions().GetMinWordLen()) {
-                CompleteWord(LSP::CompletionItem::kTriggerKindInvoked);
+                // We need to use here 'CallAfter' since the style is not updated until next Paint
+                CallAfter(&clEditor::CompleteWord, LSP::CompletionItem::kTriggerKindInvoked, false);
             }
         }
     }
@@ -1164,8 +1188,8 @@ void clEditor::SetEnsureCaretIsVisible(int pos, bool preserveSelection /*=true*/
 {
     wxUnusedVar(forceDelay);
     DoEnsureCaretIsVisible(pos, preserveSelection);
-    //OptionsConfigPtr opts = EditorConfigST::Get()->GetOptions();
-    //if(forceDelay || (opts && opts->GetWordWrap())) {
+    // OptionsConfigPtr opts = EditorConfigST::Get()->GetOptions();
+    // if(forceDelay || (opts && opts->GetWordWrap())) {
     //    // If the text may be word-wrapped, don't EnsureVisible immediately but from the
     //    // paintevent handler, so that scintilla has time to take word-wrap into account
     //    m_positionToEnsureVisible = pos;
@@ -1565,15 +1589,12 @@ bool clEditor::SaveToFile(const wxFileName& fileName)
 // The write was done to a temporary file, override it
 #ifdef __WXMSW__
     if(!::wxRenameFile(intermediateFile.GetFullPath(), symlinkedFile.GetFullPath(), true)) {
-        bool bSaveSucceeded = false;
         // Check if the file has the ReadOnly attribute and attempt to remove it
         if(MSWRemoveROFileAttribute(symlinkedFile)) {
             if(!::wxRenameFile(intermediateFile.GetFullPath(), symlinkedFile.GetFullPath(), true)) {
                 wxMessageBox(wxString::Format(_("Failed to override read-only file")), "CodeLite",
                              wxOK | wxICON_WARNING);
                 return false;
-            } else {
-                bSaveSucceeded = true;
             }
         }
     }
@@ -1668,16 +1689,7 @@ void clEditor::CompleteWord(LSP::CompletionItem::eTriggerKind triggerKind, bool 
     evt.SetInsideCommentOrString(m_context->IsCommentOrString(PositionBefore(GetCurrentPos())));
     evt.SetTriggerKind(triggerKind);
     evt.SetEventObject(this);
-
-    if(EventNotifier::Get()->ProcessEvent(evt)) {
-        // the plugin handled the code-complete request
-        return;
-
-    } else {
-        CodeCompletionManager::Get().SetWordCompletionRefreshNeeded(onlyRefresh);
-        // let the built-in context do the job
-        m_context->CompleteWord();
-    }
+    ServiceProviderManager::Get().ProcessEvent(evt);
 }
 
 //------------------------------------------------------------------
@@ -1698,15 +1710,7 @@ void clEditor::CodeComplete(bool refreshingList)
         evt.SetInsideCommentOrString(m_context->IsCommentOrString(PositionBefore(GetCurrentPos())));
         evt.SetEventObject(this);
         evt.SetEditor(this);
-
-        if(EventNotifier::Get()->ProcessEvent(evt))
-            // the plugin handled the code-complete request
-            return;
-
-        else {
-            // let the built-in context do the job
-            m_context->CodeComplete();
-        }
+        ServiceProviderManager::Get().ProcessEvent(evt);
 
     } else {
         CompleteWord(LSP::CompletionItem::kTriggerCharacter);
@@ -1728,9 +1732,7 @@ void clEditor::GotoDefinition()
     event.SetWord(word);
     event.SetPosition(GetCurrentPosition());
     event.SetInsideCommentOrString(m_context->IsCommentOrString(PositionBefore(GetCurrentPos())));
-    if(EventNotifier::Get()->ProcessEvent(event)) return;
-
-    m_context->GotoDefinition();
+    ServiceProviderManager::Get().ProcessEvent(event);
 }
 
 void clEditor::OnDwellStart(wxStyledTextEvent& event)
@@ -1798,12 +1800,8 @@ void clEditor::OnDwellStart(wxStyledTextEvent& event)
         evtTypeinfo.SetEditor(this);
         evtTypeinfo.SetPosition(event.GetPosition());
         evtTypeinfo.SetInsideCommentOrString(m_context->IsCommentOrString(event.GetPosition()));
-
-        if(EventNotifier::Get()->ProcessEvent(evtTypeinfo)) {
-            // Did the user provide a tooltip?
+        if(ServiceProviderManager::Get().ProcessEvent(evtTypeinfo)) {
             if(!evtTypeinfo.GetTooltip().IsEmpty()) { DoShowCalltip(wxNOT_FOUND, "", evtTypeinfo.GetTooltip(), true); }
-        } else {
-            m_context->OnDwellStart(event);
         }
     }
 }
@@ -2985,7 +2983,7 @@ void clEditor::DoUpdateRelativeLineNumbers()
     m_lastBeginLine = beginLine;
     m_lastLineCount = lineCount;
     m_lastEndLine = endLine;
-    MarginSetText(curLine, (wxString() << " " << (curLine)));
+    MarginSetText(curLine, (wxString() << " " << (curLine + 1)));
 
     // Use a distinct style to highlight the current line number
     StyleSetBackground(CUR_LINE_NUMBER_STYLE, m_selTextBgColour);
@@ -4055,26 +4053,18 @@ int clEditor::GetEOLByOS()
 
 void clEditor::ShowFunctionTipFromCurrentPos()
 {
-    clDEBUG1() << "Calling ShowFunctionTipFromCurrentPos..." << clEndl;
     if(TagsManagerST::Get()->GetCtagsOptions().GetFlags() & CC_DISP_FUNC_CALLTIP) {
 
         if(EventNotifier::Get()->IsEventsDiabled()) return;
 
         int pos = DoGetOpenBracePos();
-        clDEBUG1() << "Brace open position is:" << pos << clEndl;
-        clDEBUG1() << "Firing wxEVT_CC_CODE_COMPLETE_FUNCTION_CALLTIP event..." << clEndl;
         // see if any of the plugins want to handle it
         clCodeCompletionEvent evt(wxEVT_CC_CODE_COMPLETE_FUNCTION_CALLTIP, GetId());
         evt.SetEventObject(this);
         evt.SetEditor(this);
         evt.SetPosition(pos);
         evt.SetInsideCommentOrString(m_context->IsCommentOrString(pos));
-        if(EventNotifier::Get()->ProcessEvent(evt)) return;
-
-        if(pos != wxNOT_FOUND) {
-            clDEBUG1() << "Using default behavior for wxEVT_CC_CODE_COMPLETE_FUNCTION_CALLTIP event" << clEndl;
-            m_context->CodeComplete(pos);
-        }
+        ServiceProviderManager::Get().ProcessEvent(evt);
     }
 }
 
@@ -4491,7 +4481,6 @@ bool clEditor::FindAndSelect(const wxString& pattern, const wxString& what, int 
 
 bool clEditor::SelectRange(const LSP::Range& range)
 {
-    BrowseRecord jumpfrom = CreateBrowseRecord();
     ClearSelections();
     int startPos = PositionFromLine(range.GetStart().GetLine());
     startPos += range.GetStart().GetCharacter();
@@ -4501,7 +4490,6 @@ bool clEditor::SelectRange(const LSP::Range& range)
     CenterLine(LineFromPosition(startPos), GetColumn(startPos));
     SetSelectionStart(startPos);
     SetSelectionEnd(endPos);
-    NavMgr::Get()->AddJump(jumpfrom, CreateBrowseRecord());
     return true;
 }
 
@@ -4652,7 +4640,9 @@ void clEditor::DoUpdateOptions()
     m_options = EditorConfigST::Get()->GetOptions();
 
     // Now let any local preferences overwrite the global equivalent
-    if(ManagerST::Get()->IsWorkspaceOpen()) { LocalWorkspaceST::Get()->GetOptions(m_options, GetProject()); }
+    if(clCxxWorkspaceST::Get()->IsOpen()) {
+        clCxxWorkspaceST::Get()->GetLocalWorkspace()->GetOptions(m_options, GetProject());
+    }
 
     clEditorConfigEvent event(wxEVT_EDITOR_CONFIG_LOADING);
     event.SetFileName(GetFileName().GetFullPath());

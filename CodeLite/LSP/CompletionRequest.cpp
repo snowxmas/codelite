@@ -10,7 +10,6 @@ LSP::CompletionRequest::CompletionRequest(const LSP::TextDocumentIdentifier& tex
     m_params.reset(new CompletionParams());
     m_params->As<CompletionParams>()->SetPosition(position);
     m_params->As<CompletionParams>()->SetTextDocument(textDocument);
-    SetNeedsReply(true);
 }
 
 LSP::CompletionRequest::~CompletionRequest() {}
@@ -29,9 +28,10 @@ void LSP::CompletionRequest::OnResponse(const LSP::ResponseMessage& response, wx
     for(int i = 0; i < itemsCount; ++i) {
         CompletionItem::Ptr_t completionItem(new CompletionItem());
         completionItem->FromJSON(items.arrayItem(i));
+        if(completionItem->GetInsertText().IsEmpty()) { completionItem->SetInsertText(completionItem->GetLabel()); }
         completions.push_back(completionItem);
     }
-    
+
     clDEBUG() << "Received:" << completions.size() << "completion items";
     if(!completions.empty()) {
         LSPEvent event(wxEVT_LSP_COMPLETION_READY);
@@ -40,8 +40,10 @@ void LSP::CompletionRequest::OnResponse(const LSP::ResponseMessage& response, wx
     }
 }
 
-void LSP::CompletionRequest::BuildUID()
+bool LSP::CompletionRequest::IsValidAt(const wxFileName& filename, size_t line, size_t col) const
 {
-    if(!m_uuid.IsEmpty()) { return; }
-    m_uuid << GetMethod() << ":" << m_params->As<CompletionParams>()->GetTextDocument().GetFilename().GetFullPath();
+    const wxFileName& fn = m_params->As<CompletionParams>()->GetTextDocument().GetFilename();
+    size_t calledLine = m_params->As<CompletionParams>()->GetPosition().GetLine();
+    size_t calledColumn = m_params->As<CompletionParams>()->GetPosition().GetCharacter();
+    return (fn == filename) && (calledLine == line) && (calledColumn == col);
 }

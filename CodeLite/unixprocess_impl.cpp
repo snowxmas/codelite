@@ -30,6 +30,7 @@
 #include "fileutils.h"
 #include "SocketAPI/clSocketBase.h"
 #include <thread>
+#include "StringUtils.h"
 
 #if defined(__WXMAC__) || defined(__WXGTK__)
 
@@ -244,52 +245,14 @@ static void make_argv(const wxString& cmd)
     }
 }
 
-#define BUFF_STATE_NORMAL 0
-#define BUFF_STATE_IN_ESC 1
-
 static void RemoveTerminalColoring(char* buffer)
 {
-    char* saved_buff = buffer;
-    char tmpbuf[BUFF_SIZE + 1];
-    memset(tmpbuf, 0, sizeof(tmpbuf));
+    std::string cinput = buffer;
+    std::string coutout;
+    StringUtils::StripTerminalColouring(cinput, coutout);
 
-    short state = BUFF_STATE_NORMAL;
-    size_t i(0);
-
-    while((*buffer) != 0) {
-        switch(state) {
-        case BUFF_STATE_NORMAL:
-            if(*buffer == 0x1B) { // found ESC char
-                state = BUFF_STATE_IN_ESC;
-
-            } else {
-                tmpbuf[i] = *buffer;
-                i++;
-            }
-            break;
-        case BUFF_STATE_IN_ESC:
-            switch((*buffer)) {
-            case 'm':
-            case 'K':
-            case 'G':
-            case 'J':
-            case 'H':
-            case 'X':
-            case 'B':
-            case 'C':
-            case 'D':
-            case 'd':
-                state = BUFF_STATE_NORMAL;
-                break;
-            default:
-                break;
-            }
-            break;
-        }
-        buffer++;
-    }
-    memset(saved_buff, 0, BUFF_SIZE);
-    memcpy(saved_buff, tmpbuf, strlen(tmpbuf));
+    // coutout is ALWAYS <= cinput, so we can safely copy the content to the buffer
+    strcpy(buffer, coutout.c_str());
 }
 
 UnixProcessImpl::UnixProcessImpl(wxEvtHandler* parent)
@@ -330,15 +293,13 @@ bool UnixProcessImpl::ReadFromFd(int fd, fd_set& rset, wxString& output)
     if(FD_ISSET(fd, &rset)) {
         // there is something to read
         char buffer[BUFF_SIZE + 1]; // our read buffer
-        memset(buffer, 0, sizeof(buffer));
         int bytesRead = read(fd, buffer, sizeof(buffer));
         if(bytesRead > 0) {
-            buffer[BUFF_SIZE] = 0; // always place a terminator
+            buffer[bytesRead] = 0; // always place a terminator
 
             // Remove coloring chars from the incomnig buffer
             // colors are marked with ESC and terminates with lower case 'm'
-            RemoveTerminalColoring(buffer);
-
+            if(!(this->m_flags & IProcessRawOutput)) { RemoveTerminalColoring(buffer); }
             wxString convBuff = wxString(buffer, wxConvUTF8);
             if(convBuff.IsEmpty()) { convBuff = wxString::From8BitData(buffer); }
 
@@ -388,29 +349,19 @@ bool UnixProcessImpl::Read(wxString& buff, wxString& buffErr)
     }
 }
 
-bool UnixProcessImpl::Write(const wxString& buff)
-{
-    wxString tmpbuf = buff;
-    std::string cstr = FileUtils::ToStdString(tmpbuf);
-    return Write(cstr);
-}
+bool UnixProcessImpl::Write(const std::string& buff) { return WriteRaw(buff + "\n"); }
 
-bool UnixProcessImpl::Write(const std::string& buff)
+bool UnixProcessImpl::Write(const wxString& buff) { return Write(FileUtils::ToStdString(buff)); }
+
+bool UnixProcessImpl::WriteRaw(const wxString& buff) { return WriteRaw(FileUtils::ToStdString(buff)); }
+bool UnixProcessImpl::WriteRaw(const std::string& buff)
 {
     std::string tmpbuf = buff;
-    tmpbuf.append("\n");
-
-    clSocketBase c(GetWriteHandle());
-    c.MakeSocketBlocking(false);
-    c.SetCloseOnExit(false);
-
     const int chunk_size = 1024;
     while(!tmpbuf.empty()) {
         int bytes_written =
             ::write(GetWriteHandle(), tmpbuf.c_str(), tmpbuf.length() > chunk_size ? chunk_size : tmpbuf.length());
-        if(bytes_written <= 0) { 
-            return false; 
-        }
+        if(bytes_written <= 0) { return false; }
         tmpbuf.erase(0, bytes_written);
     }
     return true;
@@ -441,7 +392,9 @@ IProcess* UnixProcessImpl::Execute(wxEvtHandler* parent, const wxString& cmd, si
 
     // Prentend that we are a terminal...
     int master, slave;
-    openpty(&master, &slave, NULL, NULL, NULL);
+    char pts_name[1024];
+    memset(pts_name, 0x0, sizeof(pts_name));
+    openpty(&master, &slave, pts_name, NULL, NULL);
 
     // Create a one-way communication channel (pipe).
     // If successful, two file descriptors are stored in stderrPipes;
@@ -467,11 +420,11 @@ IProcess* UnixProcessImpl::Execute(wxEvtHandler* parent, const wxString& cmd, si
         termio.c_lflag = ICANON;
         termio.c_oflag = ONOCR | ONLRET;
         tcsetattr(slave, TCSANOW, &termio);
-        
+
         // Set 'slave' as STD{IN|OUT|ERR} and close slave FD
         login_tty(slave);
         close(master); // close the un-needed master end
-        
+
         // Incase the user wants to get separate events for STDERR, dup2 STDERR to the PIPE write end
         // we opened earlier
         if(flags & IProcessStderrEvent) {
@@ -532,7 +485,10 @@ IProcess* UnixProcessImpl::Execute(wxEvtHandler* parent, const wxString& cmd, si
         proc->SetWriteHandler(master);
         proc->SetPid(rc);
         proc->m_flags = flags; // Keep the creation flags
-
+        
+        // Keep the terminal name, we will need it
+        proc->SetTty(pts_name);
+        
         if(!(proc->m_flags & IProcessCreateSync)) { proc->StartReaderThread(); }
         return proc;
     }

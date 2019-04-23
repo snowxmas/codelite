@@ -78,6 +78,8 @@
 #include <wx/wfstream.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/zipstrm.h>
+#include "StringUtils.h"
+#include "windowattrmanager.h"
 
 #ifdef __WXMSW__
 #include <Uxtheme.h>
@@ -1907,47 +1909,9 @@ IManager* clGetManager()
 
 void clSetManager(IManager* manager) { s_pluginManager = manager; }
 
-#define BUFF_STATE_NORMAL 0
-#define BUFF_STATE_IN_ESC 1
-
 void clStripTerminalColouring(const wxString& buffer, wxString& modbuffer)
 {
-    modbuffer.Clear();
-    short state = BUFF_STATE_NORMAL;
-    wxString::const_iterator iter = buffer.begin();
-    for(; iter != buffer.end(); ++iter) {
-        wxChar ch = *iter;
-        if(ch == 7) continue; // BELL
-
-        switch(state) {
-        case BUFF_STATE_NORMAL:
-            if(ch == 0x1B) { // found ESC char
-                state = BUFF_STATE_IN_ESC;
-
-            } else {
-                modbuffer << ch;
-            }
-            break;
-        case BUFF_STATE_IN_ESC:
-            switch(ch) {
-            case 'm':
-            case 'K':
-            case 'G':
-            case 'J':
-            case 'H':
-            case 'X':
-            case 'B':
-            case 'C':
-            case 'D':
-            case 'd':
-                state = BUFF_STATE_NORMAL;
-                break;
-            default:
-                break;
-            }
-            break;
-        }
-    }
+    StringUtils::StripTerminalColouring(buffer, modbuffer);
 }
 
 bool clIsVaidProjectName(const wxString& name)
@@ -2143,11 +2107,10 @@ void clSetTLWindowBestSizeAndPosition(wxWindow* win)
 
     if(!tlw || !parentTlw) { return; }
 
-    wxRect parentRect = parentTlw->GetSize();
-    parentRect.Deflate(50);
-    tlw->SetSizeHints(parentRect.GetSize());
-    tlw->SetSize(parentRect.GetSize());
-    tlw->GetSizer()->Fit(win); 
+    wxRect frameSize = parentTlw->GetSize();
+    frameSize.Deflate(100);
+    tlw->SetSizeHints(frameSize.GetSize());
+    tlw->SetSize(frameSize.GetSize());
     tlw->CenterOnParent();
 
     // If the parent is maximized, maximize this window as well
@@ -2158,13 +2121,7 @@ void clSetTLWindowBestSizeAndPosition(wxWindow* win)
 
 void clSetDialogBestSizeAndPosition(wxDialog* win)
 {
-    if(!win || !win->GetParent()) { return; }
-
-    wxRect parentRect = win->GetParent()->GetSize();
-    parentRect.SetWidth(parentRect.GetWidth() / 3);
-    parentRect.SetHeight(parentRect.GetHeight() / 3);
-    win->SetSizeHints(parentRect.GetSize());
-    win->SetSize(parentRect.GetSize());
-    win->GetSizer()->Fit(win);
-    win->CenterOnParent();
+    if(!win) { return; }
+    WindowAttrManager::Load(win);
+    if(win->GetParent()) { win->CentreOnParent(); }
 }

@@ -62,7 +62,6 @@
 #include "precompiled_header.h"
 #include "quickfindbar.h"
 #include "refactorengine.h"
-#include "refactoring_storage.h"
 #include "save_perspective_as_dlg.h"
 #include "tags_parser_search_path_dlg.h"
 #include "theme_handler_helper.h"
@@ -79,6 +78,11 @@
 #include "DebuggerToolBar.h"
 #include "clThemeUpdater.h"
 #include "clInfoBar.h"
+#include "findusagetab.h"
+#include "context_cpp.h"
+#include "renamesymboldlg.h"
+#include <cpptoken.h>
+#include "ServiceProviderManager.h"
 
 #ifdef __WXGTK20__
 // We need this ugly hack to workaround a gtk2-wxGTK name-clash
@@ -671,7 +675,6 @@ EVT_MENU(XRCID("find_references"), clMainFrame::OnCppContextMenu)
 EVT_MENU(XRCID("comment_selection"), clMainFrame::OnCppContextMenu)
 EVT_MENU(XRCID("comment_line"), clMainFrame::OnCppContextMenu)
 EVT_MENU(XRCID("retag_file"), clMainFrame::OnCppContextMenu)
-EVT_MENU(XRCID("rename_local_variable"), clMainFrame::OnCppContextMenu)
 
 //-----------------------------------------------------------------
 // Hyperlinks
@@ -793,8 +796,6 @@ clMainFrame::clMainFrame(wxWindow* pParent, wxWindowID id, const wxString& title
     EventNotifier::Get()->Bind(wxEVT_WORKSPACE_LOADED, &clMainFrame::OnWorkspaceLoaded, this);
     EventNotifier::Get()->Connect(wxEVT_WORKSPACE_CLOSED, wxCommandEventHandler(clMainFrame::OnWorkspaceClosed), NULL,
                                   this);
-    EventNotifier::Get()->Connect(wxEVT_REFACTORING_ENGINE_CACHE_INITIALIZING,
-                                  wxCommandEventHandler(clMainFrame::OnRefactoringCacheStatus), NULL, this);
     EventNotifier::Get()->Connect(wxEVT_CL_THEME_CHANGED, wxCommandEventHandler(clMainFrame::OnThemeChanged), NULL,
                                   this);
     EventNotifier::Get()->Connect(wxEVT_ACTIVE_EDITOR_CHANGED,
@@ -818,6 +819,8 @@ clMainFrame::clMainFrame(wxWindow* pParent, wxWindowID id, const wxString& title
     EventNotifier::Get()->Bind(wxEVT_DEBUG_STARTED, &clMainFrame::OnDebugStarted, this);
     EventNotifier::Get()->Bind(wxEVT_DEBUG_ENDED, &clMainFrame::OnDebugEnded, this);
     m_infoBar->Bind(wxEVT_BUTTON, &clMainFrame::OnInfobarButton, this);
+    EventNotifier::Get()->Bind(wxEVT_REFACTOR_ENGINE_REFERENCES, &clMainFrame::OnFindReferences, this);
+    EventNotifier::Get()->Bind(wxEVT_REFACTOR_ENGINE_RENAME_SYMBOL, &clMainFrame::OnRenameSymbol, this);
 
     // Start the code completion manager, we do this by calling it once
     CodeCompletionManager::Get();
@@ -857,6 +860,9 @@ clMainFrame::~clMainFrame(void)
     // Free the code completion manager
     CodeCompletionManager::Release();
 
+    // Release the refactoring engine
+    RefactoringEngine::Shutdown();
+
 // this will make sure that the main menu bar's member m_widget is freed before the we enter wxMenuBar destructor
 // see this wxWidgets bug report for more details:
 //  http://trac.wxwidgets.org/ticket/14292
@@ -881,7 +887,8 @@ clMainFrame::~clMainFrame(void)
                          NULL, this);
     wxTheApp->Disconnect(wxID_CUT, wxEVT_UPDATE_UI, wxUpdateUIEventHandler(clMainFrame::DispatchUpdateUIEvent), NULL,
                          this);
-
+    EventNotifier::Get()->Unbind(wxEVT_REFACTOR_ENGINE_REFERENCES, &clMainFrame::OnFindReferences, this);
+    EventNotifier::Get()->Unbind(wxEVT_REFACTOR_ENGINE_RENAME_SYMBOL, &clMainFrame::OnRenameSymbol, this);
     EventNotifier::Get()->Unbind(wxEVT_ENVIRONMENT_VARIABLES_MODIFIED, &clMainFrame::OnEnvironmentVariablesModified,
                                  this);
     EventNotifier::Get()->Disconnect(wxEVT_SHELL_COMMAND_PROCESS_ENDED,
@@ -890,8 +897,6 @@ clMainFrame::~clMainFrame(void)
     EventNotifier::Get()->Unbind(wxEVT_WORKSPACE_LOADED, &clMainFrame::OnWorkspaceLoaded, this);
     EventNotifier::Get()->Disconnect(wxEVT_WORKSPACE_CLOSED, wxCommandEventHandler(clMainFrame::OnWorkspaceClosed),
                                      NULL, this);
-    EventNotifier::Get()->Disconnect(wxEVT_REFACTORING_ENGINE_CACHE_INITIALIZING,
-                                     wxCommandEventHandler(clMainFrame::OnRefactoringCacheStatus), NULL, this);
     EventNotifier::Get()->Disconnect(wxEVT_CL_THEME_CHANGED, wxCommandEventHandler(clMainFrame::OnThemeChanged), NULL,
                                      this);
     EventNotifier::Get()->Disconnect(wxEVT_ACTIVE_EDITOR_CHANGED,
@@ -1092,8 +1097,6 @@ void clMainFrame::CreateGUIControls()
     m_workspacePane = new WorkspacePane(m_mainPanel, wxT("Workspace View"), &m_mgr);
     m_mgr.AddPane(m_workspacePane, wxAuiPaneInfo()
                                        .CaptionVisible(true)
-                                       .MinimizeButton()
-                                       .MaximizeButton()
                                        .Name(m_workspacePane->GetCaption())
                                        .Caption(m_workspacePane->GetCaption())
                                        .Left()
@@ -1113,9 +1116,7 @@ void clMainFrame::CreateGUIControls()
                                       .Layer(1)
                                       .Position(1)
                                       .CloseButton(true)
-                                      .MinimizeButton()
-                                      .Hide()
-                                      .MaximizeButton());
+                                      .Hide());
     RegisterDockWindow(XRCID("debugger_pane"), wxT("Debugger"));
 
     // Wrap the mainbook with a wxPanel
@@ -1156,10 +1157,8 @@ void clMainFrame::CreateGUIControls()
                                     .Bottom()
                                     .Layer(1)
                                     .Position(0)
-                                    .MinimizeButton()
                                     .Show(false)
-                                    .BestSize(wxSize(wxNOT_FOUND, 400))
-                                    .MaximizeButton());
+                                    .BestSize(wxSize(wxNOT_FOUND, 400)));
     RegisterDockWindow(XRCID("output_pane"), wxT("Output View"));
 
     long show_nav = EditorConfigST::Get()->GetInteger(wxT("ShowNavBar"), 0);
@@ -1201,7 +1200,7 @@ void clMainFrame::CreateGUIControls()
                                          m_tagsOptionsData.GetParserExcludePaths());
 
     ParseThreadST::Get()->Start();
-    
+
     // Connect this tree to the parse thread
     ParseThreadST::Get()->SetNotifyWindow(this);
 
@@ -1800,6 +1799,7 @@ void clMainFrame::OnCloseWorkspace(wxCommandEvent& event)
 {
     wxUnusedVar(event);
 
+    wxBusyCursor bc;
     // let the plugins close any custom workspace
     clCommandEvent e(wxEVT_CMD_CLOSE_WORKSPACE, GetId());
     e.SetEventObject(this);
@@ -1812,6 +1812,9 @@ void clMainFrame::OnCloseWorkspace(wxCommandEvent& event)
 void clMainFrame::OnSwitchWorkspace(wxCommandEvent& event)
 {
     wxUnusedVar(event);
+
+    wxBusyCursor bc;
+
     wxString wspFile;
     const wxString WSP_EXT = "workspace";
 
@@ -3099,18 +3102,18 @@ void clMainFrame::OnIdle(wxIdleEvent& e)
     e.Skip();
 
     // make sure that we are always set to the working directory of the workspace
-    if(clCxxWorkspaceST::Get()->IsOpen()) {
-        // Check that current working directory is set to the workspace folder
-        wxString path = clCxxWorkspaceST::Get()->GetWorkspaceFileName().GetPath();
-        wxString curdir = ::wxGetCwd();
-        if(path != curdir) {
-            // Check that it really *is* different, not just a symlink issue: see bug #942
-            if(CLRealPath(path) != CLRealPath(curdir)) {
-                clDEBUG1() << "Current working directory is reset to:" << path;
-                ::wxSetWorkingDirectory(path);
-            }
-        }
-    }
+    //    if(clCxxWorkspaceST::Get()->IsOpen()) {
+    //        // Check that current working directory is set to the workspace folder
+    //        wxString path = clCxxWorkspaceST::Get()->GetWorkspaceFileName().GetPath();
+    //        wxString curdir = ::wxGetCwd();
+    //        if(path != curdir) {
+    //            // Check that it really *is* different, not just a symlink issue: see bug #942
+    //            if(CLRealPath(path) != CLRealPath(curdir)) {
+    //                clDEBUG1() << "Current working directory is reset to:" << path;
+    //                ::wxSetWorkingDirectory(path);
+    //            }
+    //        }
+    //    }
 }
 
 void clMainFrame::OnLinkClicked(wxHtmlLinkEvent& e)
@@ -4214,7 +4217,10 @@ void clMainFrame::OnRetagWorkspace(wxCommandEvent& event)
     wxCommandEvent e(fullRetag ? wxEVT_CMD_RETAG_WORKSPACE_FULL : wxEVT_CMD_RETAG_WORKSPACE, GetId());
     e.SetEventObject(this);
     if(EventNotifier::Get()->ProcessEvent(e)) return;
-
+    
+    // Update the parser paths with the global ones
+    ManagerST::Get()->UpdateParserPaths(false);
+    
     TagsManager::RetagType type = TagsManager::Retag_Quick_No_Scan;
     if(event.GetId() == XRCID("retag_workspace"))
         type = TagsManager::Retag_Quick;
@@ -4224,13 +4230,6 @@ void clMainFrame::OnRetagWorkspace(wxCommandEvent& event)
 
     else if(event.GetId() == XRCID("retag_workspace_no_includes"))
         type = TagsManager::Retag_Quick_No_Scan;
-
-    wxMenu* menu = dynamic_cast<wxMenu*>(event.GetEventObject());
-    if(menu) {
-        // the event was fired from the menu bar, trigger a compile_commands.json file generation
-        // Generate the compile_commands files (needed for Clang)
-        ManagerST::Get()->GenerateCompileCommands();
-    }
     ManagerST::Get()->RetagWorkspace(type);
 }
 
@@ -4454,17 +4453,6 @@ void clMainFrame::OnDatabaseUpgrade(wxCommandEvent& e)
     m_workspaceRetagIsRequired = true;
 }
 
-void clMainFrame::UpdateTagsOptions(const TagsOptionsData& tod)
-{
-    m_tagsOptionsData = tod;
-    TagsManagerST::Get()->SetCtagsOptions(m_tagsOptionsData);
-
-    clConfig ccConfig("code-completion.conf");
-    ccConfig.WriteItem(&m_tagsOptionsData);
-
-    ParseThreadST::Get()->SetSearchPaths(tod.GetParserSearchPaths(), tod.GetParserExcludePaths());
-}
-
 void clMainFrame::OnCheckForUpdate(wxCommandEvent& e)
 {
     if(!m_webUpdate) {
@@ -4523,6 +4511,7 @@ void clMainFrame::SelectBestEnvSet()
     wxString projectDbgSetName;
 
     // First, if the project has an environment which is not '<Use Defaults>' use it
+    wxString workspaceSetName;
     if(ManagerST::Get()->IsWorkspaceOpen()) {
         wxString activeProj = clCxxWorkspaceST::Get()->GetActiveProjectName();
         ProjectPtr p = ManagerST::Get()->GetProject(activeProj);
@@ -4537,9 +4526,9 @@ void clMainFrame::SelectBestEnvSet()
                 if(buildConf->GetDbgEnvSet() != USE_GLOBAL_SETTINGS) { projectDbgSetName = buildConf->GetDbgEnvSet(); }
             }
         }
+        workspaceSetName = clCxxWorkspaceST::Get()->GetLocalWorkspace()->GetActiveEnvironmentSet();
     }
 
-    wxString workspaceSetName = LocalWorkspaceST::Get()->GetActiveEnvironmentSet();
     wxString globalActiveSet = wxT("Default");
     wxString activeSetName;
     EvnVarList vars = EnvironmentConfig::Instance()->GetSettings();
@@ -4668,9 +4657,11 @@ void clMainFrame::SetAUIManagerFlags()
         auiMgrFlags |= wxAUI_MGR_VENETIAN_BLINDS_HINT;
         break;
     }
-#ifndef __WXGTK__
     auiMgrFlags |= wxAUI_MGR_LIVE_RESIZE;
-#endif
+//#if defined(__WXGTK__) && !defined(__WXGTK3__) 
+    // GTK2, remove live-resize flag
+    //auiMgrFlags &= ~wxAUI_MGR_LIVE_RESIZE;
+//#endif
     m_mgr.SetFlags(auiMgrFlags);
 }
 
@@ -4683,10 +4674,10 @@ void clMainFrame::UpdateAUI()
 void clMainFrame::OnRetaggingCompelted(wxCommandEvent& e)
 {
     e.Skip();
-    
+
     // Generate compile_commands.json file
     ManagerST::Get()->GenerateCompileCommands();
-    
+
     GetStatusBar()->SetMessage(_("Done"));
     GetWorkspacePane()->ClearProgress();
 
@@ -5617,12 +5608,13 @@ void clMainFrame::OnWordComplete(wxCommandEvent& event)
     int curPos = stc->GetCurrentPos();
     int start = stc->WordStartPosition(stc->GetCurrentPos(), true);
     if(curPos < start) return;
+    
     clCodeCompletionEvent ccEvent(wxEVT_CC_WORD_COMPLETE);
     ccEvent.SetEditor(editor);
     ccEvent.SetEventObject(this);
     ccEvent.SetTriggerKind(LSP::CompletionItem::kTriggerUser);
     ccEvent.SetWord(stc->GetTextRange(start, curPos));
-    EventNotifier::Get()->ProcessEvent(ccEvent);
+    ServiceProviderManager::Get().ProcessEvent(ccEvent);
 
     const wxCodeCompletionBoxEntry::Vec_t& entries = ccEvent.GetEntries();
     if(entries.empty()) return;
@@ -5775,3 +5767,22 @@ void clMainFrame::OnShowMenuBarUI(wxUpdateUIEvent& event)
 }
 
 void clMainFrame::Raise() { wxFrame::Raise(); }
+
+void clMainFrame::OnFindReferences(clRefactoringEvent& e)
+{
+    e.Skip();
+    // Show the results
+    GetOutputPane()->GetShowUsageTab()->ShowUsage(e.GetMatches(), e.GetString());
+}
+
+void clMainFrame::OnRenameSymbol(clRefactoringEvent& e)
+{
+    e.Skip();
+    // display the refactor dialog
+    RenameSymbol dlg(this, e.GetMatches(), e.GetPossibleMatches(), e.GetString());
+    if(dlg.ShowModal() == wxID_OK) {
+        CppToken::Vec_t matches;
+        dlg.GetMatches(matches);
+        if(!matches.empty() && dlg.GetWord() != e.GetString()) { ContextCpp::ReplaceInFiles(dlg.GetWord(), matches); }
+    }
+}

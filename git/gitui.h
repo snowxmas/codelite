@@ -22,16 +22,16 @@
 #include <wx/textctrl.h>
 #include <wx/checkbox.h>
 #include <wx/button.h>
+#include <wx/splitter.h>
+#include "clThemedSplitterWindow.h"
+#include <wx/dataview.h>
+#include "clThemedListCtrl.h"
+#include <wx/stc/stc.h>
 #include <wx/toolbar.h>
 #include "clToolBar.h"
-#include <wx/splitter.h>
-#include <wx/checklst.h>
-#include <wx/stc/stc.h>
 #include <wx/srchctrl.h>
 #include <wx/combobox.h>
 #include <wx/arrstr.h>
-#include <wx/dataview.h>
-#include "clThemedListCtrl.h"
 #include <wx/listbox.h>
 #include "gitCommitEditor.h"
 #include <wx/radiobox.h>
@@ -46,6 +46,7 @@
 #include <wx/aui/auibar.h>
 #include <map>
 #include <wx/menu.h>
+#include <wx/checklst.h>
 #if wxVERSION_NUMBER >= 2900
 #include <wx/persist.h>
 #include <wx/persist/toplevel.h>
@@ -125,37 +126,37 @@ public:
 class GitCommitDlgBase : public wxDialog
 {
 protected:
-    clToolBar* m_toolbar;
-    wxSplitterWindow* m_splitterMain;
+    clThemedSplitterWindow* m_splitterMain;
     wxPanel* m_panel3;
-    wxSplitterWindow* m_splitterInner;
+    clThemedSplitterWindow* m_splitterInner;
     wxPanel* m_panel1;
-    wxCheckListBox* m_listBox;
+    clThemedListCtrl* m_dvListCtrlFiles;
     wxPanel* m_panel2;
     wxStyledTextCtrl* m_stcDiff;
     wxPanel* m_panel4;
+    clToolBar* m_toolbar;
     wxStyledTextCtrl* m_stcCommitMessage;
     wxCheckBox* m_checkBoxAmend;
     wxButton* m_buttonOK;
     wxButton* m_buttonCancel;
 
 protected:
-    virtual void OnChangeFile(wxCommandEvent& event) { event.Skip(); }
+    virtual void OnChangeFile(wxDataViewEvent& event) { event.Skip(); }
     virtual void OnAmendClicked(wxCommandEvent& event) { event.Skip(); }
     virtual void OnCommitOK(wxCommandEvent& event) { event.Skip(); }
 
 public:
-    clToolBar* GetToolbar() { return m_toolbar; }
-    wxCheckListBox* GetListBox() { return m_listBox; }
+    clThemedListCtrl* GetDvListCtrlFiles() { return m_dvListCtrlFiles; }
     wxPanel* GetPanel1() { return m_panel1; }
     wxStyledTextCtrl* GetStcDiff() { return m_stcDiff; }
     wxPanel* GetPanel2() { return m_panel2; }
-    wxSplitterWindow* GetSplitterInner() { return m_splitterInner; }
+    clThemedSplitterWindow* GetSplitterInner() { return m_splitterInner; }
     wxPanel* GetPanel3() { return m_panel3; }
+    clToolBar* GetToolbar() { return m_toolbar; }
     wxStyledTextCtrl* GetStcCommitMessage() { return m_stcCommitMessage; }
     wxCheckBox* GetCheckBoxAmend() { return m_checkBoxAmend; }
     wxPanel* GetPanel4() { return m_panel4; }
-    wxSplitterWindow* GetSplitterMain() { return m_splitterMain; }
+    clThemedSplitterWindow* GetSplitterMain() { return m_splitterMain; }
     wxButton* GetButtonOK() { return m_buttonOK; }
     wxButton* GetButtonCancel() { return m_buttonCancel; }
     GitCommitDlgBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Git commit"),
@@ -428,7 +429,7 @@ class GitConsoleBase : public wxPanel
 {
 protected:
     clToolBar* m_toolbar;
-    wxSplitterWindow* m_splitter733;
+    clThemedSplitterWindow* m_splitter733;
     wxPanel* m_splitterPage737;
     Notebook* m_notebookChanges;
     wxPanel* m_panel674;
@@ -460,7 +461,7 @@ public:
     wxPanel* GetPanel_log() { return m_panel_log; }
     Notebook* GetNotebookLog() { return m_notebookLog; }
     wxPanel* GetSplitterPage741() { return m_splitterPage741; }
-    wxSplitterWindow* GetSplitter733() { return m_splitter733; }
+    clThemedSplitterWindow* GetSplitter733() { return m_splitter733; }
     wxGauge* GetGauge() { return m_gauge; }
     GitConsoleBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition,
                    const wxSize& size = wxSize(-1, -1), long style = wxTAB_TRAVERSAL);

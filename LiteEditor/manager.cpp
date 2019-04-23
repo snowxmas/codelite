@@ -50,7 +50,6 @@
 #include <wx/stdpaths.h>
 #include <wx/tokenzr.h>
 
-#include "CompileCommandsCreateor.h"
 #include "CompilersModifiedDlg.h"
 #include "DebuggerCallstackView.h"
 #include "NewProjectWizard.h"
@@ -107,6 +106,7 @@
 #include "workspace_pane.h"
 #include "workspacetab.h"
 #include "wxCodeCompletionBoxManager.h"
+#include "ServiceProviderManager.h"
 
 #ifndef __WXMSW__
 #include <sys/wait.h>
@@ -258,7 +258,7 @@ Manager::~Manager(void)
 
     // free all plugins
     PluginManager::Get()->UnLoad();
-
+    ServiceProviderManager::Get().UnregisterAll();
     DebuggerMgr::Free();
     JobQueueSingleton::Release();
     ParseThreadST::Free(); // since the parser is making use of the TagsManager,
@@ -347,19 +347,16 @@ void Manager::DoSetupWorkspace(const wxString& path)
     wxBusyCursor cursor;
     AddToRecentlyOpenedWorkspaces(path);
 
+    // set the C++ workspace as the active one
+    clWorkspaceManager::Get().SetWorkspace(clCxxWorkspaceST::Get());
+
     wxCommandEvent evtWorkspaceLoaded(wxEVT_WORKSPACE_LOADED);
     evtWorkspaceLoaded.SetString(path);
     EventNotifier::Get()->ProcessEvent(evtWorkspaceLoaded);
 
-    // set the C++ workspace as the active one
-    clWorkspaceManager::Get().SetWorkspace(clCxxWorkspaceST::Get());
-
     // Update the refactoring cache
     wxFileList_t allfiles;
     GetWorkspaceFiles(allfiles, true);
-
-    // Initialize the cache
-    RefactoringEngine::Instance()->InitializeCache(allfiles);
 
     {
         SessionEntry session;
@@ -372,6 +369,9 @@ void Manager::DoSetupWorkspace(const wxString& path)
             clMainFrame::Get()->GetDebuggerPane()->GetBreakpointView()->Initialize();
         }
     }
+
+    // clear old paths
+    ParseThreadST::Get()->ClearPaths();
 
     // Update the parser search paths
     UpdateParserPaths(false);
@@ -895,11 +895,6 @@ void Manager::RetagWorkspace(TagsManager::RetagType type)
     // it is faster to drop the tables instead of deleting
     if(type == TagsManager::Retag_Full) { TagsManagerST::Get()->GetDatabase()->RecreateDatabase(); }
 
-    // Incase anything was changed, update the parser search paths
-    clDEBUG() << "Updating parser paths..." << clEndl;
-    UpdateParserPaths(false);
-    clDEBUG() << "Updating parser paths...done" << clEndl;
-
     clDEBUG() << "Fetching project list..." << clEndl;
     // Start the parsing by collecing list of files to parse
     wxArrayString projects;
@@ -910,19 +905,21 @@ void Manager::RetagWorkspace(TagsManager::RetagType type)
     for(size_t i = 0; i < projects.GetCount(); i++) {
         ProjectPtr proj = GetProject(projects.Item(i));
         if(proj) {
-            clDEBUG() << "Fetching files for project:" << proj->GetName() << clEndl;
+            clDEBUG1() << "Fetching files for project:" << proj->GetName() << clEndl;
             proj->GetFilesAsVectorOfFileName(projectFiles);
-            clDEBUG() << "Fetching files for project:" << proj->GetName() << "...done" << clEndl;
+            clDEBUG1() << "Fetching files for project:" << proj->GetName() << "...done" << clEndl;
         }
     }
 
     // Create a parsing request
     ParseRequest* parsingRequest = new ParseRequest(clMainFrame::Get());
     clDEBUG() << "Filtering non relevant files..." << clEndl;
+    parsingRequest->_workspaceFiles.reserve(projectFiles.size());
+
     for(size_t i = 0; i < projectFiles.size(); i++) {
         // filter any non valid coding file
-        if(!TagsManagerST::Get()->IsValidCtagsFile(projectFiles.at(i))) continue;
-        parsingRequest->_workspaceFiles.push_back(projectFiles.at(i).GetFullPath().mb_str(wxConvUTF8).data());
+        const wxFileName& fn = projectFiles[i];
+        parsingRequest->_workspaceFiles.push_back(fn.GetFullPath().ToAscii().data());
     }
 
     clDEBUG() << "Filtering non relevant files...done" << clEndl;
@@ -951,11 +948,10 @@ void Manager::RetagWorkspace(TagsManager::RetagType type)
 
 void Manager::RetagFile(const wxString& filename)
 {
-    if(IsWorkspaceClosing()) {
-        clLogMessage(wxString::Format(wxT("Workspace in being closed, skipping re-tag for file %s"), filename.c_str()));
-        return;
-    }
-    if(!TagsManagerST::Get()->IsValidCtagsFile(wxFileName(filename))) { return; }
+    if(IsWorkspaceClosing()) { return; }
+
+    // Is this a C++ file?
+    if(!FileExtManager::IsCxxFile(wxFileName(filename))) { return; }
 
     wxFileName absFile(filename);
     absFile.MakeAbsolute();
@@ -3159,91 +3155,51 @@ void Manager::UpdateParserPaths(bool notify)
     // Parser paths are now updated via the compile_commands.json which is auto generated when:
     // 1. Build process is ended
     // 2. Workspace is loaded
-#if 0
-//    wxBusyCursor bc;
-//
-//    wxArrayString localIncludePaths;
-//    wxArrayString localExcludePaths;
-//    wxArrayString projectIncludePaths;
-//
-//    wxStringSet_t compileIncludePaths;
-//
-//    // If we have an opened workspace, get its search paths
-//    if(IsWorkspaceOpen()) {
-//
-//        wxArrayString projects;
-//        clCxxWorkspaceST::Get()->GetProjectList(projects);
-//        for(size_t i = 0; i < projects.GetCount(); ++i) {
-//            ProjectPtr pProj = clCxxWorkspaceST::Get()->GetProject(projects.Item(i));
-//            if(pProj) {
-//                wxArrayString compilerIncPaths = pProj->GetIncludePaths();
-//                for(size_t index = 0; index < compilerIncPaths.GetCount(); ++index) {
-//                    compileIncludePaths.insert(compilerIncPaths.Item(index));
-//                }
-//            }
-//        }
-//        LocalWorkspaceST::Get()->GetParserPaths(localIncludePaths, localExcludePaths);
-//
-//        BuildConfigPtr buildConf = GetCurrentBuildConf();
-//        if(buildConf) {
-//            wxString projSearchPaths = buildConf->GetCcSearchPaths();
-//            projectIncludePaths = wxStringTokenize(projSearchPaths, wxT("\r\n"), wxTOKEN_STRTOK);
-//        }
-//    }
-//
-//    for(size_t i = 0; i < projectIncludePaths.GetCount(); i++) {
-//        projectIncludePaths.Item(i) =
-//            MacroManager::Instance()->Expand(projectIncludePaths.Item(i), PluginManager::Get(), GetActiveProjectName());
-//    }
-//
-//    // Update the parser thread with the new paths
-//    wxArrayString globalIncludePath, uniExcludePath;
-//    TagsOptionsData tod = clMainFrame::Get()->GetTagsOptions();
-//    globalIncludePath = tod.GetParserSearchPaths();
-//    uniExcludePath = tod.GetParserExcludePaths();
-//
-//    // Add the global search paths to the local workspace
-//    // include paths (the order does matter)
-//    for(size_t i = 0; i < globalIncludePath.GetCount(); i++) {
-//        if(localIncludePaths.Index(globalIncludePath.Item(i)) == wxNOT_FOUND) {
-//            localIncludePaths.Add(globalIncludePath.Item(i));
-//        }
-//    }
-//
-//    // Add the project paths as well
-//    for(size_t i = 0; i < projectIncludePaths.GetCount(); i++) {
-//        if(localIncludePaths.Index(projectIncludePaths.Item(i)) == wxNOT_FOUND) {
-//            localIncludePaths.Add(projectIncludePaths.Item(i));
-//        }
-//    }
-//
-//    for(size_t i = 0; i < localExcludePaths.GetCount(); i++) {
-//        if(uniExcludePath.Index(localExcludePaths.Item(i)) == wxNOT_FOUND) {
-//            uniExcludePath.Add(localExcludePaths.Item(i));
-//        }
-//    }
-//
-//    wxStringSet_t::iterator iter = compileIncludePaths.begin();
-//    for(; iter != compileIncludePaths.end(); ++iter) {
-//        if(localIncludePaths.Index(*iter) == wxNOT_FOUND) { localIncludePaths.Add(*iter); }
-//    }
-//
-//    wxArrayString existingPaths;
-//    for(size_t i = 0; i < localIncludePaths.GetCount(); ++i) {
-//        if(wxFileName::DirExists(localIncludePaths.Item(i))) {
-//            existingPaths.Add(localIncludePaths.Item(i));
-//            CL_DEBUG("Parser thread include path: %s", localIncludePaths.Item(i));
-//        }
-//    }
-//    localIncludePaths.swap(existingPaths);
-//
-//    for(size_t i = 0; i < localExcludePaths.GetCount(); ++i) {
-//        CL_DEBUG("Parser thread exclude path: %s", localExcludePaths.Item(i));
-//    }
-//
-//    ParseThreadST::Get()->SetSearchPaths(localIncludePaths, uniExcludePath);
-#endif
-    CodeCompletionManager::Get().UpdateParserPaths();
+    wxBusyCursor bc;
+
+    // If we have an opened workspace, get its search paths
+    if(IsWorkspaceOpen()) {
+        wxArrayString projects;
+        clCxxWorkspaceST::Get()->GetProjectList(projects);
+        for(size_t i = 0; i < projects.GetCount(); ++i) {
+            ProjectPtr pProj = clCxxWorkspaceST::Get()->GetProject(projects.Item(i));
+            if(pProj) {
+                wxArrayString compilerIncPaths = pProj->GetIncludePaths();
+                ParseThreadST::Get()->AddPaths(compilerIncPaths, {});
+            }
+        }
+
+        // get the workspace search paths and append them to the current paths
+        wxArrayString localInc, localExc;
+        clCxxWorkspaceST::Get()->GetLocalWorkspace()->GetParserPaths(localInc, localExc);
+        ParseThreadST::Get()->AddPaths(localInc, localExc);
+
+        // get the build configuration specific paths and add them as well
+        BuildConfigPtr buildConf = GetCurrentBuildConf();
+        if(buildConf) {
+            wxString projSearchPaths = buildConf->GetCcSearchPaths();
+            wxArrayString projectInc = wxStringTokenize(projSearchPaths, wxT("\r\n"), wxTOKEN_STRTOK);
+
+            // Expand macros
+            for(wxString& projectPath : projectInc) {
+                projectPath =
+                    MacroManager::Instance()->Expand(projectPath, PluginManager::Get(), GetActiveProjectName());
+            }
+            ParseThreadST::Get()->AddPaths(projectInc, {});
+        }
+    }
+
+    // Get the global paths from the configuration (settings->code completion->ctags->search paths)
+    const TagsOptionsData& tod = clMainFrame::Get()->GetTagsOptions();
+    const wxArrayString& globalInc = tod.GetParserSearchPaths();
+    const wxArrayString& globalExc = tod.GetParserExcludePaths();
+    ParseThreadST::Get()->AddPaths(globalInc, globalExc);
+
+    {
+        wxArrayString inc, exc;
+        ParseThreadST::Get()->GetSearchPaths(inc, exc);
+        clDEBUG() << "Parser paths are now set to:" << inc;
+    }
 }
 
 void Manager::OnIncludeFilesScanDone(wxCommandEvent& event)
@@ -3256,6 +3212,9 @@ void Manager::OnIncludeFilesScanDone(wxCommandEvent& event)
     wxArrayString projects;
     GetProjectList(projects);
 
+    clDEBUG() << "Scan for include files is done";
+
+    clDEBUG() << "Building project file list...";
     std::vector<wxFileName> projectFiles;
     for(size_t i = 0; i < projects.GetCount(); i++) {
         ProjectPtr proj = GetProject(projects.Item(i));
@@ -3268,8 +3227,9 @@ void Manager::OnIncludeFilesScanDone(wxCommandEvent& event)
         wxString fn(projectFiles.at(i).GetFullPath());
         fileSet->insert(fn);
     }
+    clDEBUG() << "Building project file list...done";
 
-    //	fprintf(stderr, "Parsing the following files\n");
+    clDEBUG() << "Converting set to vector...";
     // recreate the list in the form of vector (the API requirs vector)
     projectFiles.clear();
     std::set<wxString>::iterator iter = fileSet->begin();
@@ -3280,6 +3240,7 @@ void Manager::OnIncludeFilesScanDone(wxCommandEvent& event)
         if(fn.IsRelative()) { fn.MakeAbsolute(); }
         projectFiles.push_back(fn);
     }
+    clDEBUG() << "Converting set to vector...done";
 
 #if !USE_PARSER_TREAD_FOR_RETAGGING_WORKSPACE
     wxStopWatch sw;

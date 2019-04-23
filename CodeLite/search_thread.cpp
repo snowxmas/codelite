@@ -80,7 +80,8 @@ SearchData& SearchData::Copy(const SearchData& other)
     m_excludePatterns.clear();
     m_excludePatterns.insert(m_excludePatterns.end(), other.m_excludePatterns.begin(), other.m_excludePatterns.end());
     m_files.clear();
-    for(size_t i = 0; i < other.m_files.GetCount(); i++) {
+    m_files.reserve(other.m_files.size());
+    for(size_t i = 0; i < other.m_files.size(); ++i) {
         m_files.Add(other.m_files.Item(i).c_str());
     }
     return *this;
@@ -548,20 +549,18 @@ void SearchThread::SendEvent(wxEventType type, wxEvtHandler* owner)
 {
     if(!m_notifiedWindow && !owner) return;
 
-    static int counter(0);
-
     wxCommandEvent event(type, GetId());
 
-    if(type == wxEVT_SEARCH_THREAD_MATCHFOUND && counter == 10) {
+    if(type == wxEVT_SEARCH_THREAD_MATCHFOUND && m_counter == 10) {
         // match found and we scanned 10 files
-        counter = 0;
+        m_counter = 0;
         event.SetClientData(new SearchResultList(m_results));
         m_results.clear();
         SEND_ST_EVENT();
 
     } else if(type == wxEVT_SEARCH_THREAD_MATCHFOUND) {
         // a match event, but we did not meet the minimum number of files
-        counter++;
+        m_counter++;
         wxThread::Sleep(10);
 
     } else if((type == wxEVT_SEARCH_THREAD_SEARCHEND) || (type == wxEVT_SEARCH_THREAD_SEARCHCANCELED)) {
@@ -578,7 +577,7 @@ void SearchThread::SendEvent(wxEventType type, wxEvtHandler* owner)
         }
 
         m_results.clear();
-        counter = 0;
+        m_counter = 0;
 
         // Now send the summary event
         event.SetClientData(type == wxEVT_SEARCH_THREAD_SEARCHEND ? new SearchSummary(m_summary) : nullptr);

@@ -119,4 +119,95 @@ JSONItem Location::ToJSON(const wxString& name) const
     json.append(m_range.ToJSON("range"));
     return json;
 }
+
+void TextEdit::FromJSON(const JSONItem& json)
+{
+    m_range.FromJSON(json.namedObject("range"));
+    m_newText = json.namedObject("newText").toString();
+}
+
+JSONItem TextEdit::ToJSON(const wxString& name) const
+{
+    JSONItem json = JSONItem::createObject(name);
+    json.addProperty("newText", m_newText);
+    json.append(m_range.ToJSON("range"));
+    return json;
+}
 }; // namespace LSP
+
+void LSP::ParameterInformation::FromJSON(const JSONItem& json)
+{
+    m_label = json.namedObject("label").toString();
+    m_documentation = json.namedObject("documentation").toString();
+}
+
+JSONItem LSP::ParameterInformation::ToJSON(const wxString& name) const
+{
+    JSONItem json = JSONItem::createObject(name);
+    json.addProperty("label", m_label);
+    json.addProperty("documentation", m_documentation);
+    return json;
+}
+
+void LSP::SignatureInformation::FromJSON(const JSONItem& json)
+{
+    m_label = json.namedObject("label").toString();
+    m_documentation = json.namedObject("documentation").toString();
+    m_parameters.clear();
+    if(json.hasNamedObject("parameters")) {
+        JSONItem parameters = json.namedObject("parameters");
+        const int size = parameters.arraySize();
+        if(size > 0) {
+            m_parameters.reserve(size);
+            for(int i = 0; i < size; ++i) {
+                ParameterInformation p;
+                p.FromJSON(parameters.arrayItem(i));
+                m_parameters.push_back(p);
+            }
+        }
+    }
+}
+
+JSONItem LSP::SignatureInformation::ToJSON(const wxString& name) const
+{
+    JSONItem json = JSONItem::createObject(name);
+    json.addProperty("label", m_label);
+    json.addProperty("documentation", m_documentation);
+    if(!m_parameters.empty()) {
+        JSONItem params = JSONItem::createArray("parameters");
+        json.append(params);
+        for(size_t i = 0; i < m_parameters.size(); ++i) {
+            params.append(m_parameters.at(i).ToJSON(""));
+        }
+    }
+    return json;
+}
+
+void LSP::SignatureHelp::FromJSON(const JSONItem& json)
+{
+    // Read the signatures
+    m_signatures.clear();
+    JSONItem signatures = json.namedObject("signatures");
+    const int count = signatures.arraySize();
+    for(int i = 0; i < count; ++i) {
+        SignatureInformation si;
+        si.FromJSON(signatures.arrayItem(i));
+        m_signatures.push_back(si);
+    }
+
+    m_activeSignature = json.namedObject("activeSignature").toInt(0);
+    m_activeParameter = json.namedObject("activeParameter").toInt(0);
+}
+
+JSONItem LSP::SignatureHelp::ToJSON(const wxString& name) const
+{
+    JSONItem json = JSONItem::createObject(name);
+    JSONItem signatures = JSONItem::createArray("signatures");
+    json.append(signatures);
+    for(const SignatureInformation& si : m_signatures) {
+        signatures.arrayAppend(si.ToJSON(""));
+    }
+    json.addProperty("activeSignature", m_activeSignature);
+    json.addProperty("activeParameter", m_activeParameter);
+    return json;
+}
